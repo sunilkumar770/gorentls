@@ -64,7 +64,7 @@ export async function getListings(filters: SearchFilters = {}) {
     // Spring boot Page<T> returns data in `content`
     const content = response.data.content || [];
     return content.map(mapListingResponse) as Listing[];
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to get listings', error);
     return [];
   }
@@ -74,7 +74,7 @@ export async function getListing(id: string): Promise<Listing | null> {
   try {
     const response = await api.get(`/listings/${id}`);
     return mapListingResponse(response.data);
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Failed to get listing ${id}`, error);
     return null;
   }
@@ -86,7 +86,7 @@ export async function getOwnerListings(ownerId: string): Promise<Listing[]> {
     const response = await api.get('/listings/owner/mine');
     const content = response.data.content || [];
     return content.map(mapListingResponse);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to get owner listings', error);
     throw error;
   }

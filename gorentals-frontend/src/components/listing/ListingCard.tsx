@@ -2,13 +2,18 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { Listing } from '@/types';
 import { formatCurrency } from '@/lib/utils';
+import { useState } from 'react';
 import { Star, MapPin } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 
 export function ListingCard({ listing }: { listing: Listing }) {
-  const primaryImage = listing.listing_images?.find((img) => img.is_primary)?.image_url 
+  const [imgSrc, setImgSrc] = useState(
+    listing.listing_images?.find((img) => img.is_primary)?.image_url 
     || listing.listing_images?.[0]?.image_url
-    || '/placeholder-item.jpg';
+    || '/placeholder-item.jpg'
+  );
+
+  const fallbackImage = 'https://images.unsplash.com/photo-1593642532842-98d0fd5ebc1a?q=80&w=2069&auto=format&fit=crop';
 
   // Fallback to avoid breaking if stores relation is missing somehow
   const store = Array.isArray(listing.stores) ? listing.stores[0] : listing.stores;
@@ -22,9 +27,10 @@ export function ListingCard({ listing }: { listing: Listing }) {
         {/* Image Container: Inset Frame within Frame */}
         <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#fff8f6] rounded-[1.25rem]">
           <Image
-            src={primaryImage}
+            src={imgSrc}
             alt={listing.title}
             fill
+            onError={() => setImgSrc(fallbackImage)}
             className="object-cover transition-transform duration-700 group-hover:scale-110"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />

@@ -97,7 +97,7 @@ export async function getRenterBookings(renterId: string): Promise<Booking[]> {
     const response = await api.get('/bookings/my-bookings');
     const content = response.data.content || [];
     return content.map(mapBookingResponse);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to get renter bookings', error);
     return [];
   }
@@ -108,7 +108,7 @@ export async function getOwnerBookings(ownerId: string): Promise<Booking[]> {
     const response = await api.get('/bookings/owner/bookings');
     const content = response.data.content || [];
     return content.map(mapBookingResponse);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to get owner bookings', error);
     return [];
   }
@@ -119,7 +119,26 @@ export async function updateBookingPayment(
   razorpayOrderId: string,
   razorpayPaymentId: string
 ) {
-  // We need to implement an endpoint for verifying razorpay in java. 
-  // Currently we just patch the generic complete/accept if required, or let payment service handle it.
   console.warn('updateBookingPayment not fully integrated with Java backend payment verification.');
 }
+
+export async function acceptBooking(bookingId: string): Promise<Booking> {
+  const response = await api.patch(`/bookings/${bookingId}/accept`);
+  return mapBookingResponse(response.data);
+}
+
+export async function rejectBooking(bookingId: string): Promise<Booking> {
+  const response = await api.patch(`/bookings/${bookingId}/reject`);
+  return mapBookingResponse(response.data);
+}
+
+export async function cancelBooking(bookingId: string): Promise<Booking> {
+  const response = await api.patch(`/bookings/${bookingId}/cancel`);
+  return mapBookingResponse(response.data);
+}
+
+export async function completeBooking(bookingId: string): Promise<Booking> {
+  const response = await api.patch(`/bookings/${bookingId}/complete`);
+  return mapBookingResponse(response.data);
+}
+

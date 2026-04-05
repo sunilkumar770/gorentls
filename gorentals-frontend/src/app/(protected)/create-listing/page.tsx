@@ -16,7 +16,7 @@ export default function CreateListingPage() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: CATEGORIES[0].value,
+    category: CATEGORIES[0].value as string,
     type: '',
     pricePerDay: '',
     securityDeposit: '',

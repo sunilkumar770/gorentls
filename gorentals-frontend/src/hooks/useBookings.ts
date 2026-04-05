@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getRenterBookings, getOwnerBookings } from '@/services/bookings';
 import type { Booking } from '@/types';
 
@@ -8,28 +8,34 @@ export function useRenterBookings(renterId: string | undefined) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetch = useCallback(() => {
     if (!renterId) { setLoading(false); return; }
+    setLoading(true);
     getRenterBookings(renterId).then(data => {
       setBookings(data);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   }, [renterId]);
 
-  return { bookings, loading };
+  useEffect(() => { fetch(); }, [fetch]);
+
+  return { bookings, loading, refetch: fetch };
 }
 
 export function useOwnerBookings(ownerId: string | undefined) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetch = useCallback(() => {
     if (!ownerId) { setLoading(false); return; }
+    setLoading(true);
     getOwnerBookings(ownerId).then(data => {
       setBookings(data);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   }, [ownerId]);
 
-  return { bookings, loading };
+  useEffect(() => { fetch(); }, [fetch]);
+
+  return { bookings, loading, refetch: fetch };
 }

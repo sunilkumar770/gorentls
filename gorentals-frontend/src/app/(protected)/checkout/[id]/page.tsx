@@ -6,12 +6,13 @@ import { toast } from 'react-hot-toast';
 import { Calendar, ShieldCheck, MapPin, Loader2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
-import { getListingById } from '@/services/listings';
+import { getListing } from '@/services/listings';
 import { createBooking } from '@/services/bookings';
 import type { Listing } from '@/types';
 import { formatCurrency, calculateDays } from '@/lib/utils';
 import { SERVICE_FEE_PERCENTAGE } from '@/constants';
 import Link from 'next/link';
+import { payments, loadRazorpayScript } from '@/services/payments';
 
 export default function CheckoutPage() {
   const params = useParams();
@@ -28,10 +29,10 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (params.id) {
-      getListingById(params.id as string).then(data => {
+      getListing(params.id as string).then((data: any) => {
         setListing(data);
         setLoading(false);
-      }).catch(err => {
+      }).catch((err: any) => {
         toast.error('Failed to load listing for checkout');
         setLoading(false);
       });
@@ -74,7 +75,8 @@ export default function CheckoutPage() {
     }
     setProcessing(true);
     try {
-      await createBooking({
+      // 1. Create the booking (Initially in PENDING_PAYMENT or similar state)
+      const booking = await createBooking({
         listing_id: listing.id,
         store_id: listing.owner_id,
         owner_id: listing.owner_id,
@@ -87,11 +89,60 @@ export default function CheckoutPage() {
         total_amount: totalAmount
       });
       
-      toast.success('Acquisition request filed successfully.');
-      router.push('/dashboard');
+      // 2. Load script & initiate payment flow
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+          toast.error('Razorpay SDK failed to load. Please check your connection.');
+          return;
+      }
+
+      // 3. Request order from backend
+      const { orderId, amount: paymentAmount, currency, razorpayKey } = await payments.initiate({
+        bookingId: booking.id,
+        amount: totalAmount,
+        currency: 'INR'
+      });
+
+      // 4. Trigger Razorpay Modal
+      const options = {
+        key: razorpayKey || 'rzp_test_placeholder', // Should be in env or from backend
+        amount: paymentAmount,
+        currency: currency,
+        name: 'GoRentals',
+        description: `Acquisition of ${listing.title}`,
+        order_id: orderId,
+        handler: async (response: any) => {
+            try {
+                setProcessing(true);
+                // 5. Verify payment
+                await payments.verify({
+                    razorpayPaymentId: response.razorpay_payment_id,
+                    razorpayOrderId: response.razorpay_order_id,
+                    razorpaySignature: response.razorpay_signature
+                });
+                
+                toast.success('Acquisition request filed successfully.');
+                router.push('/dashboard');
+            } catch (err: any) {
+                toast.error('Payment verification failed.');
+            } finally {
+                setProcessing(false);
+            }
+        },
+        prefill: {
+            name: user.full_name || '',
+            email: user.email || '',
+        },
+        theme: {
+            color: '#f97316'
+        }
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
       
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create booking');
+      toast.error(error.message || 'Failed to process acquisition');
     } finally {
       setProcessing(false);
     }

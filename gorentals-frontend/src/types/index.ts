@@ -3,15 +3,20 @@ export type UserType = 'renter' | 'store_owner' | 'admin';
 export interface Profile {
   id: string;
   email: string;
-  full_name: string | null;
-  phone_number: string | null;
-  avatar_url: string | null;
-  user_type: UserType | null;
-  kyc_verified: boolean;
-  verification_status: 'unverified' | 'pending' | 'verified' | 'rejected';
+  fullName: string | null;
+  phone: string | null;
+  profilePicture: string | null;
+  userType: UserType | null;
+  isActive: boolean;
+  kycStatus: 'PENDING' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+  kycDocumentType: string | null;
+  kycDocumentId: string | null;
+  kycDocumentUrl: string | null;
   city: string | null;
   state: string | null;
-  created_at: string;
+  address: string | null;
+  pincode: string | null;
+  createdAt: string;
 }
 
 export interface Store {

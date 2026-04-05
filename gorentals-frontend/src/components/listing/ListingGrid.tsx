@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { getListings } from '@/services/listings';
 import { ListingCard } from './ListingCard';
 import { ListingCardSkeleton } from '../ui/Skeleton';
@@ -13,15 +16,31 @@ interface ListingGridProps {
   };
 }
 
-export async function ListingGrid({ filters = {} }: ListingGridProps) {
-  // Try/catch just in case supabase is not configured yet
-  let listings: Listing[] = [];
-  let error = null;
-  
-  try {
-    listings = await getListings(filters);
-  } catch (e) {
-    error = e;
+export function ListingGrid({ filters = {} }: ListingGridProps) {
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchListings = async () => {
+      setLoading(true);
+      try {
+        const data = await getListings(filters);
+        setListings(data);
+        setError(null);
+      } catch (err: any) {
+        console.error('Failed to fetch listings:', err);
+        setError(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchListings();
+  }, [JSON.stringify(filters)]);
+
+  if (loading) {
+    return <ListingGridLoading />;
   }
 
   if (error) {
