@@ -1,0 +1,3 @@
+﻿.next/types/validator.ts(107,39): error TS2307: Cannot find module '../../src/app/api/razorpay/create-order/route.js' or its corresponding type declarations.
+.next/types/validator.ts(116,39): error TS2307: Cannot find module '../../src/app/api/razorpay/webhook/route.js' or its corresponding type declarations.
+.next/types/validator.ts(125,39): error TS2307: Cannot find module '../../src/app/auth/callback/route.js' or its corresponding type declarations.

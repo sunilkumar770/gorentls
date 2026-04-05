@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --background: #fff8f6;
+  --foreground: #251913;
+
+  --color-card: #ffffff;
+  --color-card-foreground: #251913;
+
+  --color-primary: #9d4300;
+  --color-primary-foreground: #fff8f6;
+
+  --color-secondary: #8f4d27;
+  --color-secondary-foreground: #ffffff;
+
+  --color-muted: #f1f1f1;
+  --color-muted-foreground: #584237;
+
+  --color-accent: #f97316;
+  --color-accent-foreground: #ffffff;
+
+  --color-border: #e2e2e2;
+  --color-input: #e2e2e2;
+  --color-ring: #f97316;
+
+  --radius-xl: 1.5rem;
+  
+  --font-display: "Manrope", sans-serif;
+  --font-sans: "Inter", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-[#fff8f6] text-[#251913] font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4, .font-display {
+    @apply font-display tracking-tight text-[#251913];
+  }
+}
+
+@layer utilities {
+  .shadow-ambient {
+    box-shadow: 0px 12px 32px rgba(37, 25, 19, 0.06);
+  }
+  
+  .glass-panel {
+    @apply bg-[rgba(255,248,246,0.8)] backdrop-blur-xl border border-white/20;
+  }
+  
+  .gradient-signature {
+    @apply bg-gradient-to-br from-[#f97316] to-[#9d4300];
+  }
+}

@@ -1,0 +1,29 @@
+# Node
+node_modules/
+.next/
+dist/
+build/
+npm-debug.log
+.env
+.env.local
+.env.development.local
+
+# Java / Spring Boot
+target/
+*.class
+*.jar
+*.war
+.mvn/
+mvnw
+mvnw.cmd
+
+# IDE
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
