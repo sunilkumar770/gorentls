@@ -1,23 +1,42 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useOwnerBookings } from '@/hooks/useBookings';
 import { useAuth } from '@/hooks/useAuth';
-import { Package, IndianRupee, Clock, ArrowRight, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Package, IndianRupee, Clock, CheckCircle, XCircle, Loader2, Star, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { acceptBooking, rejectBooking } from '@/services/bookings';
 import { getOwnerListings } from '@/services/listings';
-import { useEffect } from 'react';
 import type { Listing } from '@/types';
 import { toast } from 'react-hot-toast';
 
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+function DashboardSkeleton() {
+  return (
+    <div className="min-h-screen bg-[#f9fafb] pt-4 pb-16 animate-pulse">
+      <div className="max-w-6xl mx-auto px-4 sm:px-8">
+        <div className="h-10 w-1/3 bg-gray-200 rounded-lg mb-8" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+          {[1,2,3,4].map(i => <div key={i} className="h-28 bg-white rounded-2xl shadow-sm" />)}
+        </div>
+        <div className="h-6 w-1/4 bg-gray-200 rounded mb-4" />
+        <div className="flex flex-col gap-3">
+          {[1,2,3].map(i => <div key={i} className="h-20 bg-white rounded-xl shadow-sm" />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ────────────────────────────────────────────────────────────────────
 export default function OwnerDashboardPage() {
   const { user, profile } = useAuth();
   const { bookings, loading, refetch } = useOwnerBookings(user?.id);
   const [listings, setListings] = useState<Listing[]>([]);
   const [listingsLoading, setListingsLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'listings' | 'requests'>('listings');
 
   useEffect(() => {
     if (user?.id) {
@@ -28,22 +47,16 @@ export default function OwnerDashboardPage() {
     }
   }, [user?.id]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#fff8f6] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full border-4 border-[#f97316]/20 border-t-[#f97316] animate-spin" />
-          <span className="text-xs font-black uppercase tracking-widest text-[#8c7164]">Retrieving Archives...</span>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <DashboardSkeleton />;
 
-  const activeBookings = bookings.filter(b => b.booking_status === 'confirmed');
+  const activeBookings = bookings.filter(b => b.booking_status === 'confirmed' || b.booking_status === 'in_progress');
   const pendingRequests = bookings.filter(b => b.booking_status === 'pending_confirmation');
   const totalEarned = bookings
     .filter(b => b.payment_status === 'completed')
     .reduce((sum, b) => sum + b.rental_cost, 0);
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   const handleAccept = async (id: string) => {
     setActionId(id);
@@ -72,207 +85,237 @@ export default function OwnerDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fff8f6] pt-12 pb-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+    <div className="min-h-screen bg-[#f9fafb]">
+      {/* ── Navbar ── */}
+      <nav className="sticky top-0 z-50 bg-white border-b border-[#e5e7eb]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 font-bold text-xl text-[#111827]">
+            <span className="w-8 h-8 bg-[#16a34a] rounded-lg flex items-center justify-center text-white text-sm font-black">G</span>
+            GoRentals
+          </Link>
+          <Link
+            href="/create-listing"
+            className="px-4 py-2 bg-[#16a34a] text-white text-sm font-semibold rounded-lg hover:bg-[#15803d] transition-colors flex items-center gap-1.5"
+          >
+            + Add Listing
+          </Link>
+        </div>
+      </nav>
 
-        {/* Header */}
-        <div className="mb-16 border-b border-[#251913]/5 pb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-8 py-8">
+
+        {/* ── Header ── */}
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-6xl md:text-8xl font-display font-black tracking-tighter text-[#251913] leading-[0.8] mb-4">
-              Control<span className="text-[#f97316]">.</span>
+            <h1 className="text-3xl font-bold text-[#111827]">
+              {greeting}, {profile?.fullName?.split(' ')[0] || 'Owner'} 👋
             </h1>
-            <p className="text-xl text-[#8c7164] font-medium tracking-tight">
-              Welcome back, <span className="text-[#251913] font-black">{profile?.fullName || 'Owner'}</span>. Your inventory overview.
-            </p>
+            <p className="text-[#6b7280] text-sm mt-1">Here&apos;s your rental overview</p>
           </div>
-          <div className="flex gap-4">
-            <Link href="/owner/listings/create">
-              <button className="gradient-signature px-8 py-4 text-white rounded-full font-display font-black shadow-ambient transition-transform hover:-translate-y-1">
-                + Add Artifact
-              </button>
-            </Link>
-          </div>
+          <Link
+            href="/create-listing"
+            className="hidden sm:inline-flex px-4 py-2 bg-[#16a34a] text-white text-sm font-semibold rounded-lg hover:bg-[#15803d] transition-colors items-center gap-1.5"
+          >
+            + Add Listing
+          </Link>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-          <div className="bg-white p-8 rounded-[2rem] shadow-ambient ring-1 ring-[#f97316]/5 border-l-4 border-l-[#f97316]">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#8c7164] mb-2">Total Revenue</p>
-                <h3 className="text-4xl font-display font-black text-[#251913]">{formatCurrency(totalEarned)}</h3>
-              </div>
-              <div className="p-3 bg-[#fff8f6] rounded-[1rem]">
-                <IndianRupee className="w-5 h-5 text-[#f97316]" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-8 rounded-[2rem] shadow-ambient ring-1 ring-[#f97316]/5 border-l-4 border-l-[#be185d]">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#8c7164] mb-2">Active Deployments</p>
-                <h3 className="text-4xl font-display font-black text-[#251913]">{activeBookings.length}</h3>
-              </div>
-              <div className="p-3 bg-[#fdf2f8] rounded-[1rem]">
-                <Package className="w-5 h-5 text-[#be185d]" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-8 rounded-[2rem] shadow-ambient ring-1 ring-[#f97316]/5 border-l-4 border-l-[#3b82f6]">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#8c7164] mb-2">Pending Requests</p>
-                <h3 className="text-4xl font-display font-black text-[#251913]">{pendingRequests.length}</h3>
-              </div>
-              <div className="p-3 bg-[#eff6ff] rounded-[1rem]">
-                <Clock className="w-5 h-5 text-[#3b82f6]" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
-          {/* Pending Requests */}
-          <section>
-            <div className="flex items-center mb-8">
-              <h2 className="text-2xl font-display font-black text-[#251913] uppercase tracking-tighter">Action Required</h2>
-              <div className="h-px flex-1 bg-[#251913]/5 mx-6" />
-              {pendingRequests.length > 0 && (
-                <span className="w-6 h-6 rounded-full bg-[#f97316] text-white text-xs font-black flex items-center justify-center">
-                  {pendingRequests.length}
-                </span>
+        {/* ── KPI cards ── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+          {[
+            { icon: Package, label: 'My Listings', value: listings.length.toString(), sub: 'total', iconBg: 'bg-[#f0fdf4]', iconColor: 'text-[#16a34a]' },
+            { icon: Clock, label: 'Active Rentals', value: activeBookings.length.toString(), sub: 'ongoing', iconBg: 'bg-blue-50', iconColor: 'text-blue-600' },
+            { icon: IndianRupee, label: 'Total Earned', value: formatCurrency(totalEarned).replace('₹',''), sub: 'rupees', prefix: '₹', iconBg: 'bg-[#f0fdf4]', iconColor: 'text-[#16a34a]' },
+            { icon: Star, label: 'Pending', value: pendingRequests.length.toString(), sub: 'requests', iconBg: 'bg-amber-50', iconColor: 'text-amber-600', badge: pendingRequests.length > 0 },
+          ].map(({ icon: Icon, label, value, sub, iconBg, iconColor, prefix, badge }) => (
+            <div key={label} className="bg-white rounded-2xl p-5 shadow-sm relative">
+              {badge && (
+                <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full" />
               )}
+              <div className={`w-10 h-10 ${iconBg} rounded-xl flex items-center justify-center mb-3`}>
+                <Icon className={`w-5 h-5 ${iconColor}`} />
+              </div>
+              <p className="text-xs text-[#6b7280] mb-1">{label}</p>
+              <p className="text-2xl font-bold text-[#111827]">{prefix}{value}</p>
+              <p className="text-xs text-[#9ca3af]">{sub}</p>
             </div>
-            <div className="space-y-6">
-              {pendingRequests.length === 0 ? (
-                <div className="bg-white rounded-[2rem] p-12 text-center shadow-ambient ring-1 ring-[#f97316]/5">
-                  <p className="text-[#8c7164] font-medium">No pending requests at the moment.</p>
+          ))}
+        </div>
+
+        {/* ── Tabs ── */}
+        <div className="flex border-b border-[#e5e7eb] mb-6">
+          <button
+            onClick={() => setActiveTab('listings')}
+            className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+              activeTab === 'listings'
+                ? 'border-[#16a34a] text-[#16a34a]'
+                : 'border-transparent text-[#6b7280] hover:text-[#111827]'
+            }`}
+          >
+            My Listings
+          </button>
+          <button
+            onClick={() => setActiveTab('requests')}
+            className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+              activeTab === 'requests'
+                ? 'border-[#16a34a] text-[#16a34a]'
+                : 'border-transparent text-[#6b7280] hover:text-[#111827]'
+            }`}
+          >
+            Booking Requests
+            {pendingRequests.length > 0 && (
+              <span className="px-1.5 py-0.5 text-xs bg-red-100 text-red-700 rounded-full font-bold">
+                {pendingRequests.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* ── My Listings Tab ── */}
+        {activeTab === 'listings' && (
+          <section>
+            {listingsLoading ? (
+              <div className="flex flex-col gap-3">
+                {[1,2,3].map(i => <div key={i} className="h-20 bg-white rounded-xl shadow-sm animate-pulse" />)}
+              </div>
+            ) : listings.length === 0 ? (
+              <div className="bg-white rounded-2xl p-16 text-center shadow-sm">
+                <Package className="w-12 h-12 text-[#d1d5db] mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-[#111827] mb-2">No listings yet</h3>
+                <p className="text-[#6b7280] text-sm mb-6">Add your first item to start earning.</p>
+                <Link
+                  href="/create-listing"
+                  className="px-5 py-2.5 bg-[#16a34a] text-white text-sm font-semibold rounded-lg hover:bg-[#15803d] transition-colors"
+                >
+                  + Add Listing
+                </Link>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                {/* Table header */}
+                <div className="hidden md:grid grid-cols-12 px-5 py-3 border-b border-[#f3f4f6] text-xs font-semibold text-[#6b7280] uppercase tracking-wider">
+                  <div className="col-span-1" />
+                  <div className="col-span-5">Title</div>
+                  <div className="col-span-2">Category</div>
+                  <div className="col-span-2">Price</div>
+                  <div className="col-span-1">Status</div>
+                  <div className="col-span-1 text-right">Actions</div>
                 </div>
-              ) : (
-                pendingRequests.map(booking => (
-                  <div key={booking.id} className="bg-white rounded-[2rem] p-8 shadow-ambient ring-1 ring-[#f97316]/5">
-                    <div className="flex justify-between items-start gap-4 flex-wrap mb-6">
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-[#f97316] mb-1">Incoming Request</p>
-                        <h4 className="text-xl font-display font-black text-[#251913] mb-1">{booking.listings?.title || 'Unknown Artifact'}</h4>
-                        <p className="text-xs font-bold tracking-wider text-[#8c7164] uppercase flex items-center gap-2">
-                          <Clock className="w-3 h-3 text-[#f97316]" />
-                          {formatDate(booking.check_in_date)} — {formatDate(booking.check_out_date)}
-                        </p>
-                        <p className="text-xl font-black text-[#251913] mt-2">{formatCurrency(booking.total_amount)}</p>
+                <div className="divide-y divide-[#f9fafb]">
+                  {listings.map(listing => {
+                    const image = listing.listing_images?.[0]?.image_url;
+                    return (
+                      <div key={listing.id} className="grid grid-cols-1 md:grid-cols-12 items-center gap-3 px-5 py-4 hover:bg-[#f9fafb] transition-colors">
+                        {/* Thumbnail */}
+                        <div className="hidden md:block col-span-1">
+                          <div className="w-12 h-10 rounded-lg bg-[#f3f4f6] overflow-hidden">
+                            {image ? (
+                              <img src={image} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Package className="w-4 h-4 text-[#d1d5db]" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {/* Mobile: compact layout */}
+                        <div className="md:hidden flex items-center gap-3">
+                          <div className="w-14 h-12 rounded-lg bg-[#f3f4f6] overflow-hidden flex-shrink-0">
+                            {image ? <img src={image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Package className="w-4 h-4 text-[#d1d5db]" /></div>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-[#111827] text-sm truncate">{listing.title}</p>
+                            <p className="text-xs text-[#6b7280]">{listing.category} · {formatCurrency(listing.price_per_day)}/day</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${listing.is_published ? 'bg-[#f0fdf4] text-[#16a34a]' : 'bg-amber-50 text-amber-700'}`}>
+                              {listing.is_published ? '● Published' : '○ Draft'}
+                            </span>
+                          </div>
+                        </div>
+                        {/* Desktop columns */}
+                        <div className="hidden md:block col-span-5 font-medium text-[#111827] text-sm truncate">{listing.title}</div>
+                        <div className="hidden md:block col-span-2 text-sm text-[#6b7280]">{listing.category}</div>
+                        <div className="hidden md:block col-span-2 text-sm font-semibold text-[#111827]">{formatCurrency(listing.price_per_day)}/day</div>
+                        <div className="hidden md:block col-span-1">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${listing.is_published ? 'bg-[#f0fdf4] text-[#16a34a]' : 'bg-amber-50 text-amber-700'}`}>
+                            {listing.is_published ? 'Published' : 'Draft'}
+                          </span>
+                        </div>
+                        <div className="hidden md:flex col-span-1 justify-end gap-2">
+                          <Link href={`/item/${listing.id}`} className="p-1.5 rounded hover:bg-[#f3f4f6]">
+                            <ArrowRight className="w-4 h-4 text-[#6b7280]" />
+                          </Link>
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── Booking Requests Tab ── */}
+        {activeTab === 'requests' && (
+          <section>
+            {loading ? (
+              <div className="flex flex-col gap-4">
+                {[1,2].map(i => <div key={i} className="h-32 bg-white rounded-xl shadow-sm animate-pulse" />)}
+              </div>
+            ) : pendingRequests.length === 0 ? (
+              <div className="bg-white rounded-2xl p-16 text-center shadow-sm">
+                <Clock className="w-12 h-12 text-[#d1d5db] mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-[#111827] mb-2">No pending requests</h3>
+                <p className="text-[#6b7280] text-sm">You&apos;re all caught up! New requests will appear here.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {pendingRequests.map(booking => (
+                  <div key={booking.id} className="bg-white rounded-2xl shadow-sm p-5 flex flex-col sm:flex-row gap-4">
+                    {/* Booking info */}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 bg-[#f0fdf4] rounded-full flex items-center justify-center text-sm">
+                          👤
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-[#111827]">
+                            wants to rent&nbsp;
+                            <span className="text-[#16a34a]">{booking.listings?.title || 'your item'}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-sm text-[#6b7280]">
+                        {formatDate(booking.check_in_date)} – {formatDate(booking.check_out_date)}
+                        &nbsp;·&nbsp;{formatCurrency(booking.total_amount)}
+                      </p>
                     </div>
-                    <div className="flex gap-3">
+                    {/* Action buttons */}
+                    <div className="flex gap-2 sm:flex-col sm:justify-center">
                       <button
                         onClick={() => handleAccept(booking.id)}
                         disabled={actionId === booking.id}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#ecfdf5] text-[#065f46] hover:bg-[#d1fae5] rounded-[1rem] font-bold text-xs uppercase tracking-widest transition-colors disabled:opacity-50"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-[#16a34a] text-white text-sm font-semibold rounded-lg hover:bg-[#15803d] transition-colors disabled:opacity-50"
                       >
-                        {actionId === booking.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                        {actionId === booking.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
                         Accept
                       </button>
                       <button
                         onClick={() => handleReject(booking.id)}
                         disabled={actionId === booking.id}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#fef2f2] text-[#991b1b] hover:bg-[#fee2e2] rounded-[1rem] font-bold text-xs uppercase tracking-widest transition-colors disabled:opacity-50"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
                       >
-                        {actionId === booking.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                        Decline
+                        {actionId === booking.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                        Reject
                       </button>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
-
-          {/* Active Deployments */}
-          <section>
-            <div className="flex items-center mb-8">
-              <h2 className="text-2xl font-display font-black text-[#251913] uppercase tracking-tighter">Active Deployments</h2>
-              <div className="h-px flex-1 bg-[#251913]/5 mx-6" />
-            </div>
-            <div className="space-y-6">
-              {activeBookings.length === 0 ? (
-                <div className="bg-white rounded-[2rem] p-12 text-center shadow-ambient ring-1 ring-[#f97316]/5">
-                  <p className="text-[#8c7164] font-medium">No active artifacts deployed.</p>
-                </div>
-              ) : (
-                activeBookings.map(booking => (
-                  <div key={booking.id} className="bg-white rounded-[2rem] p-8 shadow-ambient ring-1 ring-[#f97316]/5 flex justify-between items-center group transition-all hover:-translate-y-1">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[#10b981] mb-1">In Field</p>
-                      <h4 className="text-xl font-display font-black text-[#251913]">{booking.listings?.title || 'Unknown Artifact'}</h4>
-                      <p className="text-xs font-bold text-[#8c7164] uppercase tracking-widest mt-2 flex items-center gap-2">
-                        <Package className="w-3 h-3" />
-                        {formatDate(booking.check_in_date)} — {formatDate(booking.check_out_date)}
-                      </p>
-                    </div>
-                    <Link href={`/item/${booking.listing_id}`} className="w-12 h-12 bg-[#fff8f6] rounded-full flex items-center justify-center text-[#f97316] group-hover:bg-[#f97316] group-hover:text-white transition-colors">
-                      <ArrowRight className="w-5 h-5" />
-                    </Link>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        </div>
-
-        {/* My Listings */}
-        <section>
-          <div className="flex items-center mb-8">
-            <h2 className="text-2xl font-display font-black text-[#251913] uppercase tracking-tighter">My Listings</h2>
-            <div className="h-px flex-1 bg-[#251913]/5 mx-6" />
-            <Link href="/owner/listings/create" className="text-xs font-black uppercase tracking-widest text-[#f97316] hover:underline">
-              + Add New
-            </Link>
-          </div>
-
-          {listingsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {[1,2,3].map(i => <div key={i} className="h-32 bg-white rounded-[2rem] animate-pulse" />)}
-            </div>
-          ) : listings.length === 0 ? (
-            <div className="bg-white rounded-[2.5rem] p-16 text-center shadow-ambient ring-1 ring-[#f97316]/5">
-              <Package className="h-12 w-12 text-[#f97316]/20 mx-auto mb-4" />
-              <h3 className="text-2xl font-display font-black text-[#251913] mb-2">No Artifacts Listed</h3>
-              <p className="text-[#8c7164] font-medium mb-6">Start building your catalogue by adding your first item.</p>
-              <Link href="/owner/listings/create">
-                <button className="gradient-signature px-8 py-4 text-white rounded-full font-display font-black shadow-ambient hover:-translate-y-1 transition-transform">
-                  List First Artifact
-                </button>
-              </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {listings.map(listing => (
-                <div key={listing.id} className="bg-white rounded-[2rem] p-6 shadow-ambient ring-1 ring-[#f97316]/5 group transition-all hover:-translate-y-1">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[#f97316] mb-1">{listing.category}</p>
-                      <h4 className="text-lg font-display font-black text-[#251913] leading-tight">{listing.title}</h4>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${listing.is_published ? 'bg-[#ecfdf5] text-[#065f46]' : 'bg-[#fffbeb] text-[#92400e]'}`}>
-                      {listing.is_published ? 'Published' : 'Draft'}
-                    </span>
-                  </div>
-                  <p className="text-2xl font-display font-black text-[#251913] mb-4">{formatCurrency(listing.price_per_day)}<span className="text-xs text-[#8c7164] font-bold">/day</span></p>
-                  <div className="flex gap-3">
-                    <Link href={`/item/${listing.id}`} className="flex-1 text-center py-2 bg-[#fff8f6] rounded-[0.75rem] text-xs font-black uppercase tracking-widest text-[#251913] hover:bg-[#ffeae0] transition-colors">
-                      View
-                    </Link>
-                    <Link href={`/owner/listings/create?edit=${listing.id}`} className="flex-1 text-center py-2 bg-[#fff8f6] rounded-[0.75rem] text-xs font-black uppercase tracking-widest text-[#251913] hover:bg-[#ffeae0] transition-colors">
-                      Edit
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
+        )}
       </div>
     </div>
   );

@@ -5,14 +5,30 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { CATEGORIES } from '@/constants';
 import api from '@/lib/axios';
-import { Camera, Plus, Loader2 } from 'lucide-react';
+import { Camera, ImagePlus, Loader2, MapPin, CheckCircle2, Package, Tag, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
-export default function CreateListingPage() {
+// Quick lookup for category emojis
+const getCategoryEmoji = (val: string) => {
+  const c = CATEGORIES.find(c => c.value === val);
+  if (c && c.label.includes(' ')) return c.label.split(' ')[0];
+  switch(val.toLowerCase()) {
+    case 'cameras': return '📸';
+    case 'gaming': return '🎮';
+    case 'tools': return '🔧';
+    case 'camping': return '⛺';
+    case 'audio': return '🎵';
+    default: return '📦';
+  }
+};
+
+export default function CreateListingWizard() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [images, setImages] = useState<File[]>([]);
+  const [step, setStep] = useState(1);
+  const totalSteps = 4;
   
+  const [images, setImages] = useState<File[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -33,17 +49,14 @@ export default function CreateListingPage() {
   };
 
   const uploadImagesToCloudinary = async (): Promise<string[]> => {
-    toast.error('Image upload not fully configured yet — using placeholder');
+    // Note: Mocking this until real Cloudinary is plugged in
     return ['https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=800'];
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setLoading(true);
-
     try {
       const imageUrls = await uploadImagesToCloudinary();
-      
       const payload = {
         title: formData.title,
         description: formData.description,
@@ -60,9 +73,8 @@ export default function CreateListingPage() {
       };
 
       const res = await api.post('/listings', payload);
-      toast.success('Listing created successfully!');
+      toast.success('Listing published successfully!');
       router.push(`/item/${res.data.id}`);
-      
     } catch (error: any) {
       toast.error('Failed to create listing');
       console.error(error);
@@ -71,241 +83,322 @@ export default function CreateListingPage() {
     }
   };
 
+  const handleNext = () => setStep(s => Math.min(s + 1, totalSteps));
+  const handlePrev = () => setStep(s => Math.max(s - 1, 1));
+
+  // --- Step Rendering Helpers ---
+  const renderStepIcon = (iconStep: number) => {
+    const isCompleted = step > iconStep;
+    const isCurrent = step === iconStep;
+    
+    if (isCompleted) {
+      return <CheckCircle2 className="w-5 h-5 text-white" />;
+    }
+    return <span className={`text-sm font-bold ${isCurrent ? 'text-white' : 'text-[#6b7280]'}`}>{iconStep}</span>;
+  };
+
   return (
-    <div className="min-h-screen bg-[#fff8f6] pt-12 pb-24">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 w-full">
-        
-        {/* Header */}
-        <div className="mb-12 flex items-end gap-6">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-gradient-to-br from-[#f97316] to-[#ea580c] flex items-center justify-center shadow-lg transform -rotate-3">
-            <Plus className="w-8 h-8 text-white" />
+    <div className="min-h-screen bg-[#f9fafb] flex flex-col">
+      {/* Top Navigation Bar for Wizard */}
+      <div className="bg-white border-b border-[#e5e7eb] sticky top-0 z-10 transition-all">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <button onClick={() => router.back()} className="text-sm font-medium text-[#6b7280] hover:text-[#111827]">
+            Exit
+          </button>
+          <div className="text-sm font-bold text-[#111827]">
+            List an item
           </div>
-          <div className="pb-2">
-            <h1 className="text-5xl md:text-6xl font-display font-black tracking-tighter text-[#251913] leading-none mb-2">
-              Add Artifact
-            </h1>
-            <p className="text-[#8c7164] font-medium tracking-tight">Deploy your equipment to the global archive.</p>
+          <div className="text-sm font-medium text-[#6b7280]">
+            Step {step} of {totalSteps}
           </div>
         </div>
+        {/* Progress Bar */}
+        <div className="w-full bg-[#f3f4f6] h-1">
+          <div 
+            className="bg-[#16a34a] h-1 transition-all duration-500 ease-out"
+            style={{ width: `${(step / totalSteps) * 100}%` }}
+          />
+        </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-10">
-          
-          {/* Basic Info */}
-          <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-[0_32px_64px_rgba(37,25,19,0.06)] ring-1 ring-[#f97316]/5">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-display font-black text-[#251913] uppercase tracking-tighter">Core Details</h2>
-              <div className="h-px flex-1 bg-[#251913]/5 mx-6" />
-            </div>
-            
-            <div className="space-y-6">
-              <div>
-                <label className="block text-xs font-black uppercase tracking-[0.2em] text-[#8c7164] mb-3">Nomenclature (Title)</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={e => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-6 py-4 bg-[#fff8f6] border border-transparent rounded-[1.5rem] focus:ring-2 focus:ring-[#f97316] focus:bg-white transition-all text-[#251913] font-bold outline-none placeholder-[#8c7164]/30"
-                  placeholder="e.g. Sony a7III Mirrorless Camera Body"
-                />
-              </div>
+      <div className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
+        
+        {/* Wizard Progress Nodes */}
+        <div className="hidden sm:flex items-center justify-between mb-12 relative px-4">
+          <div className="absolute top-1/2 left-8 right-8 h-0.5 bg-[#e5e7eb] -z-10" />
+          <div 
+            className="absolute top-1/2 left-8 h-0.5 bg-[#16a34a] -z-10 transition-all duration-500" 
+            style={{ width: `calc(${((step - 1) / (totalSteps - 1)) * 100}% - 4rem)` }}
+          />
 
-              <div>
-                <label className="block text-xs font-black uppercase tracking-[0.2em] text-[#8c7164] mb-3">Detailed Description</label>
-                <textarea
-                  required
-                  rows={4}
-                  value={formData.description}
-                  onChange={e => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-6 py-4 bg-[#fff8f6] border border-transparent rounded-[1.5rem] focus:ring-2 focus:ring-[#f97316] focus:bg-white transition-all text-[#251913] font-bold outline-none placeholder-[#8c7164]/30 resize-none"
-                  placeholder="Detail condition, inclusions, and special instructions."
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-[0.2em] text-[#8c7164] mb-3">Classification</label>
-                  <select
-                    value={formData.category}
-                    onChange={e => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-6 py-4 bg-[#fff8f6] border border-transparent rounded-[1.5rem] focus:ring-2 focus:ring-[#f97316] focus:bg-white transition-all text-[#251913] font-bold outline-none appearance-none cursor-pointer"
-                  >
-                    {CATEGORIES.map(cat => (
-                      <option key={cat.value} value={cat.value}>{cat.label}</option>
-                    ))}
-                  </select>
+          {[
+            { id: 1, label: 'Details', icon: Package },
+            { id: 2, label: 'Location', icon: MapPin },
+            { id: 3, label: 'Photos', icon: Camera },
+            { id: 4, label: 'Pricing', icon: Tag },
+          ].map((item) => {
+            const isCompleted = step > item.id;
+            const isCurrent = step === item.id;
+            return (
+              <div key={item.id} className="flex flex-col items-center gap-3 bg-[#f9fafb] px-4">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors duration-300 ${
+                  isCompleted 
+                    ? 'bg-[#16a34a] border-[#16a34a]' 
+                    : isCurrent 
+                      ? 'bg-[#16a34a] border-[#16a34a]' 
+                      : 'bg-white border-[#e5e7eb]'
+                }`}>
+                  {renderStepIcon(item.id)}
                 </div>
+                <span className={`text-xs font-semibold ${isCurrent || isCompleted ? 'text-[#111827]' : 'text-[#9ca3af]'}`}>
+                  {item.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Content Container */}
+        <div className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-6 md:p-10 min-h-[400px]">
+          
+          {/* STEP 1: Details */}
+          {step === 1 && (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+              <h2 className="text-2xl font-bold text-[#111827] mb-2">What are you listing?</h2>
+              <p className="text-[#6b7280] mb-8">Provide clear, accurate details to attract the right renters.</p>
+              
+              <div className="space-y-6">
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-[0.2em] text-[#8c7164] mb-3">Specific Type</label>
+                  <label className="block text-sm font-semibold text-[#374151] mb-1.5">Item title *</label>
                   <input
                     type="text"
-                    value={formData.type}
-                    onChange={e => setFormData({ ...formData, type: e.target.value })}
-                    className="w-full px-6 py-4 bg-[#fff8f6] border border-transparent rounded-[1.5rem] focus:ring-2 focus:ring-[#f97316] focus:bg-white transition-all text-[#251913] font-bold outline-none placeholder-[#8c7164]/30"
-                    placeholder="e.g. Optics, Lenses"
+                    required
+                    value={formData.title}
+                    onChange={e => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full px-4 py-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] transition-all text-[#111827]"
+                    placeholder="e.g. Sony A7IV Mirrorless Camera Body"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-[#374151] mb-1.5">Category *</label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {CATEGORIES.map(cat => {
+                      const isSelected = formData.category === cat.value;
+                      return (
+                        <button
+                          key={cat.value}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, category: cat.value as string })}
+                          className={`p-3 rounded-xl border text-left transition-all ${
+                            isSelected 
+                              ? 'border-[#16a34a] bg-[#f0fdf4] ring-1 ring-[#16a34a]/30' 
+                              : 'border-[#e5e7eb] hover:border-[#d1d5db] bg-white'
+                          }`}
+                        >
+                          <div className="text-lg mb-1">{getCategoryEmoji(cat.value as string)}</div>
+                          <div className={`text-sm font-medium ${isSelected ? 'text-[#15803d]' : 'text-[#4b5563]'}`}>
+                            {cat.label}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-[#374151] mb-1.5">Description *</label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={formData.description}
+                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-4 py-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] transition-all text-[#111827] resize-none"
+                    placeholder="Describe the condition, what's included in the box, and any usage rules."
                   />
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Pricing & Location */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-            {/* Pricing */}
-            <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-[0_32px_64px_rgba(37,25,19,0.06)] ring-1 ring-[#f97316]/5">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-xl font-display font-black text-[#251913] uppercase tracking-tighter">Valuation</h2>
-              </div>
+          {/* STEP 2: Location */}
+          {step === 2 && (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+              <h2 className="text-2xl font-bold text-[#111827] mb-2">Where is the item located?</h2>
+              <p className="text-[#6b7280] mb-8">Renters will see the general area before booking.</p>
               
               <div className="space-y-6">
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-[0.2em] text-[#8c7164] mb-3">Daily Rate (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={formData.pricePerDay}
-                    onChange={e => setFormData({ ...formData, pricePerDay: e.target.value })}
-                    className="w-full px-6 py-4 bg-[#fff8f6] border border-transparent rounded-[1.5rem] focus:ring-2 focus:ring-[#f97316] focus:bg-white transition-all text-[#251913] font-display font-black text-2xl outline-none placeholder-[#8c7164]/30"
-                    placeholder="2500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-[0.2em] text-[#8c7164] mb-3">Security Deposit (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={formData.securityDeposit}
-                    onChange={e => setFormData({ ...formData, securityDeposit: e.target.value })}
-                    className="w-full px-6 py-4 bg-[#fff8f6] border border-transparent rounded-[1.5rem] focus:ring-2 focus:ring-[#f97316] focus:bg-white transition-all text-[#251913] font-display font-black text-2xl outline-none placeholder-[#8c7164]/30"
-                    placeholder="15000"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Location */}
-            <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-[0_32px_64px_rgba(37,25,19,0.06)] ring-1 ring-[#f97316]/5">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-xl font-display font-black text-[#251913] uppercase tracking-tighter">Origin</h2>
-              </div>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-[0.2em] text-[#8c7164] mb-3">City Region</label>
+                  <label className="block text-sm font-semibold text-[#374151] mb-1.5">City *</label>
                   <input
                     type="text"
                     required
                     value={formData.city}
                     onChange={e => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-6 py-4 bg-[#fff8f6] border border-transparent rounded-[1.5rem] focus:ring-2 focus:ring-[#f97316] focus:bg-white transition-all text-[#251913] font-bold outline-none placeholder-[#8c7164]/30"
-                    placeholder="Bengaluru"
+                    className="w-full px-4 py-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] transition-all text-[#111827]"
+                    placeholder="e.g. Bengaluru"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                     <label className="block text-xs font-black uppercase tracking-[0.2em] text-[#8c7164] mb-3">Zone/State</label>
-                     <input
-                       type="text"
-                       required
-                       value={formData.state}
-                       onChange={e => setFormData({ ...formData, state: e.target.value })}
-                       className="w-full px-6 py-4 bg-[#fff8f6] border border-transparent rounded-[1.5rem] focus:ring-2 focus:ring-[#f97316] focus:bg-white transition-all text-[#251913] font-bold outline-none placeholder-[#8c7164]/30"
-                       placeholder="KA"
-                     />
+                    <label className="block text-sm font-semibold text-[#374151] mb-1.5">State *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.state}
+                      onChange={e => setFormData({ ...formData, state: e.target.value })}
+                      className="w-full px-4 py-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] transition-all text-[#111827]"
+                      placeholder="e.g. Karnataka"
+                    />
                   </div>
                   <div>
-                    <label className="block text-xs font-black uppercase tracking-[0.2em] text-[#8c7164] mb-3">Locality</label>
+                    <label className="block text-sm font-semibold text-[#374151] mb-1.5">Locality / Neighborhood *</label>
                     <input
                       type="text"
                       required
                       value={formData.location}
                       onChange={e => setFormData({ ...formData, location: e.target.value })}
-                      className="w-full px-6 py-4 bg-[#fff8f6] border border-transparent rounded-[1.5rem] focus:ring-2 focus:ring-[#f97316] focus:bg-white transition-all text-[#251913] font-bold outline-none placeholder-[#8c7164]/30"
-                      placeholder="Indiranagar"
+                      className="w-full px-4 py-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] transition-all text-[#111827]"
+                      placeholder="e.g. Indiranagar Component"
                     />
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Media Upload */}
-          <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-[0_32px_64px_rgba(37,25,19,0.06)] ring-1 ring-[#f97316]/5">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-display font-black text-[#251913] uppercase tracking-tighter">Media Assets</h2>
-              <div className="h-px flex-1 bg-[#251913]/5 mx-6" />
-            </div>
-            
-            <div className="border-[3px] border-dashed border-[#f97316]/20 bg-[#fff8f6] rounded-[2rem] p-12 text-center hover:border-[#f97316]/50 hover:bg-orange-50/50 transition-all duration-300">
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                className="hidden"
-                id="images"
-                onChange={handleImageChange}
-              />
-              <label htmlFor="images" className="cursor-pointer flex flex-col items-center">
-                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-6 group-hover:scale-110 transition-transform">
-                  <Camera className="w-8 h-8 text-[#f97316]/50" />
-                </div>
-                <span className="text-xl font-display font-black text-[#251913] mb-2 tracking-tight">
-                  Upload Digital Artifacts
-                </span>
-                <span className="text-xs font-medium uppercase tracking-widest text-[#8c7164]">
-                  Max 5 items &bull; PNG, JPG, WEBP
-                </span>
-              </label>
-            </div>
+          {/* STEP 3: Photos */}
+          {step === 3 && (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+              <h2 className="text-2xl font-bold text-[#111827] mb-2">Add clear photos</h2>
+              <p className="text-[#6b7280] mb-8">Good lighting and multiple angles increase rental chances.</p>
+              
+              <div className="border-2 border-dashed border-[#d1d5db] bg-[#f9fafb] hover:bg-[#f0fdf4] hover:border-[#16a34a]/50 transition-colors rounded-2xl p-10 text-center">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  id="images"
+                  onChange={handleImageChange}
+                />
+                <label htmlFor="images" className="cursor-pointer flex flex-col items-center">
+                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4 border border-[#e5e7eb]">
+                    <ImagePlus className="w-8 h-8 text-[#16a34a]" />
+                  </div>
+                  <span className="text-lg font-bold text-[#111827] mb-1">
+                    Click to upload
+                  </span>
+                  <span className="text-sm font-medium text-[#6b7280]">
+                    Up to 5 images • PNG, JPG
+                  </span>
+                </label>
+              </div>
 
-            {images.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-6 mt-8">
-                {images.map((img, i) => (
-                  <div key={i} className="relative aspect-square rounded-[1.5rem] overflow-hidden bg-white shadow-ambient ring-1 ring-black/5 group">
-                    <img
-                      src={URL.createObjectURL(img)}
-                      alt="Preview"
-                      className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                       <button
-                         type="button"
-                         onClick={() => setImages(prev => prev.filter((_, idx) => idx !== i))}
-                         className="w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center text-[#251913] font-bold shadow-lg hover:bg-red-50 hover:text-red-500 transition-colors"
-                       >
-                         &times;
-                       </button>
+              {images.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
+                  {images.map((img, i) => (
+                    <div key={i} className="relative aspect-video rounded-xl overflow-hidden bg-[#f3f4f6] ring-1 ring-[#e5e7eb] shadow-sm group">
+                      <img
+                        src={URL.createObjectURL(img)}
+                        alt="Preview"
+                        className="object-cover w-full h-full"
+                      />
+                      <div className="absolute inset-0 bg-gray-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                         <button
+                           type="button"
+                           onClick={() => setImages(prev => prev.filter((_, idx) => idx !== i))}
+                           className="w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center text-[#111827] shadow-sm hover:bg-red-50 hover:text-red-600 transition-colors"
+                         >
+                           &times;
+                         </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Action Footer */}
-          <div className="pt-8 flex flex-col sm:flex-row items-center justify-end gap-6 border-t border-[#251913]/5">
-            <button 
-               type="button" 
-               className="text-[#8c7164] font-black uppercase tracking-widest text-xs hover:text-[#251913] transition-colors"
-               onClick={() => router.back()}
-            >
-              Cancel Creation
-            </button>
-            <button 
-               type="submit" 
-               className="gradient-signature px-10 py-5 text-white rounded-[1.5rem] font-display font-black text-xl shadow-ambient transition-all hover:-translate-y-1 active:scale-95 disabled:opacity-50 w-full sm:w-auto text-center flex justify-center items-center gap-3" 
-               disabled={loading}
-            >
-              {loading ? (
-                <><Loader2 className="w-6 h-6 animate-spin" /> Finalizing...</>
-              ) : (
-                'Publish Alignment'
+                  ))}
+                </div>
               )}
+            </div>
+          )}
+
+          {/* STEP 4: Pricing */}
+          {step === 4 && (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+              <h2 className="text-2xl font-bold text-[#111827] mb-2">Set your pricing</h2>
+              <p className="text-[#6b7280] mb-8">Competitive rates mean more frequent bookings.</p>
+              
+              <div className="space-y-6 max-w-lg">
+                <div>
+                  <label className="block text-sm font-semibold text-[#374151] mb-1.5">Daily Rental Rate (₹) *</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6b7280] font-medium">₹</span>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      value={formData.pricePerDay}
+                      onChange={e => setFormData({ ...formData, pricePerDay: e.target.value })}
+                      className="w-full pl-8 pr-4 py-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] transition-all text-[#111827] text-lg font-bold"
+                      placeholder="500"
+                    />
+                  </div>
+                  <p className="text-xs text-[#6b7280] mt-2">The amount you earn per 24-hour period.</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-[#374151] mb-1.5">Security Deposit (₹) *</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6b7280] font-medium">₹</span>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      value={formData.securityDeposit}
+                      onChange={e => setFormData({ ...formData, securityDeposit: e.target.value })}
+                      className="w-full pl-8 pr-4 py-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] transition-all text-[#111827] text-lg font-bold"
+                      placeholder="5000"
+                    />
+                  </div>
+                  <p className="text-xs text-[#6b7280] mt-2">Held securely during the rental, returned if the item is undamaged.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* Wizard Footer Controls */}
+        <div className="mt-8 flex items-center justify-between">
+          <button
+            onClick={handlePrev}
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm transition-colors ${
+              step === 1 ? 'opacity-0 pointer-events-none' : 'text-[#374151] hover:bg-[#f3f4f6]'
+            }`}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+
+          {step < totalSteps ? (
+            <button
+              onClick={handleNext}
+              className="flex items-center gap-2 bg-[#111827] hover:bg-[#374151] text-white px-8 py-3 rounded-xl font-semibold text-sm transition-all active:scale-95"
+            >
+              Continue
+              <ArrowRight className="w-4 h-4" />
             </button>
-          </div>
-        </form>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={loading || !formData.title || !formData.pricePerDay || !formData.category}
+              className="flex items-center gap-2 bg-[#16a34a] hover:bg-[#15803d] text-white px-8 py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              {loading ? 'Publishing...' : 'Publish Listing'}
+            </button>
+          )}
+        </div>
+
       </div>
     </div>
   );

@@ -8,8 +8,9 @@ import { signIn, buildProfile } from '@/services/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { Camera } from 'lucide-react';
 import Image from 'next/image';
+import { Suspense } from 'react';
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -147,5 +148,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#fff8f6] flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full border-4 border-[#f97316]/20 border-t-[#f97316] animate-spin" />
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 }

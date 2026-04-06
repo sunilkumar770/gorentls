@@ -11,7 +11,7 @@ export function useAuth() {
     user: profile, 
     profile, 
     loading, 
-    isOwner: profile?.user_type === 'store_owner',
+    isOwner: profile?.userType === 'store_owner',
     login,
     logout,
     token

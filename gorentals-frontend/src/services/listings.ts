@@ -125,3 +125,29 @@ export async function uploadListingImage(file: File, listingId: string): Promise
   // since we haven't built out the AWS S3 endpoint on the Java side yet.
   return URL.createObjectURL(file);
 }
+
+export async function updateListing(
+  listingId: string, 
+  data: Partial<Listing> // Use Listing or properly mapped Partial
+) {
+  const res = await api.put(`/listings/${listingId}`, data);
+  return res.data;
+}
+
+export async function deleteListing(listingId: string) {
+  await api.delete(`/listings/${listingId}`);
+}
+
+export async function publishListing(listingId: string) {
+  const res = await api.patch(`/listings/${listingId}/publish`);
+  return res.data;
+}
+
+export async function getMyListings(page = 0, size = 10) {
+  const res = await api.get(`/listings/owner/mine?page=${page}&size=${size}`);
+  return res.data;
+}
+
+// TODO: export const toggleListingAvailability = async (listingId: string, isAvailable: boolean) => {
+// Endpoint PATCH /api/listings/{id}/availability does NOT exist in ListingController.java
+// }

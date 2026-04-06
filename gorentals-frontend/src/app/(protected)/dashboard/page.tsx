@@ -6,47 +6,90 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRenterBookings } from '@/hooks/useBookings';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Calendar, Package, Clock, XCircle, Loader2 } from 'lucide-react';
+import { Calendar, Package, Loader2, XCircle, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { cancelBooking } from '@/services/bookings';
 import { toast } from 'react-hot-toast';
+import type { BookingStatus } from '@/types';
 
-const STATUS_STYLES: Record<string, string> = {
-  pending_confirmation: 'bg-[#fffbeb] text-[#92400e] ring-[#f59e0b]/20',
-  confirmed:            'bg-[#ecfdf5] text-[#065f46] ring-[#10b981]/20',
-  in_progress:          'bg-[#eff6ff] text-[#1e40af] ring-[#3b82f6]/20',
-  completed:            'bg-[#f0fdf4] text-[#15803d] ring-[#22c55e]/20',
-  owner_rejected:       'bg-[#fef2f2] text-[#991b1b] ring-[#ef4444]/20',
-  renter_cancelled:     'bg-[#fff8f6] text-[#8c7164] ring-[#251913]/5',
+// ─── Status config ────────────────────────────────────────────────────────────
+const STATUS_CONFIG: Record<string, { label: string; pill: string; dot: string }> = {
+  pending_confirmation: {
+    label: 'Pending',
+    pill: 'bg-amber-50 text-amber-700 ring-amber-200',
+    dot: '🟡',
+  },
+  confirmed: {
+    label: 'Confirmed',
+    pill: 'bg-[#f0fdf4] text-[#16a34a] ring-[#16a34a]/20',
+    dot: '🟢',
+  },
+  in_progress: {
+    label: 'In Progress',
+    pill: 'bg-blue-50 text-blue-700 ring-blue-200',
+    dot: '🔵',
+  },
+  completed: {
+    label: 'Completed',
+    pill: 'bg-[#f0fdf4] text-[#15803d] ring-[#16a34a]/20',
+    dot: '✅',
+  },
+  owner_rejected: {
+    label: 'Rejected',
+    pill: 'bg-red-50 text-red-700 ring-red-200',
+    dot: '❌',
+  },
+  renter_cancelled: {
+    label: 'Cancelled',
+    pill: 'bg-gray-100 text-[#6b7280] ring-gray-200',
+    dot: '⭕',
+  },
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  pending_confirmation: 'Pending',
-  confirmed:            'Confirmed',
-  in_progress:          'In Progress',
-  completed:            'Completed',
-  owner_rejected:       'Rejected',
-  renter_cancelled:     'Cancelled',
-};
+const FILTER_TABS = [
+  { label: 'All', value: 'all' },
+  { label: 'Pending', value: 'pending_confirmation' },
+  { label: 'Confirmed', value: 'confirmed' },
+  { label: 'Completed', value: 'completed' },
+  { label: 'Rejected', value: 'owner_rejected' },
+];
 
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+function BookingSkeleton() {
+  return (
+    <div className="flex gap-4 bg-white rounded-xl p-5 shadow-sm animate-pulse">
+      <div className="w-20 h-16 bg-gray-200 rounded-lg flex-shrink-0" />
+      <div className="flex-1 flex flex-col gap-2">
+        <div className="h-4 w-1/2 bg-gray-200 rounded" />
+        <div className="h-3 w-1/3 bg-gray-200 rounded" />
+        <div className="h-3 w-1/4 bg-gray-200 rounded" />
+      </div>
+      <div className="w-20 h-8 bg-gray-200 rounded-lg" />
+    </div>
+  );
+}
+
+// ─── Page ────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const { bookings, loading: bookingsLoading, refetch } = useRenterBookings(user?.id);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState('all');
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#fff8f6] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full border-4 border-[#f97316]/20 border-t-[#f97316] animate-spin" />
-          <span className="text-xs font-black uppercase tracking-widest text-[#8c7164]">Retrieving Archives...</span>
+      <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-4 border-[#16a34a]/20 border-t-[#16a34a] animate-spin" />
+          <span className="text-sm text-[#6b7280]">Loading your bookings…</span>
         </div>
       </div>
     );
   }
 
-  const activeBookings = bookings.filter(b => b.booking_status === 'confirmed' || b.booking_status === 'in_progress');
-  const pendingBookings = bookings.filter(b => b.booking_status === 'pending_confirmation');
+  const filteredBookings = activeFilter === 'all'
+    ? bookings
+    : bookings.filter(b => b.booking_status === activeFilter);
 
   const handleCancel = async (bookingId: string) => {
     setCancellingId(bookingId);
@@ -62,137 +105,165 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fff8f6] pt-12 pb-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+    <div className="min-h-screen bg-[#f9fafb]">
+      {/* Navbar */}
+      <nav className="sticky top-0 z-50 bg-white border-b border-[#e5e7eb]">
+        <div className="max-w-4xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 font-bold text-xl text-[#111827]">
+            <span className="w-8 h-8 bg-[#16a34a] rounded-lg flex items-center justify-center text-white text-sm font-black">G</span>
+            GoRentals
+          </Link>
+          <Link href="/search" className="text-sm text-[#16a34a] font-medium hover:underline">
+            Browse listings
+          </Link>
+        </div>
+      </nav>
 
+      <div className="max-w-4xl mx-auto px-4 sm:px-8 py-10">
         {/* Header */}
-        <div className="mb-16 border-b border-[#251913]/5 pb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-6xl md:text-8xl font-display font-black tracking-tighter text-[#251913] leading-[0.8] mb-4">
-              My<span className="text-[#f97316]"> Rentals.</span>
-            </h1>
-            <p className="text-xl text-[#8c7164] font-medium tracking-tight">
-              Welcome back, <span className="text-[#251913] font-black">{profile?.fullName || 'Collector'}</span>. Your acquisition history.
+            <h1 className="text-3xl font-bold text-[#111827]">My Rentals</h1>
+            <p className="text-[#6b7280] text-sm mt-1">
+              Welcome back, <span className="font-semibold text-[#111827]">{profile?.fullName || 'User'}</span>
             </p>
           </div>
-          <div className="flex gap-4 flex-wrap">
-            <div className="bg-white px-8 py-4 rounded-[1.5rem] shadow-ambient ring-1 ring-[#f97316]/5">
-              <p className="text-[10px] font-black uppercase tracking-widest text-[#8c7164] mb-1">Active</p>
-              <div className="flex items-center gap-3">
-                <Package className="h-5 w-5 text-[#f97316]" />
-                <span className="text-3xl font-display font-black text-[#251913]">{activeBookings.length}</span>
-              </div>
-            </div>
-            <div className="bg-white px-8 py-4 rounded-[1.5rem] shadow-ambient ring-1 ring-[#f97316]/5">
-              <p className="text-[10px] font-black uppercase tracking-widest text-[#8c7164] mb-1">Pending</p>
-              <div className="flex items-center gap-3">
-                <Clock className="h-5 w-5 text-[#f59e0b]" />
-                <span className="text-3xl font-display font-black text-[#251913]">{pendingBookings.length}</span>
-              </div>
-            </div>
-          </div>
+          <Link
+            href="/search"
+            className="px-4 py-2 bg-[#16a34a] text-white text-sm font-medium rounded-lg hover:bg-[#15803d] transition-colors"
+          >
+            Browse listings
+          </Link>
         </div>
 
-        <section>
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-display font-black text-[#251913] uppercase tracking-tighter">All Acquisitions</h2>
-            <div className="h-px flex-1 bg-[#251913]/5 mx-6" />
-            <Link href="/search" className="text-xs font-black uppercase tracking-widest text-[#f97316] hover:underline">
-              Browse Archive →
+        {/* Filter pills */}
+        <div className="flex gap-2 flex-wrap mb-6">
+          {FILTER_TABS.map(tab => {
+            const count = tab.value === 'all'
+              ? bookings.length
+              : bookings.filter(b => b.booking_status === tab.value).length;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setActiveFilter(tab.value)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                  activeFilter === tab.value
+                    ? 'bg-[#f0fdf4] text-[#16a34a] ring-1 ring-[#16a34a]'
+                    : 'bg-white text-[#6b7280] ring-1 ring-[#e5e7eb] hover:ring-[#d1d5db]'
+                }`}
+              >
+                {tab.label}
+                {count > 0 && (
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                    activeFilter === tab.value ? 'bg-[#16a34a] text-white' : 'bg-[#f3f4f6] text-[#6b7280]'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Content */}
+        {bookingsLoading ? (
+          <div className="flex flex-col gap-4">
+            <BookingSkeleton />
+            <BookingSkeleton />
+            <BookingSkeleton />
+          </div>
+        ) : filteredBookings.length === 0 ? (
+          <div className="bg-white rounded-2xl p-16 text-center shadow-sm">
+            <Calendar className="w-12 h-12 text-[#d1d5db] mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-[#111827] mb-2">No rentals found</h3>
+            <p className="text-[#6b7280] text-sm mb-6 max-w-xs mx-auto">
+              {activeFilter === 'all'
+                ? "You haven't made any bookings yet."
+                : `No ${STATUS_CONFIG[activeFilter]?.label.toLowerCase() || ''} bookings.`}
+            </p>
+            <Link
+              href="/search"
+              className="px-5 py-2.5 bg-[#16a34a] text-white text-sm font-medium rounded-lg hover:bg-[#15803d] transition-colors"
+            >
+              Browse listings
             </Link>
           </div>
-
-          {bookingsLoading ? (
-            <div className="grid grid-cols-1 gap-6">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-40 bg-white rounded-[2rem] animate-pulse shadow-sm" />
-              ))}
-            </div>
-          ) : bookings.length === 0 ? (
-            <div className="bg-white rounded-[2.5rem] p-20 text-center shadow-ambient ring-1 ring-[#f97316]/5">
-              <Calendar className="h-16 w-16 text-[#f97316]/20 mx-auto mb-6" />
-              <h3 className="text-3xl font-display font-black text-[#251913] mb-2 tracking-tight">The Gallery is Empty</h3>
-              <p className="text-[#8c7164] mb-8 max-w-sm mx-auto font-medium">You haven&apos;t rented any artifacts yet. Start your journey in the archive.</p>
-              <Link href="/search">
-                <button className="gradient-signature px-10 py-4 text-white rounded-full font-display font-black text-lg shadow-lg hover:-translate-y-1 transition-transform">
-                  Explore Archive
-                </button>
-              </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-6">
-              {bookings.map((booking) => (
-                <div key={booking.id} className="bg-white rounded-[2rem] overflow-hidden shadow-ambient ring-1 ring-[#f97316]/5 group transition-all hover:shadow-[0_24px_48px_rgba(37,25,19,0.08)]">
-                  <div className="flex flex-col md:flex-row h-full">
-                    <div className="relative w-full md:w-56 h-48 md:h-auto bg-[#fff8f6] shrink-0 overflow-hidden">
-                      {booking.listings?.listing_images?.[0]?.image_url ? (
-                        <img
-                          src={booking.listings.listing_images[0].image_url}
-                          alt=""
-                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Package className="h-12 w-12 text-[#8c7164]/20" />
-                        </div>
-                      )}
-                      <div className="absolute top-3 left-3">
-                        <span className="px-2 py-1 bg-white/90 backdrop-blur-md text-[9px] font-black uppercase tracking-widest text-[#251913] rounded-full shadow-sm">
-                          #{booking.id.slice(0, 8)}
-                        </span>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {filteredBookings.map((booking) => {
+              const cfg = STATUS_CONFIG[booking.booking_status] || STATUS_CONFIG.renter_cancelled;
+              const image = booking.listings?.listing_images?.[0]?.image_url;
+              return (
+                <div
+                  key={booking.id}
+                  className="bg-white rounded-xl shadow-sm p-5 flex flex-col sm:flex-row gap-4 hover:shadow-md transition-shadow"
+                >
+                  {/* Thumbnail */}
+                  <div className="w-full sm:w-20 h-20 sm:h-16 rounded-lg overflow-hidden bg-[#f9fafb] flex-shrink-0">
+                    {image ? (
+                      <img src={image} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="w-6 h-6 text-[#d1d5db]" />
                       </div>
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-semibold text-[#111827] truncate">
+                          {booking.listings?.title || 'Unnamed listing'}
+                        </h3>
+                        <p className="text-sm text-[#6b7280] mt-0.5">
+                          {formatDate(booking.check_in_date)} → {formatDate(booking.check_out_date)}
+                        </p>
+                        <p className="text-sm text-[#6b7280]">
+                          {formatCurrency(booking.total_amount)} total
+                        </p>
+                      </div>
+                      <span className={`flex-shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full ring-1 ring-inset ${cfg.pill}`}>
+                        {cfg.dot} {cfg.label}
+                      </span>
                     </div>
 
-                    <div className="flex-1 p-6 md:p-8 flex flex-col justify-between gap-4">
-                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#f97316] mb-1">Artifact Rental</p>
-                          <h3 className="text-2xl font-display font-black text-[#251913] leading-none mb-3 tracking-tight">
-                            {booking.listings?.title || 'Unnamed Artifact'}
-                          </h3>
-                          <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-[#8c7164] uppercase tracking-widest">
-                            <div className="flex items-center gap-1.5">
-                              <Calendar className="h-3.5 w-3.5 text-[#f97316]" />
-                              <span>{formatDate(booking.check_in_date)} — {formatDate(booking.check_out_date)}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-start md:items-end gap-2">
-                          <span className="text-2xl font-display font-black text-[#251913]">
-                            {formatCurrency(booking.total_amount)}
-                          </span>
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ring-1 ring-inset ${STATUS_STYLES[booking.booking_status] || STATUS_STYLES.renter_cancelled}`}>
-                            {STATUS_LABELS[booking.booking_status] || booking.booking_status}
-                          </span>
-                        </div>
-                      </div>
+                    {/* Actions row */}
+                    <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[#f3f4f6]">
+                      <Link
+                        href={`/item/${booking.listing_id}`}
+                        className="text-xs text-[#16a34a] font-medium hover:underline"
+                      >
+                        View listing →
+                      </Link>
 
-                      <div className="flex items-center justify-between pt-4 border-t border-[#251913]/5">
-                        <Link href={`/item/${booking.listing_id}`} className="text-xs font-black uppercase tracking-widest text-[#8c7164] hover:text-[#f97316] transition-colors">
-                          View Listing →
-                        </Link>
-                        {booking.booking_status === 'pending_confirmation' && (
-                          <button
-                            onClick={() => handleCancel(booking.id)}
-                            disabled={cancellingId === booking.id}
-                            className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[#991b1b] hover:text-red-600 transition-colors disabled:opacity-50"
-                          >
-                            {cancellingId === booking.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <XCircle className="w-3.5 h-3.5" />
-                            )}
-                            Cancel Request
-                          </button>
-                        )}
-                      </div>
+                      {booking.booking_status === 'completed' && (
+                        <button className="text-xs text-[#16a34a] font-medium border border-[#16a34a] px-3 py-1 rounded-lg hover:bg-[#f0fdf4] transition-colors flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" /> Leave Review
+                        </button>
+                      )}
+
+                      {booking.booking_status === 'pending_confirmation' && (
+                        <button
+                          onClick={() => handleCancel(booking.id)}
+                          disabled={cancellingId === booking.id}
+                          className="text-xs text-red-600 font-medium border border-red-200 px-3 py-1 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1 disabled:opacity-50"
+                        >
+                          {cancellingId === booking.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <XCircle className="w-3 h-3" />
+                          )}
+                          Cancel
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,54 +1,63 @@
 @import "tailwindcss";
 
 @theme {
-  --background: #fff8f6;
-  --foreground: #251913;
+  /* ── GoRentals Design System ── */
+  --background: #f9fafb;
+  --foreground: #111827;
 
   --color-card: #ffffff;
-  --color-card-foreground: #251913;
+  --color-card-foreground: #111827;
 
-  --color-primary: #9d4300;
-  --color-primary-foreground: #fff8f6;
+  --color-primary: #16a34a;
+  --color-primary-foreground: #ffffff;
 
-  --color-secondary: #8f4d27;
+  --color-secondary: #15803d;
   --color-secondary-foreground: #ffffff;
 
-  --color-muted: #f1f1f1;
-  --color-muted-foreground: #584237;
+  --color-muted: #f3f4f6;
+  --color-muted-foreground: #6b7280;
 
-  --color-accent: #f97316;
+  --color-accent: #16a34a;
   --color-accent-foreground: #ffffff;
 
-  --color-border: #e2e2e2;
-  --color-input: #e2e2e2;
-  --color-ring: #f97316;
+  --color-border: #e5e7eb;
+  --color-input: #e5e7eb;
+  --color-ring: #16a34a;
 
-  --radius-xl: 1.5rem;
-  
-  --font-display: "Manrope", sans-serif;
+  --radius-xl: 1rem;
+
+  --font-display: "Inter", sans-serif;
   --font-sans: "Inter", sans-serif;
 }
 
 @layer base {
   body {
-    @apply bg-[#fff8f6] text-[#251913] font-sans antialiased;
+    @apply bg-[#f9fafb] text-[#111827] font-sans antialiased;
   }
-  
-  h1, h2, h3, h4, .font-display {
-    @apply font-display tracking-tight text-[#251913];
+
+  h1, h2, h3, h4 {
+    @apply font-semibold tracking-tight text-[#111827];
   }
 }
 
 @layer utilities {
+  /* Subtle card shadow */
   .shadow-ambient {
-    box-shadow: 0px 12px 32px rgba(37, 25, 19, 0.06);
+    box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.06);
   }
-  
-  .glass-panel {
-    @apply bg-[rgba(255,248,246,0.8)] backdrop-blur-xl border border-white/20;
-  }
-  
+
+  /* Green gradient for CTA buttons */
   .gradient-signature {
-    @apply bg-gradient-to-br from-[#f97316] to-[#9d4300];
+    @apply bg-gradient-to-br from-[#16a34a] to-[#15803d];
+  }
+
+  /* Glass panel (for modals/overlays) */
+  .glass-panel {
+    @apply bg-white/80 backdrop-blur-xl border border-white/30;
+  }
+
+  /* Green focus ring utility */
+  .focus-green {
+    @apply focus:outline-none focus:ring-2 focus:ring-[#16a34a] focus:ring-offset-2;
   }
 }

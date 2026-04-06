@@ -34,19 +34,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = (newToken: string, newUser: Profile) => {
-    localStorage.setItem('gr_token', newToken);
-    localStorage.setItem('gr_user', JSON.stringify(newUser));
-    // Set cookie for middleware route protection
-    document.cookie = `token=${newToken}; path=/; max-age=86400; SameSite=Lax`;
-    setToken(newToken);
-    setUser(newUser);
+  const login = (token: string, user: Profile) => {
+    localStorage.setItem('gr_token', token);
+    localStorage.setItem('gr_user', JSON.stringify(user));
+    // Also write cookie so middleware can read it server-side
+    document.cookie = `token=${token}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`;
+    setToken(token);
+    setUser(user);
   };
 
   const logout = () => {
     localStorage.removeItem('gr_token');
     localStorage.removeItem('gr_user');
-    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    // Also clear the middleware cookie
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
     setToken(null);
     setUser(null);
   };

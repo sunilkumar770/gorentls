@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import { Calendar, ShieldCheck, MapPin, Loader2, Info } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Calendar, ShieldCheck, MapPin, Loader2, Info, ChevronLeft } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getListing } from '@/services/listings';
 import { createBooking } from '@/services/bookings';
@@ -13,8 +12,10 @@ import { formatCurrency, calculateDays } from '@/lib/utils';
 import { SERVICE_FEE_PERCENTAGE } from '@/constants';
 import Link from 'next/link';
 import { payments, loadRazorpayScript } from '@/services/payments';
+import Image from 'next/image';
+import { Suspense } from 'react';
 
-export default function CheckoutPage() {
+function CheckoutPageContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -40,28 +41,38 @@ export default function CheckoutPage() {
   }, [params.id]);
 
   if (loading) return (
-    <div className="min-h-screen bg-[#fff8f6] flex items-center justify-center">
-      <div className="animate-pulse flex flex-col items-center gap-4">
-        <div className="w-12 h-12 rounded-full border-4 border-[#f97316]/20 border-t-[#f97316] animate-spin" />
-        <span className="text-xs font-black uppercase tracking-widest text-[#8c7164]">Processing Request...</span>
+    <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-10 h-10 rounded-full border-4 border-[#16a34a]/20 border-t-[#16a34a] animate-spin" />
+        <span className="text-sm font-semibold text-[#6b7280]">Loading checkout...</span>
       </div>
     </div>
   );
 
   if (!listing) return (
-     <div className="min-h-screen bg-[#fff8f6] p-24 text-center">
-        <h2 className="text-3xl font-display font-black text-[#251913]">Artifact Unavailable</h2>
-     </div>
+    <div className="min-h-screen bg-[#f9fafb] flex flex-col items-center justify-center gap-4">
+      <div className="w-20 h-20 bg-[#f3f4f6] rounded-full flex items-center justify-center text-3xl">⚠️</div>
+      <h2 className="text-2xl font-bold text-[#111827]">Item Unavailable</h2>
+      <button onClick={() => router.back()} className="text-[#16a34a] hover:underline">Go back</button>
+    </div>
   );
 
   if (!startDateStr || !endDateStr) return (
-     <div className="min-h-screen bg-[#fff8f6] p-24 text-center">
-        <h2 className="text-3xl font-display font-black text-[#8c7164]">Invalid Chronology specified. Return to artifact menu.</h2>
-     </div>
+    <div className="min-h-screen bg-[#f9fafb] flex flex-col items-center justify-center gap-4">
+      <div className="w-20 h-20 bg-[#f3f4f6] rounded-full flex items-center justify-center text-3xl">📅</div>
+      <h2 className="text-2xl font-bold text-[#111827]">Invalid dates specified</h2>
+      <Link href={`/item/${listing.id}`} className="px-5 py-2.5 bg-[#16a34a] text-white rounded-xl font-semibold">
+        Return to listing
+      </Link>
+    </div>
   );
 
   const days = calculateDays(startDateStr, endDateStr);
-  if (days <= 0) return <div className="p-12 text-center text-red-500">Invalid date range</div>;
+  if (days <= 0) return (
+    <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center p-12 text-center text-red-500 font-bold text-xl">
+      Invalid date range
+    </div>
+  );
 
   const rentalCost = days * listing.price_per_day;
   const serviceFee = rentalCost * SERVICE_FEE_PERCENTAGE;
@@ -75,7 +86,6 @@ export default function CheckoutPage() {
     }
     setProcessing(true);
     try {
-      // 1. Create the booking (Initially in PENDING_PAYMENT or similar state)
       const booking = await createBooking({
         listing_id: listing.id,
         store_id: listing.owner_id,
@@ -89,40 +99,35 @@ export default function CheckoutPage() {
         total_amount: totalAmount
       });
       
-      // 2. Load script & initiate payment flow
       const scriptLoaded = await loadRazorpayScript();
       if (!scriptLoaded) {
-          toast.error('Razorpay SDK failed to load. Please check your connection.');
+          toast.error('Payment gateway failed to load.');
           return;
       }
 
-      // 3. Request order from backend
       const { orderId, amount: paymentAmount, currency, razorpayKey } = await payments.initiate({
         bookingId: booking.id,
         amount: totalAmount,
         currency: 'INR'
       });
 
-      // 4. Trigger Razorpay Modal
       const options = {
-        key: razorpayKey || 'rzp_test_placeholder', // Should be in env or from backend
+        key: razorpayKey || 'rzp_test_placeholder',
         amount: paymentAmount,
         currency: currency,
         name: 'GoRentals',
-        description: `Acquisition of ${listing.title}`,
+        description: `Booking: ${listing.title}`,
         order_id: orderId,
         handler: async (response: any) => {
             try {
                 setProcessing(true);
-                // 5. Verify payment
                 await payments.verify({
                     razorpayPaymentId: response.razorpay_payment_id,
                     razorpayOrderId: response.razorpay_order_id,
                     razorpaySignature: response.razorpay_signature
                 });
                 
-                toast.success('Acquisition request filed successfully.');
-                router.push('/dashboard');
+                router.push(`/payment/success?bookingId=${booking.id}&amount=${totalAmount}&title=${encodeURIComponent(listing.title)}&dates=${encodeURIComponent(`${new Date(startDateStr).toLocaleDateString()} - ${new Date(endDateStr).toLocaleDateString()}`)}`);
             } catch (err: any) {
                 toast.error('Payment verification failed.');
             } finally {
@@ -130,11 +135,11 @@ export default function CheckoutPage() {
             }
         },
         prefill: {
-            name: user.full_name || '',
+            name: user.fullName || '',
             email: user.email || '',
         },
         theme: {
-            color: '#f97316'
+            color: '#16a34a'
         }
       };
 
@@ -142,135 +147,167 @@ export default function CheckoutPage() {
       rzp.open();
       
     } catch (error: any) {
-      toast.error(error.message || 'Failed to process acquisition');
+      toast.error(error.message || 'Failed to process booking');
     } finally {
       setProcessing(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[#fff8f6] pt-12 pb-24">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 w-full">
-        
-        {/* Navigation Breadcrumb */}
-        <div className="mb-10 flex items-center gap-4">
-          <Link href={`/item/${listing.id}`} className="text-xs font-black uppercase tracking-[0.2em] text-[#8c7164] hover:text-[#f97316] transition-colors">
-            &larr; Back to {listing.title}
-          </Link>
-        </div>
+  const image = listing.listing_images?.[0]?.image_url || '/placeholder-item.jpg';
 
-        <h1 className="text-5xl md:text-7xl font-display font-black text-[#251913] leading-none mb-12 tracking-tighter">
-          Confirm <br/><span className="text-[#f97316]">Acquisition.</span>
+  return (
+    <div className="min-h-screen bg-[#f9fafb] pt-8 pb-24">
+      {/* Navbar for Checkout */}
+      <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-[#e5e7eb] flex items-center justify-between px-4 sm:px-8 z-50">
+        <Link href={`/item/${listing.id}`} className="flex items-center gap-1.5 text-sm font-semibold text-[#6b7280] hover:text-[#111827] transition-colors">
+          <ChevronLeft className="w-4 h-4" /> Back
+        </Link>
+        <span className="font-bold text-[#111827]">Secure Checkout</span>
+        <div className="w-16" /> {/* Spacer */}
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 sm:px-8 pt-12">
+        <h1 className="text-3xl sm:text-4xl font-bold text-[#111827] mb-8">
+          Confirm and pay
         </h1>
         
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           
           {/* Left column - Details */}
-          <div className="lg:col-span-7 space-y-8">
+          <div className="lg:col-span-7 space-y-6">
             
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-ambient ring-1 ring-[#f97316]/5 transform transition-all">
-              <h2 className="text-sm font-black uppercase tracking-widest text-[#8c7164] mb-6">Subject Blueprint</h2>
-              <div className="flex gap-6 items-center">
-                {listing.listing_images?.[0] ? (
-                  <img src={listing.listing_images[0].image_url} alt={listing.title} className="w-32 h-32 object-cover rounded-[1.5rem] shadow-sm" />
-                ) : (
-                  <div className="w-32 h-32 bg-[#fff8f6] rounded-[1.5rem] flex items-center justify-center shadow-inner">
-                    <span className="text-[#8c7164] text-[10px] font-black uppercase tracking-widest">No Image</span>
-                  </div>
-                )}
+            {/* Booking Dates */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#e5e7eb]">
+              <h2 className="text-xl font-bold text-[#111827] mb-4">Your trip</h2>
+              <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-3xl font-display font-black text-[#251913] leading-none mb-2 tracking-tight">{listing.title}</h3>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#f97316] mb-4">{listing.category} &bull; {listing.subcategory}</p>
-                  <div className="flex flex-wrap gap-2 text-[10px] uppercase font-bold text-[#8c7164] tracking-widest">
-                    <span className="flex items-center gap-1.5 px-3 py-1 bg-[#fff8f6] rounded-full border border-[#251913]/5">
-                       <MapPin className="w-3 h-3 text-[#f97316]" /> Regional Verification
-                    </span>
-                  </div>
+                  <p className="font-semibold text-[#111827]">Dates</p>
+                  <p className="text-[#6b7280]">
+                    {new Date(startDateStr).toLocaleDateString()} – {new Date(endDateStr).toLocaleDateString()}
+                  </p>
+                </div>
+                <Link href={`/item/${listing.id}`} className="text-sm font-semibold text-[#16a34a] hover:underline">
+                  Edit
+                </Link>
+              </div>
+            </div>
+
+            {/* Insurance/Protection Banner */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#e5e7eb]">
+              <div className="flex gap-4">
+                <div className="shrink-0 mt-1">
+                  <ShieldCheck className="w-8 h-8 text-[#16a34a]" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-[#111827] mb-1">GoRentals Protection Standard</h3>
+                  <p className="text-sm text-[#6b7280] leading-relaxed">
+                    Your rental is comprehensively protected. Security deposits are held securely in escrow and automatically refunded post-return verification.
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-ambient ring-1 ring-[#f97316]/5">
-              <h2 className="text-sm font-black uppercase tracking-widest text-[#8c7164] mb-6">Chronology</h2>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-6 bg-[#fff8f6] p-6 rounded-[1.5rem] border border-[#251913]/5">
-                <div className="flex-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#f97316] mb-1">Retrieval Date</p>
-                  <p className="font-display font-black text-xl text-[#251913]">{new Date(startDateStr).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</p>
-                </div>
-                <div className="hidden sm:block h-12 w-px bg-[#251913]/10"></div>
-                <div className="sm:hidden w-full h-px bg-[#251913]/10"></div>
-                <div className="flex-1 sm:text-right">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#8c7164] mb-1">Return Date</p>
-                  <p className="font-display font-black text-xl text-[#251913]">{new Date(endDateStr).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</p>
-                </div>
+            {/* Rules / Disclaimer */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#e5e7eb]">
+              <h3 className="font-bold text-[#111827] mb-3">Ground rules</h3>
+              <p className="text-sm text-[#6b7280] leading-relaxed mb-4">
+                We ask every user to remember a few simple things about what makes a great renter:
+              </p>
+              <ul className="text-sm text-[#6b7280] list-disc pl-5 space-y-2">
+                <li>Follow the owner's equipment rules.</li>
+                <li>Treat the equipment like your own.</li>
+                <li>Return the item on time and in the same condition.</li>
+              </ul>
+              <div className="mt-6 pt-6 border-t border-[#f3f4f6]">
+                <p className="text-xs text-[#9ca3af]">
+                  By clicking below, you agree to the GoRentals Terms of Service and authorize the initial escrow hold.
+                </p>
               </div>
             </div>
 
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-ambient ring-1 ring-[#f97316]/5 border-l-4 border-l-[#f97316]">
-              <div className="flex gap-6 items-start">
-                <div className="w-12 h-12 bg-[#fff8f6] rounded-full flex items-center justify-center shrink-0 shadow-inner">
-                   <ShieldCheck className="w-6 h-6 text-[#f97316]" />
-                </div>
-                <div>
-                  <h3 className="font-display font-black text-xl text-[#251913] mb-1">GoRentals Protection Standard</h3>
-                  <p className="text-sm text-[#8c7164] font-medium leading-relaxed tracking-tight">Your artifact is comprehensively insured up to ₹1,00,000 via our global escrow protocol. Security deposits are unconditionally remitted post-return verification.</p>
-                </div>
-              </div>
-            </div>
           </div>
 
-          {/* Right column - Pricing summary */}
-          <div className="lg:col-span-5 relative">
-            <div className="bg-white p-10 rounded-[2.5rem] shadow-[0_48px_96px_rgba(37,25,19,0.15)] ring-1 ring-[#f97316]/5 sticky top-32">
-              <h2 className="text-sm font-black uppercase tracking-widest text-[#8c7164] mb-8 border-b border-[#251913]/5 pb-4">Financial Ledger</h2>
+          {/* Right column - Summary Box */}
+          <div className="lg:col-span-5">
+            <div className="bg-white p-6 rounded-2xl shadow-md border border-[#e5e7eb] sticky top-24">
               
-              <div className="space-y-5 mb-8">
-                <div className="flex justify-between items-center text-[#584237] font-medium">
-                  <span>{formatCurrency(listing.price_per_day)} <span className="mx-1 text-[#8c7164]">×</span> {days} Days</span>
-                  <span className="font-black text-[#251913]">{formatCurrency(rentalCost)}</span>
+              {/* Item Mini Card */}
+              <div className="flex gap-4 pb-6 border-b border-[#f3f4f6] mb-6">
+                <div className="relative w-24 h-20 rounded-lg overflow-hidden bg-[#f3f4f6] shrink-0 border border-[#e5e7eb]">
+                  <Image src={image} fill alt="" className="object-cover" />
+                </div>
+                <div className="flex flex-col justify-center">
+                  <span className="text-xs font-semibold text-[#6b7280] uppercase tracking-wider mb-1">{listing.category}</span>
+                  <h3 className="font-bold text-[#111827] line-clamp-2">{listing.title}</h3>
+                </div>
+              </div>
+
+              <h2 className="text-lg font-bold text-[#111827] mb-4">Price details</h2>
+              
+              <div className="space-y-4 mb-6">
+                <div className="flex justify-between items-center text-[#374151]">
+                  <span>{formatCurrency(listing.price_per_day)} × {days} days</span>
+                  <span>{formatCurrency(rentalCost)}</span>
                 </div>
                 
-                <div className="flex justify-between items-center text-[#584237] font-medium">
-                  <span className="flex items-center gap-1 group">
-                    Platform Fee (10%)
-                    <Info className="w-3 h-3 text-[#f97316]" />
+                <div className="flex justify-between items-center text-[#374151]">
+                  <span className="flex items-center gap-1">
+                    Platform fee
+                    <Info className="w-3 h-3 text-[#9ca3af]" />
                   </span>
-                  <span className="font-black text-[#251913]">{formatCurrency(serviceFee)}</span>
+                  <span>{formatCurrency(serviceFee)}</span>
                 </div>
 
-                <div className="h-px bg-[#251913]/10 my-6"></div>
-
-                <div className="flex justify-between items-baseline mb-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#8c7164]">Immediate Remittance</span>
-                  <span className="text-4xl font-display font-black text-[#251913]">{formatCurrency(rentalCost + serviceFee)}</span>
+                <div className="pt-4 border-t border-[#f3f4f6] flex justify-between items-center">
+                  <span className="font-bold text-[#111827]">Total (INR)</span>
+                  <span className="font-bold text-[#111827]">{formatCurrency(rentalCost + serviceFee)}</span>
                 </div>
+              </div>
 
-                <div className="flex justify-between items-center py-4 px-6 bg-[#fff8f6] rounded-[1.5rem] ring-1 ring-[#f97316]/20">
-                  <span className="text-xs font-black uppercase tracking-widest text-[#f97316]">Escrow Deposit</span>
-                  <span className="font-black text-[#251913]">{formatCurrency(securityDeposit)}</span>
+              {/* Security Deposit Box */}
+              <div className="bg-[#f9fafb] p-4 rounded-xl border border-[#e5e7eb] mb-6">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="font-semibold text-[#111827]">Security Deposit</span>
+                  <span className="font-semibold text-[#111827]">{formatCurrency(securityDeposit)}</span>
                 </div>
+                <p className="text-xs text-[#6b7280]">Fully refunded upon safe return</p>
+              </div>
+
+              <div className="flex justify-between items-end mb-6">
+                <span className="font-bold text-[#111827] text-lg">Total payment</span>
+                <span className="font-bold text-[#16a34a] text-2xl">{formatCurrency(totalAmount)}</span>
               </div>
 
               <button 
                  onClick={handleConfirm}
                  disabled={processing}
-                 className="gradient-signature w-full h-16 text-white text-xl font-display font-black rounded-[1.5rem] shadow-ambient transition-all hover:-translate-y-1 active:scale-95 flex justify-center items-center gap-3 disabled:opacity-50"
+                 className="w-full h-14 bg-[#111827] hover:bg-[#374151] text-white text-base font-bold rounded-xl transition-all active:scale-95 flex justify-center items-center gap-2 disabled:opacity-70 disabled:hover:bg-[#111827] shadow-sm"
               >
                  {processing ? (
-                   <><Loader2 className="w-6 h-6 animate-spin" /> Authorizing...</>
+                   <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>
                  ) : (
-                   `Authorize Transfer • ${formatCurrency(totalAmount)}`
+                   `Pay ${formatCurrency(totalAmount)}`
                  )}
               </button>
-              
-              <p className="text-center text-[9px] text-[#8c7164] font-black uppercase tracking-[0.2em] mt-6 opacity-60">
-                You will not be debited until<br/>owner consent is granted.
-              </p>
             </div>
           </div>
-
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-4 border-[#16a34a]/20 border-t-[#16a34a] animate-spin" />
+          <span className="text-sm font-semibold text-[#6b7280]">Loading...</span>
+        </div>
+      </div>
+    }>
+      <CheckoutPageContent />
+    </Suspense>
   );
 }

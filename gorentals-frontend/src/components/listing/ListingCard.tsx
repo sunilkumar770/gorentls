@@ -3,75 +3,104 @@ import Image from 'next/image';
 import type { Listing } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import { useState } from 'react';
-import { Star, MapPin } from 'lucide-react';
-import { Badge } from '../ui/Badge';
+import { Star, MapPin, Package } from 'lucide-react';
 
 export function ListingCard({ listing }: { listing: Listing }) {
-  const [imgSrc, setImgSrc] = useState(
-    listing.listing_images?.find((img) => img.is_primary)?.image_url 
-    || listing.listing_images?.[0]?.image_url
-    || '/placeholder-item.jpg'
-  );
+  const [imgError, setImgError] = useState(false);
 
-  const fallbackImage = 'https://images.unsplash.com/photo-1593642532842-98d0fd5ebc1a?q=80&w=2069&auto=format&fit=crop';
+  const imgSrc = !imgError
+    ? (listing.listing_images?.find(img => img.is_primary)?.image_url
+      || listing.listing_images?.[0]?.image_url
+      || '/placeholder-item.jpg')
+    : '/placeholder-item.jpg';
 
-  // Fallback to avoid breaking if stores relation is missing somehow
   const store = Array.isArray(listing.stores) ? listing.stores[0] : listing.stores;
-  const storeCity = store?.store_city || 'Location unavailable';
+  const city = store?.store_city || null;
   const rating = Number(listing.average_rating || 0);
+  const reviewCount = Number(listing.total_reviews || 0);
+
+  const categoryEmoji: Record<string, string> = {
+    CAMERAS: '📸', cameras: '📸',
+    GAMING: '🎮', gaming: '🎮',
+    AUDIO: '🎵', audio: '🎵',
+    ELECTRONICS: '⚡', electronics: '⚡',
+    BIKES: '🚲', bikes: '🚲',
+    TOOLS: '🔧', tools: '🔧',
+    SPORTS: '🏋️', sports: '🏋️',
+    CAMPING: '⛺', camping: '⛺',
+  };
+  const emoji = categoryEmoji[listing.category] || '📦';
 
   return (
     <Link href={`/item/${listing.id}`} className="group block focus:outline-none">
-      <div className="bg-white border-transparent rounded-[1.5rem] p-1.5 shadow-ambient overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_48px_rgba(37,25,19,0.12)]">
-        
-        {/* Image Container: Inset Frame within Frame */}
-        <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#fff8f6] rounded-[1.25rem]">
-          <Image
-            src={imgSrc}
-            alt={listing.title}
-            fill
-            onError={() => setImgSrc(fallbackImage)}
-            className="object-cover transition-transform duration-700 group-hover:scale-110"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
-          {/* Status Overlay */}
-          <div className="absolute top-4 left-4">
-            {listing.condition === 'like_new' && (
-              <div className="px-3 py-1 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-[#251913] shadow-sm">
-                Pristine
-              </div>
-            )}
+      <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 border border-[#f3f4f6]">
+
+        {/* Image — 16:9 */}
+        <div className="relative aspect-video w-full bg-[#f0fdf4] overflow-hidden">
+          {imgSrc && imgSrc !== '/placeholder-item.jpg' ? (
+            <Image
+              src={imgSrc}
+              alt={listing.title}
+              fill
+              onError={() => setImgError(true)}
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+              <Package className="w-8 h-8 text-[#86efac]" />
+              <span className="text-xs text-[#16a34a] font-medium">{listing.category}</span>
+            </div>
+          )}
+
+          {/* Availability badge */}
+          {!listing.is_available && (
+            <div className="absolute inset-0 bg-gray-900/40 flex items-center justify-center">
+              <span className="px-3 py-1 bg-white text-[#374151] text-xs font-semibold rounded-full">
+                Unavailable
+              </span>
+            </div>
+          )}
+
+          {/* Category pill */}
+          <div className="absolute top-3 left-3">
+            <span className="px-2.5 py-1 bg-[#f0fdf4]/90 backdrop-blur-sm text-[#16a34a] text-xs font-semibold rounded-full">
+              {emoji} {listing.category}
+            </span>
           </div>
-          
-          {/* Gradient Overlay for legibility if needed */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         </div>
 
         {/* Content */}
-        <div className="p-5 flex flex-col gap-3">
-          <div className="flex justify-between items-start gap-3">
-            <h3 className="font-display text-lg font-black text-[#251913] leading-tight line-clamp-2 group-hover:text-[#f97316] transition-colors">
-              {listing.title}
-            </h3>
-          </div>
-          
-          <div className="flex items-center text-xs text-[#8c7164] gap-1.5 font-bold uppercase tracking-wider">
-            <MapPin className="h-3 w-3 text-[#f97316]" />
-            <span className="line-clamp-1">{storeCity}</span>
-          </div>
+        <div className="p-4 flex flex-col gap-2">
+          {/* Title */}
+          <h3 className="font-semibold text-[#111827] text-sm leading-snug line-clamp-2 group-hover:text-[#16a34a] transition-colors">
+            {listing.title}
+          </h3>
 
-          <div className="mt-2 flex items-center justify-between">
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-display font-black text-[#251913]">
+          {/* City */}
+          {city && (
+            <div className="flex items-center gap-1 text-xs text-[#6b7280]">
+              <MapPin className="w-3 h-3 flex-shrink-0" />
+              <span className="line-clamp-1">{city}</span>
+            </div>
+          )}
+
+          {/* Price row + rating */}
+          <div className="flex items-center justify-between mt-1">
+            <div className="flex items-baseline gap-0.5">
+              <span className="text-base font-bold text-[#111827]">
                 {formatCurrency(listing.price_per_day)}
               </span>
-              <span className="text-[10px] text-[#8c7164] font-black uppercase tracking-tighter">/ Day</span>
+              <span className="text-xs text-[#9ca3af] font-normal">/day</span>
             </div>
-            
+
             {rating > 0 && (
               <div className="flex items-center gap-1">
-                <Star className="h-3 w-3 fill-[#f97316] text-[#f97316]" />
-                <span className="text-sm font-black text-[#251913]">{rating.toFixed(1)}</span>
+                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 flex-shrink-0" />
+                <span className="text-xs font-semibold text-[#374151]">{rating.toFixed(1)}</span>
+                {reviewCount > 0 && (
+                  <span className="text-xs text-[#9ca3af]">({reviewCount})</span>
+                )}
               </div>
             )}
           </div>

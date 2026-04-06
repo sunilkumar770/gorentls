@@ -1,19 +1,37 @@
-'use client';
+"use client";
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/user';
 import KYCModal from '@/components/profile/KYCModal';
-import { User, Mail, Phone, Shield, Calendar, MapPin, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
+import { 
+  User, Mail, Phone, Shield, Calendar, MapPin, 
+  CheckCircle2, Clock, AlertTriangle, Lock, LogOut, 
+  Eye, EyeOff, Loader2 
+} from 'lucide-react';
 
-export default function ProfilePage() {
-  const { user, updateUser } = useAuth();
+export default function ProfileSettingsPage() {
+  const { user, updateUser, logout } = useAuth();
+  const router = useRouter();
+
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'danger'>('profile');
+  
+  // Profile State
   const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState(user?.fullName || '');
   const [phone, setPhone] = useState(user?.phone || '');
-  const [saving, setSaving] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [requestingKYC, setRequestingKYC] = useState(false);
+
+  // Security State
+  const [currentPwd, setCurrentPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [confirmPwd, setConfirmPwd] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [pwdLoading, setPwdLoading] = useState(false);
 
   const kycStatus = user?.kycStatus || 'PENDING';
 
@@ -26,169 +44,342 @@ export default function ProfilePage() {
 
   const userTypeLabel = {
     store_owner: 'Verified Owner',
-    renter: 'Collector',
+    renter: 'Renter',
     admin: 'Administrator',
   }[user?.userType || 'renter'];
 
-  const userTypeBadge = {
-    store_owner: 'bg-[#ecfdf5] text-[#065f46]',
-    renter: 'bg-[#fff8f6] text-[#9d4300]',
-    admin: 'bg-[#eff6ff] text-[#1e40af]',
-  }[user?.userType || 'renter'];
-
-  const handleSave = async () => {
-    setSaving(true);
+  // Handlers
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
     try {
-      const updated = await userService.updateProfile({
-        fullName,
-        phone,
-      });
+      const updated = await userService.updateProfile({ fullName, phone });
       updateUser(updated);
       toast.success('Profile updated successfully.');
       setEditing(false);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update profile.');
     } finally {
-      setSaving(false);
+      setSavingProfile(false);
     }
   };
 
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPwd !== confirmPwd) {
+      toast.error('New passwords do not match.');
+      return;
+    }
+    if (newPwd.length < 8) {
+      toast.error('Password must be at least 8 characters.');
+      return;
+    }
+    setPwdLoading(true);
+    try {
+      await userService.changePassword({
+        currentPassword: currentPwd,
+        newPassword: newPwd,
+      });
+      toast.success('Password updated successfully.');
+      setCurrentPwd(''); setNewPwd(''); setConfirmPwd('');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update password.');
+    } finally {
+      setPwdLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.push('/');
+    toast.success('Signed out successfully.');
+  };
+
   return (
-    <div className="min-h-screen bg-[#fff8f6] pt-12 pb-24">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-
-        {/* Header */}
-        <div className="mb-12 border-b border-[#251913]/5 pb-12">
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-[#f97316] mb-3">Account</p>
-          <h1 className="text-6xl font-display font-black tracking-tighter text-[#251913] leading-[0.85] mb-4">
-            Your<span className="text-[#f97316]"> Profile.</span>
-          </h1>
-        </div>
-
-        {/* Avatar + Identity Card */}
-        <div className="bg-white rounded-[2.5rem] p-10 shadow-ambient ring-1 ring-[#f97316]/5 mb-8">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
-            <div className="w-24 h-24 bg-gradient-to-br from-[#f97316] to-[#ea580c] rounded-[1.5rem] flex items-center justify-center text-white font-display font-black text-4xl shadow-lg shrink-0">
+    <div className="min-h-screen bg-[#f9fafb]">
+      {/* Header Banner */}
+      <div className="bg-white border-b border-[#e5e7eb] pt-12 pb-6 px-4">
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row gap-6 items-center md:items-end justify-between">
+          <div className="flex items-center gap-6">
+            <div className="w-20 h-20 bg-[#f0fdf4] text-[#16a34a] rounded-full flex items-center justify-center font-bold text-3xl ring-4 ring-white shadow-sm shrink-0">
               {user?.fullName?.charAt(0)?.toUpperCase() || 'U'}
             </div>
-            <div className="flex-1 text-center sm:text-left">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
-                <h2 className="text-3xl font-display font-black text-[#251913]">{user?.fullName || 'Anonymous'}</h2>
-                <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest self-center ${userTypeBadge}`}>
+            <div>
+              <h1 className="text-3xl font-bold text-[#111827]">{user?.fullName || 'Anonymous'}</h1>
+              <div className="flex flex-wrap items-center gap-3 mt-2">
+                <span className="text-[#6b7280] flex items-center gap-1.5 text-sm font-medium">
+                  <Mail className="w-4 h-4" />
+                  {user?.email}
+                </span>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                  user?.userType === 'store_owner' ? 'bg-[#f0fdf4] text-[#15803d]' : 'bg-[#f3f4f6] text-[#4b5563]'
+                }`}>
                   {userTypeLabel}
                 </span>
               </div>
-              <p className="text-[#8c7164] font-medium">{user?.email}</p>
-              {user?.city && (
-                <div className="flex items-center gap-1.5 justify-center sm:justify-start text-sm text-[#8c7164] font-bold mt-2">
-                  <MapPin className="w-3.5 h-3.5 text-[#f97316]" />
-                  {user.city}{user.state ? `, ${user.state}` : ''}
-                </div>
-              )}
             </div>
-            <button
-              onClick={() => setEditing(!editing)}
-              className="px-6 py-3 bg-[#fff8f6] rounded-full text-xs font-black uppercase tracking-widest text-[#251913] hover:bg-[#ffeae0] transition-colors ring-1 ring-[#f97316]/10"
-            >
-              {editing ? 'Cancel' : 'Edit Profile'}
-            </button>
           </div>
         </div>
+      </div>
 
-        {/* Info Fields */}
-        <div className="bg-white rounded-[2.5rem] p-10 shadow-ambient ring-1 ring-[#f97316]/5 mb-8">
-          <h3 className="text-sm font-black uppercase tracking-widest text-[#8c7164] mb-8 pb-4 border-b border-[#251913]/5">Identity Details</h3>
-          <div className="space-y-6">
-            {[
-              { icon: User,     label: 'Full Name',   value: fullName,  setter: setFullName, editable: true  },
-              { icon: Mail,     label: 'Email',        value: user?.email || '', setter: () => {}, editable: false },
-              { icon: Phone,    label: 'Phone',        value: phone,     setter: setPhone,    editable: true  },
-              { icon: Shield,   label: 'Account Type', value: userTypeLabel, setter: () => {}, editable: false },
-              { icon: Calendar, label: 'Member Since', value: user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : 'Unknown', setter: () => {}, editable: false },
-            ].map(field => {
-              const Icon = field.icon;
-              return (
-                <div key={field.label} className="flex items-start gap-4">
-                  <div className="w-10 h-10 bg-[#fff8f6] rounded-[0.75rem] flex items-center justify-center shrink-0">
-                    <Icon className="w-4 h-4 text-[#f97316]" />
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row gap-8">
+        
+        {/* Sidebar Nav */}
+        <div className="w-full md:w-64 shrink-0">
+          <nav className="flex md:flex-col gap-2 overflow-x-auto pb-4 md:pb-0 hide-scrollbar">
+            <button 
+              onClick={() => setActiveTab('profile')}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm whitespace-nowrap transition-colors ${
+                activeTab === 'profile' ? 'bg-white text-[#111827] shadow-sm border border-[#e5e7eb]' : 'text-[#6b7280] hover:bg-[#f3f4f6]'
+              }`}
+            >
+              <User className={`w-5 h-5 ${activeTab === 'profile' ? 'text-[#16a34a]' : ''}`} />
+              Personal Info
+            </button>
+            <button 
+              onClick={() => setActiveTab('security')}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm whitespace-nowrap transition-colors ${
+                activeTab === 'security' ? 'bg-white text-[#111827] shadow-sm border border-[#e5e7eb]' : 'text-[#6b7280] hover:bg-[#f3f4f6]'
+              }`}
+            >
+              <Lock className={`w-5 h-5 ${activeTab === 'security' ? 'text-[#16a34a]' : ''}`} />
+              Security
+            </button>
+            <button 
+              onClick={() => setActiveTab('danger')}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm whitespace-nowrap transition-colors ${
+                activeTab === 'danger' ? 'bg-white text-[#111827] shadow-sm border border-[#e5e7eb]' : 'text-[#6b7280] hover:bg-red-50 hover:text-red-600'
+              }`}
+            >
+              <AlertTriangle className={`w-5 h-5 ${activeTab === 'danger' ? 'text-red-500' : ''}`} />
+              Danger Zone
+            </button>
+          </nav>
+        </div>
+
+        {/* Content Area */}
+        <div className="flex-1 space-y-6">
+          
+          {/* ---- PROFILE TAB ---- */}
+          {activeTab === 'profile' && (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
+              
+              {/* Verification Card */}
+              <div className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-6">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                      kycStatus === 'APPROVED' ? 'bg-[#f0fdf4] text-[#16a34a]' : 
+                      kycStatus === 'SUBMITTED' ? 'bg-amber-50 text-amber-500' : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {kycStatus === 'APPROVED' ? <CheckCircle2 className="w-6 h-6" /> :
+                       kycStatus === 'SUBMITTED' ? <Clock className="w-6 h-6" /> :
+                       <Shield className="w-6 h-6" />}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-[#111827]">
+                        {kycStatus === 'APPROVED' ? 'Identity Verified' : 
+                         kycStatus === 'SUBMITTED' ? 'Verification Pending' : 'Action Required'}
+                      </h3>
+                      <p className="text-sm text-[#6b7280]">
+                        {kycStatus === 'APPROVED' 
+                          ? 'You can now rent and list items freely.'
+                          : kycStatus === 'SUBMITTED'
+                          ? 'We are reviewing your documents.'
+                          : 'Verify your ID to unlock renting.'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[#8c7164] mb-1">{field.label}</p>
-                    {editing && field.editable ? (
-                      <input
-                        value={field.value}
-                        onChange={e => field.setter(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-[#fff8f6] rounded-[0.75rem] border border-transparent focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/10 outline-none text-[#251913] font-bold transition-all"
-                      />
-                    ) : (
-                      <p className="text-lg font-bold text-[#251913]">{field.value || '—'}</p>
-                    )}
-                  </div>
+                  {kycStatus !== 'APPROVED' && (
+                    <button 
+                      onClick={() => setRequestingKYC(true)}
+                      className="px-5 py-2.5 rounded-xl font-semibold text-sm bg-[#16a34a] hover:bg-[#15803d] text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={kycStatus === 'SUBMITTED'}
+                    >
+                      {kycStatus === 'SUBMITTED' ? 'Submitted' : 'Verify Now'}
+                    </button>
+                  )}
                 </div>
-              );
-            })}
-          </div>
+              </div>
 
-          {editing && (
-            <div className="mt-8 flex gap-4">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="gradient-signature px-8 py-4 text-white rounded-full font-display font-black shadow-ambient hover:-translate-y-0.5 transition-transform disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
-              <button
-                onClick={() => setEditing(false)}
-                className="px-8 py-4 bg-[#fff8f6] text-[#251913] rounded-full font-black text-sm hover:bg-[#ffeae0] transition-colors"
-              >
-                Cancel
-              </button>
+              {/* Personal Details */}
+              <div className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-bold text-lg text-[#111827]">Personal Details</h3>
+                  <button
+                    onClick={() => setEditing(!editing)}
+                    className="text-sm font-semibold text-[#16a34a] hover:text-[#15803d] transition-colors"
+                  >
+                    {editing ? 'Cancel' : 'Edit'}
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-[#6b7280] mb-1.5">Full Name</label>
+                      {editing ? (
+                        <input
+                          value={fullName}
+                          onChange={e => setFullName(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-[#f9fafb] border border-[#d1d5db] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] text-[#111827]"
+                        />
+                      ) : (
+                        <p className="font-medium text-[#111827]">{fullName}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-[#6b7280] mb-1.5">Phone Number</label>
+                      {editing ? (
+                        <input
+                          value={phone}
+                          onChange={e => setPhone(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-[#f9fafb] border border-[#d1d5db] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] text-[#111827]"
+                        />
+                      ) : (
+                        <p className="font-medium text-[#111827]">{phone || 'Not provided'}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {user?.city && (
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-[#6b7280] mb-1.5">Location</label>
+                      <p className="font-medium text-[#111827] flex items-center gap-1.5">
+                        <MapPin className="w-4 h-4 text-[#9ca3af]" />
+                        {user.city}{user.state ? `, ${user.state}` : ''}
+                      </p>
+                    </div>
+                  )}
+
+                  {editing && (
+                    <div className="pt-4 border-t border-[#f3f4f6]">
+                      <button
+                        onClick={handleSaveProfile}
+                        disabled={savingProfile}
+                        className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#111827] hover:bg-[#374151] text-white rounded-xl font-semibold text-sm transition-colors"
+                      >
+                        {savingProfile && <Loader2 className="w-4 h-4 animate-spin" />}
+                        Save Changes
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
-        </div>
 
-        {/* Verification Status */}
-        <div className="bg-white rounded-[2.5rem] p-8 shadow-ambient ring-1 ring-[#f97316]/5 mb-12">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center ${
-                kycStatus === 'APPROVED' ? 'bg-[#ecfdf5]' : 
-                kycStatus === 'SUBMITTED' ? 'bg-[#fffbeb]' : 'bg-[#fff8f6]'
-              }`}>
-                {kycStatus === 'APPROVED' ? <CheckCircle className="w-5 h-5 text-[#10b981]" /> :
-                 kycStatus === 'SUBMITTED' ? <Clock className="w-5 h-5 text-[#f59e0b]" /> :
-                 <Shield className="w-5 h-5 text-[#f97316]" />}
-              </div>
-              <div>
-                <h3 className="font-display font-black text-[#251913] text-lg">
-                  {kycStatus === 'APPROVED' ? 'Identity Verified' : 
-                   kycStatus === 'SUBMITTED' ? 'Verification in Progress' : 
-                   'Identity Unverified'}
-                </h3>
-                <p className="text-sm text-[#8c7164] font-medium">
-                  {kycStatus === 'APPROVED' 
-                    ? 'Your identity has been confirmed by the GoRentals team.'
-                    : kycStatus === 'SUBMITTED'
-                    ? 'We are currently reviewing your documents. Check back in 24h.'
-                    : 'Complete identity verification to unlock all platform features.'}
-                </p>
+          {/* ---- SECURITY TAB ---- */}
+          {activeTab === 'security' && (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-6">
+                <h3 className="font-bold text-lg text-[#111827] mb-2">Change Password</h3>
+                <p className="text-[#6b7280] text-sm mb-6">Ensure your account is using a long, random password to stay secure.</p>
+                
+                <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
+                  <div>
+                    <label className="block text-sm font-medium text-[#374151] mb-1.5">Current Password</label>
+                    <div className="relative">
+                      <input
+                        type={showCurrent ? 'text' : 'password'}
+                        value={currentPwd}
+                        onChange={e => setCurrentPwd(e.target.value)}
+                        required
+                        className="w-full pr-10 px-4 py-2.5 bg-[#f9fafb] border border-[#d1d5db] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] text-[#111827]"
+                      />
+                      <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#4b5563]">
+                        {showCurrent ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-[#374151] mb-1.5">New Password</label>
+                    <div className="relative">
+                      <input
+                        type={showNew ? 'text' : 'password'}
+                        value={newPwd}
+                        onChange={e => setNewPwd(e.target.value)}
+                        required
+                        minLength={8}
+                        className="w-full pr-10 px-4 py-2.5 bg-[#f9fafb] border border-[#d1d5db] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] text-[#111827]"
+                      />
+                      <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#4b5563]">
+                        {showNew ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-[#374151] mb-1.5">Confirm New Password</label>
+                    <input
+                      type="password"
+                      value={confirmPwd}
+                      onChange={e => setConfirmPwd(e.target.value)}
+                      required
+                      className="w-full px-4 py-2.5 bg-[#f9fafb] border border-[#d1d5db] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] text-[#111827]"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={pwdLoading}
+                      className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#111827] hover:bg-[#374151] text-white rounded-xl font-semibold text-sm transition-colors"
+                    >
+                      {pwdLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                      Update Password
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
-            {kycStatus !== 'APPROVED' && (
-              <button 
-                onClick={() => setRequestingKYC(true)}
-                className={`px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
-                  kycStatus === 'SUBMITTED'
-                    ? 'bg-gray-100 text-[#8c7164] cursor-default'
-                    : 'bg-[#f97316] text-white hover:bg-[#ea580c] shadow-lg shadow-[#f97316]/20'
-                }`}
-                disabled={kycStatus === 'SUBMITTED'}
-              >
-                {kycStatus === 'SUBMITTED' ? 'Documents Submitted' : 'Verify Identity'}
-              </button>
-            )}
-          </div>
+          )}
+
+          {/* ---- DANGER TAB ---- */}
+          {activeTab === 'danger' && (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
+              
+              <div className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+                    <LogOut className="w-5 h-5 text-gray-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-[#111827]">Sign Out</h3>
+                    <p className="text-[#6b7280] text-sm mb-4 mt-1">End your current session on this device.</p>
+                    <button
+                      onClick={handleLogout}
+                      className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl font-semibold text-sm transition-colors"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm border border-red-200 p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-red-600">Delete Account</h3>
+                    <p className="text-[#6b7280] text-sm mb-4 mt-1">
+                      Permanently delete your account and all associated data. This action cannot be undone and you will lose access to all your listings and bookings.
+                    </p>
+                    <button
+                      disabled
+                      className="px-5 py-2.5 bg-red-50 text-red-400 rounded-xl font-semibold text-sm border border-red-100 cursor-not-allowed"
+                    >
+                      Delete Account (Contact Support)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
+
         </div>
 
         <KYCModal 
