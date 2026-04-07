@@ -7,6 +7,9 @@ import { CATEGORIES } from '@/constants';
 import api from '@/lib/axios';
 import { Camera, ImagePlus, Loader2, MapPin, CheckCircle2, Package, Tag, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { useAuth } from '@/contexts/AuthContext';
+import UpgradeOwnerCard from '@/components/UpgradeOwnerCard';
+
 
 // Quick lookup for category emojis
 const getCategoryEmoji = (val: string) => {
@@ -23,11 +26,12 @@ const getCategoryEmoji = (val: string) => {
 };
 
 export default function CreateListingWizard() {
+  const { user } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
   const totalSteps = 4;
-  
+
   const [images, setImages] = useState<File[]>([]);
   const [formData, setFormData] = useState({
     title: '',
@@ -40,6 +44,16 @@ export default function CreateListingWizard() {
     city: '',
     state: '',
   });
+
+  const isOwner = user?.userType === 'OWNER' || user?.userType === 'ADMIN';
+
+  if (!isOwner) {
+    return (
+      <div className="container mx-auto px-4 py-16">
+        <UpgradeOwnerCard variant="overlay" />
+      </div>
+    );
+  }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -63,7 +77,7 @@ export default function CreateListingWizard() {
         category: formData.category,
         type: formData.type || formData.category,
         pricePerDay: Number(formData.pricePerDay),
-        securityDeposit: Number(formData.securityDeposit),
+        securityDeposit: formData.securityDeposit ? Number(formData.securityDeposit) : 0,
         location: formData.location,
         city: formData.city,
         state: formData.state,
@@ -72,6 +86,7 @@ export default function CreateListingWizard() {
         isPublished: true,
       };
 
+      console.log('Publishing listing with payload:', payload);
       const res = await api.post('/listings', payload);
       toast.success('Listing published successfully!');
       router.push(`/item/${res.data.id}`);

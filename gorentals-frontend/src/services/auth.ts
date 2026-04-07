@@ -1,5 +1,5 @@
 import api from '@/lib/axios';
-import type { Profile } from '@/types';
+import type { Profile, UserType } from '@/types';
 
 // Shape the backend actually returns
 export interface BackendAuthResponse {
@@ -11,15 +11,6 @@ export interface BackendAuthResponse {
   userId: string;
 }
 
-/** Map backend userType (RENTER/OWNER/ADMIN) → frontend userType */
-function mapUserType(backendType: string): Profile['userType'] {
-  switch (backendType?.toUpperCase()) {
-    case 'OWNER': return 'store_owner';
-    case 'ADMIN': return 'admin';
-    default:      return 'renter';
-  }
-}
-
 /** Convert a BackendAuthResponse into a frontend Profile */
 export function buildProfile(data: BackendAuthResponse): Profile {
   return {
@@ -28,7 +19,7 @@ export function buildProfile(data: BackendAuthResponse): Profile {
     fullName:        data.fullName,
     phone:           null,
     profilePicture:  null,
-    userType:        mapUserType(data.userType),
+    userType:        data.userType as UserType,
     isActive:        true,
     kycStatus:       'PENDING',
     kycDocumentType: null,

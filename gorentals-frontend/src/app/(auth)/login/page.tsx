@@ -13,13 +13,14 @@ import { Suspense } from 'react';
 function LoginPageContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [userType, setUserType] = useState<'RENTER' | 'OWNER'>('RENTER');
   const [loading, setLoading] = useState(false);
   
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
   
-  const redirectTo = searchParams.get('redirect') || '/dashboard';
+  const redirectTo = searchParams.get('redirect');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +37,16 @@ function LoginPageContent() {
       login(data.accessToken, profile);
 
       toast.success('Welcome back to the collection.');
-      router.push(redirectTo);
+      
+      // Smart redirection logic
+      if (redirectTo) {
+        router.push(redirectTo);
+      } else if (data.userType === 'OWNER') {
+        router.push('/owner/dashboard');
+      } else {
+        router.push('/');
+      }
+      
       router.refresh();
       
     } catch (err: any) {
@@ -47,11 +57,22 @@ function LoginPageContent() {
     }
   };
 
+  const handleGoogleLogin = () => {
+    toast('Google Authentication Coming Soon', {
+      icon: '🚀',
+      style: {
+        borderRadius: '10px',
+        background: '#251913',
+        color: '#fff',
+      },
+    });
+  };
+
   return (
     <div className="flex min-h-screen bg-[#fff8f6]">
       {/* Left Form Section: The Portal */}
       <div className="w-full lg:w-[540px] flex flex-col justify-center px-10 sm:px-20 bg-white shadow-2xl z-10 relative">
-        <Link href="/" className="flex items-center gap-2 mb-16 group">
+        <Link href="/" className="flex items-center gap-2 mb-12 group">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#f97316] to-[#ea580c] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
             <Camera className="w-6 h-6 text-white" />
           </div>
@@ -64,9 +85,9 @@ function LoginPageContent() {
           <h1 className="text-4xl md:text-5xl font-display font-black text-[#251913] mb-3 tracking-tighter">
             Welcome <br/><span className="text-[#f97316]">Home.</span>
           </h1>
-          <p className="text-[#8c7164] mb-12 font-medium text-lg leading-tight tracking-tight">Access your curated collection and active rentals.</p>
+          <p className="text-[#8c7164] mb-8 font-medium text-lg leading-tight tracking-tight">Access your curated collection and active rentals.</p>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <label className="block text-xs font-black uppercase tracking-[0.2em] text-[#8c7164]">Identifer/Email</label>
               <input
@@ -74,7 +95,7 @@ function LoginPageContent() {
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full px-5 py-4 bg-[#fff8f6] border border-transparent rounded-[1rem] focus:ring-2 focus:ring-[#f97316] focus:bg-white transition-all text-[#251913] font-bold text-lg outline-none placeholder-[#8c7164]/30"
+                className="w-full px-5 py-3.5 bg-[#fff8f6] border border-transparent rounded-[1rem] focus:ring-2 focus:ring-[#f97316] focus:bg-white transition-all text-[#251913] font-bold text-lg outline-none placeholder-[#8c7164]/30"
                 placeholder="collector@archive.com"
               />
             </div>
@@ -91,9 +112,37 @@ function LoginPageContent() {
                 required
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full px-5 py-4 bg-[#fff8f6] border border-transparent rounded-[1rem] focus:ring-2 focus:ring-[#f97316] focus:bg-white transition-all text-[#251913] font-bold text-lg outline-none"
+                className="w-full px-5 py-3.5 bg-[#fff8f6] border border-transparent rounded-[1rem] focus:ring-2 focus:ring-[#f97316] focus:bg-white transition-all text-[#251913] font-bold text-lg outline-none"
                 placeholder="••••••••"
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-black uppercase tracking-[0.2em] text-[#8c7164]">Identifying As</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setUserType('RENTER')}
+                  className={`py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                    userType === 'RENTER' 
+                    ? 'bg-[#251913] text-white shadow-lg' 
+                    : 'bg-[#fff8f6] text-[#8c7164] hover:bg-[#251913]/5'
+                  }`}
+                >
+                  Renter
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserType('OWNER')}
+                  className={`py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                    userType === 'OWNER' 
+                    ? 'bg-[#251913] text-white shadow-lg' 
+                    : 'bg-[#fff8f6] text-[#8c7164] hover:bg-[#251913]/5'
+                  }`}
+                >
+                  Owner
+                </button>
+              </div>
             </div>
 
             <button
@@ -102,6 +151,24 @@ function LoginPageContent() {
               className="gradient-signature w-full h-16 text-white rounded-[1.25rem] font-display font-black text-xl shadow-ambient transition-all hover:-translate-y-1 active:scale-95 disabled:opacity-50 mt-4"
             >
               {loading ? 'Verifying Identity...' : 'Identify & Enter'}
+            </button>
+
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[#8c7164]/10"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase tracking-widest">
+                <span className="bg-white px-4 text-[#8c7164] font-bold opacity-30">OR</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              className="w-full h-14 bg-white border border-[#e5e7eb] text-[#251913] rounded-xl font-bold text-sm flex items-center justify-center gap-3 transition-all hover:bg-[#f9fafb] active:scale-95"
+            >
+              <Image src="https://www.svgrepo.com/show/475656/google-color.svg" width={20} height={20} alt="Google" />
+              Identify with Google
             </button>
           </form>
 

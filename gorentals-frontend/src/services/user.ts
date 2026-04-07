@@ -23,6 +23,15 @@ export interface ChangePasswordData {
   newPassword: string;
 }
 
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken?: string;
+  userType: string;
+  email: string;
+  fullName: string;
+  userId: string;
+}
+
 export const userService = {
   getMe: async () => {
     const response = await api.get<Profile>('/users/me');
@@ -41,6 +50,11 @@ export const userService = {
 
   submitKYC: async (data: KYCSubmissionData) => {
     const response = await api.post<Profile>('/users/kyc', data);
+    return response.data;
+  },
+
+  upgradeToOwner: async () => {
+    const response = await api.post<AuthResponse>('/users/upgrade');
     return response.data;
   }
 };

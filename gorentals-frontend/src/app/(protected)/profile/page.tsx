@@ -11,6 +11,8 @@ import {
   CheckCircle2, Clock, AlertTriangle, Lock, LogOut, 
   Eye, EyeOff, Loader2 
 } from 'lucide-react';
+import UpgradeOwnerCard from '@/components/UpgradeOwnerCard';
+
 
 export default function ProfileSettingsPage() {
   const { user, updateUser, logout } = useAuth();
@@ -43,10 +45,10 @@ export default function ProfileSettingsPage() {
   }, [user]);
 
   const userTypeLabel = {
-    store_owner: 'Verified Owner',
-    renter: 'Renter',
-    admin: 'Administrator',
-  }[user?.userType || 'renter'];
+    OWNER: 'Verified Owner',
+    RENTER: 'Renter',
+    ADMIN: 'Administrator',
+  }[user?.userType || 'RENTER'];
 
   // Handlers
   const handleSaveProfile = async () => {
@@ -111,7 +113,7 @@ export default function ProfileSettingsPage() {
                   {user?.email}
                 </span>
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                  user?.userType === 'store_owner' ? 'bg-[#f0fdf4] text-[#15803d]' : 'bg-[#f3f4f6] text-[#4b5563]'
+                  user?.userType === 'OWNER' ? 'bg-[#f0fdf4] text-[#15803d]' : 'bg-[#f3f4f6] text-[#4b5563]'
                 }`}>
                   {userTypeLabel}
                 </span>
@@ -163,8 +165,15 @@ export default function ProfileSettingsPage() {
           {activeTab === 'profile' && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
               
+              {user?.userType === 'RENTER' && (
+                <div className="mb-6">
+                  <UpgradeOwnerCard />
+                </div>
+              )}
+
               {/* Verification Card */}
               <div className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-6">
+
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center ${

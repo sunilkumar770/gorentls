@@ -101,7 +101,7 @@ export async function createListing(
       title: listing.title,
       description: listing.description,
       category: listing.category,
-      type: listing.subcategory || '',
+      type: listing.subcategory || 'General',
       pricePerDay: listing.price_per_day,
       securityDeposit: listing.security_deposit,
       location: 'Store Location',

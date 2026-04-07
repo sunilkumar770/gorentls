@@ -15,6 +15,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [userType, setUserType] = useState<'RENTER' | 'OWNER'>('RENTER');
   const [loading, setLoading] = useState(false);
   
   const router = useRouter();
@@ -25,7 +26,7 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await signUp(email, password, name, phone);
+      const { data, error } = await signUp(email, password, name, phone, userType);
       
       if (error || !data) {
         throw new Error(error || 'Failed to create account');
@@ -35,7 +36,14 @@ export default function SignupPage() {
       login(data.accessToken, profile);
 
       toast.success('Your identity has been established.');
-      router.push('/dashboard');
+      
+      // Role-based redirection
+      if (userType === 'OWNER') {
+        router.push('/owner/dashboard');
+      } else {
+        router.push('/');
+      }
+      
       router.refresh();
       
     } catch (err: any) {
@@ -43,6 +51,17 @@ export default function SignupPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSignup = () => {
+    toast('Google Authentication Coming Soon', {
+      icon: '🚀',
+      style: {
+        borderRadius: '10px',
+        background: '#251913',
+        color: '#fff',
+      },
+    });
   };
 
   return (
@@ -60,9 +79,14 @@ export default function SignupPage() {
 
         <div className="max-w-md w-full mx-auto lg:mx-0">
           <h1 className="text-4xl md:text-5xl font-display font-black text-[#251913] mb-3 tracking-tighter">
-            Join the <br/><span className="text-[#f97316]">Circle.</span>
+            {userType === 'OWNER' ? 'Monetize your' : 'Join the'}<br/>
+            <span className="text-[#f97316]">{userType === 'OWNER' ? 'Masterpieces.' : 'Circle.'}</span>
           </h1>
-          <p className="text-[#8c7164] mb-10 font-medium text-lg leading-tight tracking-tight">Establish your identity to access the global archive.</p>
+          <p className="text-[#8c7164] mb-10 font-medium text-lg leading-tight tracking-tight">
+            {userType === 'OWNER' 
+              ? 'Establish your store to access the global rental archive.' 
+              : 'Establish your identity to access the global archive.'}
+          </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
@@ -115,12 +139,61 @@ export default function SignupPage() {
               <p className="text-[10px] text-[#8c7164] font-bold uppercase tracking-widest opacity-50">Entropy: 8+ Characters required</p>
             </div>
 
+            <div className="space-y-2">
+              <label className="block text-xs font-black uppercase tracking-[0.2em] text-[#8c7164]">Identity Purpose</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setUserType('RENTER')}
+                  className={`py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                    userType === 'RENTER' 
+                    ? 'bg-[#251913] text-white shadow-lg' 
+                    : 'bg-[#fff8f6] text-[#8c7164] hover:bg-[#251913]/5'
+                  }`}
+                >
+                  Renter
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserType('OWNER')}
+                  className={`py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                    userType === 'OWNER' 
+                    ? 'bg-[#251913] text-white shadow-lg' 
+                    : 'bg-[#fff8f6] text-[#8c7164] hover:bg-[#251913]/5'
+                  }`}
+                >
+                  Owner
+                </button>
+              </div>
+              <p className="text-[10px] text-[#8c7164] font-bold uppercase tracking-widest opacity-50">
+                {userType === 'OWNER' ? 'Establish a store and list inventory.' : 'Browse and rent professional gear.'}
+              </p>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
               className="gradient-signature w-full h-16 text-white rounded-[1.25rem] font-display font-black text-xl shadow-ambient transition-all hover:-translate-y-1 active:scale-95 disabled:opacity-50 mt-4"
             >
               {loading ? 'Processing...' : 'Establish Identity'}
+            </button>
+
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[#8c7164]/10"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase tracking-widest">
+                <span className="bg-white px-4 text-[#8c7164] font-bold opacity-30">OR</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignup}
+              className="w-full h-14 bg-white border border-[#e5e7eb] text-[#251913] rounded-xl font-bold text-sm flex items-center justify-center gap-3 transition-all hover:bg-[#f9fafb] active:scale-95"
+            >
+              <Image src="https://www.svgrepo.com/show/475656/google-color.svg" width={20} height={20} alt="Google" />
+              Identify with Google
             </button>
           </form>
 
@@ -146,25 +219,34 @@ export default function SignupPage() {
              <div className="absolute inset-x-0 bottom-10 z-20 translate-y-1/4">
                 <div className="bg-white/40 backdrop-blur-3xl p-12 rounded-[3.5rem] shadow-[0_48px_96px_rgba(37,25,19,0.2)] border border-white/20">
                    <h2 className="text-4xl font-display font-black text-[#251913] leading-[0.9] mb-5 tracking-tighter">
-                      Monetize your <br/><span className="text-[#f97316]">Masterpieces.</span>
+                      {userType === 'OWNER' ? 'Monetize your' : 'Borrow the'}<br/>
+                      <span className="text-[#f97316]">{userType === 'OWNER' ? 'Masterpieces.' : 'Extraordinary.'}</span>
                    </h2>
                    <p className="text-lg text-[#584237] font-medium leading-relaxed tracking-tight">
-                      From high-end optics to rare tools, turn your professional inventory into a passive revenue stream.
+                      {userType === 'OWNER' 
+                        ? 'From high-end optics to rare tools, turn your professional inventory into a passive revenue stream.'
+                        : 'Access the most exclusive marketplace for professional-grade gear and rare artifacts.'}
                    </p>
                    
                    <div className="flex gap-4 mt-8">
-                      <div className="px-4 py-2 bg-[#251913] rounded-full text-white text-[10px] font-black uppercase tracking-widest">Global Reach</div>
-                      <div className="px-4 py-2 bg-white rounded-full text-[#251913] text-[10px] font-black uppercase tracking-widest shadow-sm">Secured Payments</div>
+                      <div className="px-4 py-2 bg-[#251913] rounded-full text-white text-[10px] font-black uppercase tracking-widest">
+                        {userType === 'OWNER' ? 'Global Reach' : 'Rare Archive'}
+                      </div>
+                      <div className="px-4 py-2 bg-white rounded-full text-[#251913] text-[10px] font-black uppercase tracking-widest shadow-sm">
+                        Secured Payments
+                      </div>
                    </div>
                 </div>
              </div>
              
              <div className="relative h-full w-full rounded-[4rem] overflow-hidden shadow-2xl -rotate-2">
                 <Image 
-                   src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=2544&auto=format&fit=crop" 
+                   src={userType === 'OWNER' 
+                     ? "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=2544&auto=format&fit=crop"
+                     : "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?q=80&w=2671&auto=format&fit=crop"} 
                    alt="Professional Gear" 
                    fill 
-                   className="object-cover"
+                   className="object-cover transition-all duration-1000"
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#251913]/10 to-[#251913]/40" />
              </div>

@@ -308,7 +308,7 @@ export default function ListingDetailPage() {
               {listing.is_available ? (
                 user ? (
                   <Link
-                    href={fromDate && toDate ? `/checkout/${listing.id}?from=${fromDate}&to=${toDate}` : `/checkout/${listing.id}`}
+                    href={fromDate && toDate ? `/checkout/${listing.id}?start=${fromDate}&end=${toDate}` : `/checkout/${listing.id}`}
                     className="w-full h-12 bg-[#16a34a] text-white font-semibold rounded-lg flex items-center justify-center hover:bg-[#15803d] transition-colors text-sm"
                   >
                     Book Now
