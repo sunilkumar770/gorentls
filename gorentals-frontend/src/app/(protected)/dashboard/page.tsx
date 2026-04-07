@@ -12,34 +12,33 @@ import { cancelBooking } from '@/services/bookings';
 import { toast } from 'react-hot-toast';
 import type { BookingStatus } from '@/types';
 
-// ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; pill: string; dot: string }> = {
-  pending_confirmation: {
+  PENDING: {
     label: 'Pending',
     pill: 'bg-amber-50 text-amber-700 ring-amber-200',
     dot: '🟡',
   },
-  confirmed: {
+  CONFIRMED: {
     label: 'Confirmed',
     pill: 'bg-[#f0fdf4] text-[#16a34a] ring-[#16a34a]/20',
     dot: '🟢',
   },
-  in_progress: {
+  ACTIVE: {
     label: 'In Progress',
     pill: 'bg-blue-50 text-blue-700 ring-blue-200',
     dot: '🔵',
   },
-  completed: {
+  COMPLETED: {
     label: 'Completed',
     pill: 'bg-[#f0fdf4] text-[#15803d] ring-[#16a34a]/20',
     dot: '✅',
   },
-  owner_rejected: {
+  REJECTED: {
     label: 'Rejected',
     pill: 'bg-red-50 text-red-700 ring-red-200',
     dot: '❌',
   },
-  renter_cancelled: {
+  CANCELLED: {
     label: 'Cancelled',
     pill: 'bg-gray-100 text-[#6b7280] ring-gray-200',
     dot: '⭕',
@@ -47,11 +46,11 @@ const STATUS_CONFIG: Record<string, { label: string; pill: string; dot: string }
 };
 
 const FILTER_TABS = [
-  { label: 'All', value: 'all' },
-  { label: 'Pending', value: 'pending_confirmation' },
-  { label: 'Confirmed', value: 'confirmed' },
-  { label: 'Completed', value: 'completed' },
-  { label: 'Rejected', value: 'owner_rejected' },
+  { label: 'All', value: 'ALL' },
+  { label: 'Pending', value: 'PENDING' },
+  { label: 'Confirmed', value: 'CONFIRMED' },
+  { label: 'Completed', value: 'COMPLETED' },
+  { label: 'Rejected', value: 'REJECTED' },
 ];
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -74,7 +73,7 @@ export default function DashboardPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const { bookings, loading: bookingsLoading, refetch } = useRenterBookings(user?.id);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [activeFilter, setActiveFilter] = useState('ALL');
 
   if (authLoading) {
     return (
@@ -87,9 +86,9 @@ export default function DashboardPage() {
     );
   }
 
-  const filteredBookings = activeFilter === 'all'
+  const filteredBookings = activeFilter === 'ALL'
     ? bookings
-    : bookings.filter(b => b.status === activeFilter.toUpperCase());
+    : bookings.filter(b => b.status === activeFilter);
 
   const handleCancel = async (bookingId: string) => {
     setCancellingId(bookingId);
@@ -139,9 +138,9 @@ export default function DashboardPage() {
         {/* Filter pills */}
         <div className="flex gap-2 flex-wrap mb-6">
           {FILTER_TABS.map(tab => {
-            const count = tab.value === 'all'
+            const count = tab.value === 'ALL'
               ? bookings.length
-              : bookings.filter(b => b.status === tab.value.toUpperCase()).length;
+              : bookings.filter(b => b.status === tab.value).length;
             return (
               <button
                 key={tab.value}
@@ -177,7 +176,7 @@ export default function DashboardPage() {
             <Calendar className="w-12 h-12 text-[#d1d5db] mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-[#111827] mb-2">No rentals found</h3>
             <p className="text-[#6b7280] text-sm mb-6 max-w-xs mx-auto">
-              {activeFilter === 'all'
+              {activeFilter === 'ALL'
                 ? "You haven't made any bookings yet."
                 : `No ${STATUS_CONFIG[activeFilter]?.label.toLowerCase() || ''} bookings.`}
             </p>
@@ -191,7 +190,7 @@ export default function DashboardPage() {
         ) : (
           <div className="flex flex-col gap-4">
             {filteredBookings.map((booking) => {
-              const cfg = STATUS_CONFIG[booking.status.toLowerCase()] || STATUS_CONFIG.renter_cancelled;
+              const cfg = STATUS_CONFIG[booking.status] || STATUS_CONFIG.CANCELLED;
               const image = booking.listing?.listing_images?.[0]?.image_url;
               return (
                 <div

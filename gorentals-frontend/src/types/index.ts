@@ -65,12 +65,11 @@ export interface Listing {
 
 export type BookingStatus =
   | 'PENDING'
-  | 'ACCEPTED'
-  | 'REJECTED'
-  | 'CANCELLED'
+  | 'CONFIRMED'
+  | 'ACTIVE'
   | 'COMPLETED'
-  | 'IN_PROGRESS'
-  | 'RETURNED';
+  | 'CANCELLED'
+  | 'REJECTED';
 
 export interface Booking {
   id: string;

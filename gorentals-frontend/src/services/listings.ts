@@ -96,20 +96,21 @@ export async function createListing(
   listing: Omit<Listing, 'id' | 'created_at' | 'average_rating' | 'total_reviews' | 'total_views'>
 ) {
   try {
-    // Map from UI listing back to Java ListingRequest
+    // Map from UI Listing type → Java ListingRequest shape
+    // ALL fields come from the caller — nothing is hardcoded
     const javaRequest = {
-      title: listing.title,
-      description: listing.description,
-      category: listing.category,
-      type: listing.subcategory || 'General',
-      pricePerDay: listing.price_per_day,
+      title:           listing.title,
+      description:     listing.description,
+      category:        listing.category,
+      type:            listing.subcategory || 'General',
+      pricePerDay:     listing.price_per_day,
       securityDeposit: listing.security_deposit,
-      location: 'Store Location',
-      city: 'Default City',
-      state: 'Default State',
-      isAvailable: listing.is_available,
-      isPublished: listing.is_published,
-      images: listing.listing_images?.map(img => img.image_url) || []
+      location:        listing.stores?.store_city || '',
+      city:            listing.stores?.store_city || '',
+      state:           '',
+      isAvailable:     listing.is_available ?? true,
+      isPublished:     listing.is_published ?? true,
+      images:          listing.listing_images?.map(img => img.image_url) ?? [],
     };
 
     const response = await api.post('/listings', javaRequest);

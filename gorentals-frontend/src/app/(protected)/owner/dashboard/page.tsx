@@ -49,7 +49,7 @@ export default function OwnerDashboardPage() {
 
   if (loading) return <DashboardSkeleton />;
 
-  const activeBookings = bookings.filter(b => b.status === 'ACCEPTED' || b.status === 'IN_PROGRESS');
+  const activeBookings = bookings.filter(b => b.status === 'CONFIRMED' || b.status === 'ACTIVE');
   const pendingRequests = bookings.filter(b => b.status === 'PENDING');
   const totalEarned = bookings
     .filter(b => b.paymentStatus === 'COMPLETED')
