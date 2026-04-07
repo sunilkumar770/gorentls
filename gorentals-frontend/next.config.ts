@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: '**',
       },
+      {
+        // Allow http sources — needed for mock/test listing images
+        protocol: 'http',
+        hostname: '**',
+      },
     ],
   },
 };

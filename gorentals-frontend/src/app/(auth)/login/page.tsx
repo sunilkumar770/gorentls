@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { signIn, buildProfile } from '@/services/auth';
+import { signIn, adminSignIn, buildProfile } from '@/services/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { Camera } from 'lucide-react';
 import Image from 'next/image';
@@ -13,7 +13,7 @@ import { Suspense } from 'react';
 function LoginPageContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [userType, setUserType] = useState<'RENTER' | 'OWNER'>('RENTER');
+  const [userType, setUserType] = useState<'RENTER' | 'OWNER' | 'ADMIN'>('RENTER');
   const [loading, setLoading] = useState(false);
   
   const router = useRouter();
@@ -27,7 +27,9 @@ function LoginPageContent() {
     setLoading(true);
 
     try {
-      const { data, error } = await signIn(email, password);
+      const { data, error } = userType === 'ADMIN' 
+        ? await adminSignIn(email, password)
+        : await signIn(email, password);
       
       if (error || !data) {
         throw new Error(error || 'Failed to login');
@@ -41,10 +43,12 @@ function LoginPageContent() {
       // Smart redirection logic
       if (redirectTo) {
         router.push(redirectTo);
+      } else if (data.userType === 'ADMIN') {
+        router.push('/admin');
       } else if (data.userType === 'OWNER') {
         router.push('/owner/dashboard');
       } else {
-        router.push('/');
+        router.push('/dashboard');
       }
       
       router.refresh();
@@ -119,7 +123,7 @@ function LoginPageContent() {
 
             <div className="space-y-2">
               <label className="block text-xs font-black uppercase tracking-[0.2em] text-[#8c7164]">Identifying As</label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => setUserType('RENTER')}
@@ -141,6 +145,17 @@ function LoginPageContent() {
                   }`}
                 >
                   Owner
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserType('ADMIN')}
+                  className={`py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                    userType === 'ADMIN' 
+                    ? 'bg-[#251913] text-white shadow-lg' 
+                    : 'bg-[#fff8f6] text-[#8c7164] hover:bg-[#251913]/5'
+                  }`}
+                >
+                  Admin
                 </button>
               </div>
             </div>

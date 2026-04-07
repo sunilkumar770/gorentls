@@ -34,11 +34,9 @@ export function buildProfile(data: BackendAuthResponse): Profile {
 }
 
 // Helper: sync token to BOTH storage locations
-// - 'gr_token' in localStorage → read by Axios interceptor (axios.ts)
-// - 'token' cookie           → read by middleware.ts (server-side)
 function setToken(token: string) {
-  localStorage.setItem('gr_token', token);  // Axios reads this
-  localStorage.setItem('token', token);     // Legacy compat
+  localStorage.setItem('gr_token', token);
+  localStorage.setItem('token', token);
   document.cookie = `token=${token}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`;
 }
 
@@ -60,6 +58,26 @@ export async function signIn(
     return { data: response.data };
   } catch (error: any) {
     return { error: error.response?.data?.message || error.message || 'Invalid email or password' };
+  }
+}
+
+/**
+ * Admin login — hits /auth/admin/login (separate from regular /auth/login)
+ * Backend requires ADMIN role — regular user credentials will fail here.
+ */
+export async function adminSignIn(
+  email: string,
+  password: string
+): Promise<{ data?: BackendAuthResponse; error?: string }> {
+  try {
+    const response = await api.post('/auth/admin/login', { email, password });
+    const token = response.data.accessToken;
+    if (token) setToken(token);
+    return { data: response.data };
+  } catch (error: any) {
+    return {
+      error: error.response?.data?.message || error.message || 'Invalid admin credentials',
+    };
   }
 }
 
@@ -107,9 +125,4 @@ export async function signUp(
   } catch (error: any) {
     return { error: error.response?.data?.message || error.message || 'Failed to create account' };
   }
-}
-
-export async function signOut() {
-  // JWT is stateless — client clears the token (handled by AuthContext.logout)
-  return Promise.resolve();
 }
