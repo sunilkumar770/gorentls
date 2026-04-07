@@ -2,12 +2,11 @@ import api from '@/lib/axios';
 import type { Booking, BookingStatus, Listing } from '@/types';
 
 // Simplified helper to map the nested ListingResponse to our Listing interface
-// It just extracts the basics needed for the bookings UI display
 function mapListingResponseSlim(listingData: any): Listing | undefined {
   if (!listingData) return undefined;
   return {
     id: listingData.id,
-    store_id: listingData.owner?.id || '',
+    store_id: listingData.store?.id || '',
     owner_id: listingData.owner?.id || '',
     title: listingData.title,
     description: listingData.description,
@@ -36,65 +35,46 @@ function mapListingResponseSlim(listingData: any): Listing | undefined {
 }
 
 function mapBookingResponse(data: any): Booking {
-  // Map Java status to TS BookingStatus
-  let status: BookingStatus = 'pending_confirmation';
-  const javaStatus = (data.status || '').toUpperCase();
-  if (javaStatus === 'CONFIRMED') status = 'confirmed';
-  if (javaStatus === 'REJECTED') status = 'owner_rejected';
-  if (javaStatus === 'CANCELLED') status = 'renter_cancelled';
-  if (javaStatus === 'COMPLETED') status = 'completed';
-
-  let paymentStatus: any = 'pending';
-  const javaPayment = (data.paymentStatus || '').toUpperCase();
-  if (javaPayment === 'COMPLETED' || javaPayment === 'COMPLETED_OFFLINE') paymentStatus = 'completed';
-  if (javaPayment === 'FAILED') paymentStatus = 'failed';
-
   return {
     id: data.id,
-    listing_id: data.listing?.id || '',
-    store_id: data.owner?.id || '',
-    renter_id: data.renter?.id || '',
-    owner_id: data.owner?.id || '',
-    check_in_date: data.startDate,
-    check_out_date: data.endDate,
-    rental_cost: data.rentalAmount || 0,
-    service_fee: 0, // Not explicitly from Java yet
-    security_deposit: data.securityDeposit || 0,
-    total_amount: data.totalAmount || 0,
-    booking_status: status,
-    payment_status: paymentStatus,
-    razorpay_order_id: data.razorpayOrderId || null,
-    razorpay_payment_id: data.razorpayPaymentId || null,
-    created_at: data.createdAt || new Date().toISOString(),
-    listings: mapListingResponseSlim(data.listing)
+    listingId: data.listing?.id || '',
+    storeId: data.owner?.id || '', // Note: In the backend, owner often acts as store identifier in simple flows
+    renterId: data.renter?.id || '',
+    ownerId: data.owner?.id || '',
+    checkInDate: data.startDate,
+    checkOutDate: data.endDate,
+    rentalCost: data.rentalAmount || 0,
+    serviceFee: 0, 
+    securityDeposit: data.securityDeposit || 0,
+    totalAmount: data.totalAmount || 0,
+    status: (data.status || 'PENDING').toUpperCase() as BookingStatus,
+    paymentStatus: (data.paymentStatus || 'PENDING').toUpperCase() as any,
+    razorpayOrderId: data.razorpayOrderId || null,
+    razorpayPaymentId: data.razorpayPaymentId || null,
+    createdAt: data.createdAt || new Date().toISOString(),
+    listing: mapListingResponseSlim(data.listing)
   };
 }
 
 export async function createBooking(booking: {
-  listing_id: string;
-  store_id: string;
-  owner_id: string;
-  renter_id: string;
-  check_in_date: string;
-  check_out_date: string;
-  rental_cost: number;
-  service_fee: number;
-  security_deposit: number;
-  total_amount: number;
+  listingId: string;
+  startDate: string;
+  endDate: string;
 }): Promise<Booking> {
   const javaRequest = {
-    listingId: booking.listing_id,
-    startDate: booking.check_in_date,
-    endDate: booking.check_out_date
+    listingId: booking.listingId,
+    startDate: booking.startDate,
+    endDate: booking.endDate
   };
 
   const response = await api.post('/bookings', javaRequest);
   return mapBookingResponse(response.data);
 }
 
-export async function getRenterBookings(renterId: string): Promise<Booking[]> {
+export async function getRenterBookings(): Promise<Booking[]> {
   try {
     const response = await api.get('/bookings/my-bookings');
+    // The backend returns a Page object
     const content = response.data.content || [];
     return content.map(mapBookingResponse);
   } catch (error: any) {
@@ -103,23 +83,16 @@ export async function getRenterBookings(renterId: string): Promise<Booking[]> {
   }
 }
 
-export async function getOwnerBookings(ownerId: string): Promise<Booking[]> {
+export async function getOwnerBookings(): Promise<Booking[]> {
   try {
     const response = await api.get('/bookings/owner/bookings');
+    // The backend returns a Page object
     const content = response.data.content || [];
     return content.map(mapBookingResponse);
   } catch (error: any) {
     console.error('Failed to get owner bookings', error);
     return [];
   }
-}
-
-export async function updateBookingPayment(
-  bookingId: string,
-  razorpayOrderId: string,
-  razorpayPaymentId: string
-) {
-  console.warn('updateBookingPayment not fully integrated with Java backend payment verification.');
 }
 
 export async function acceptBooking(bookingId: string): Promise<Booking> {
@@ -141,4 +114,3 @@ export async function completeBooking(bookingId: string): Promise<Booking> {
   const response = await api.patch(`/bookings/${bookingId}/complete`);
   return mapBookingResponse(response.data);
 }
-

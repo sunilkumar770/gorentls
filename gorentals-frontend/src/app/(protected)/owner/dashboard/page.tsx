@@ -49,11 +49,11 @@ export default function OwnerDashboardPage() {
 
   if (loading) return <DashboardSkeleton />;
 
-  const activeBookings = bookings.filter(b => b.booking_status === 'confirmed' || b.booking_status === 'in_progress');
-  const pendingRequests = bookings.filter(b => b.booking_status === 'pending_confirmation');
+  const activeBookings = bookings.filter(b => b.status === 'ACCEPTED' || b.status === 'IN_PROGRESS');
+  const pendingRequests = bookings.filter(b => b.status === 'PENDING');
   const totalEarned = bookings
-    .filter(b => b.payment_status === 'completed')
-    .reduce((sum, b) => sum + b.rental_cost, 0);
+    .filter(b => b.paymentStatus === 'COMPLETED')
+    .reduce((sum, b) => sum + b.rentalCost, 0);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
@@ -281,15 +281,15 @@ export default function OwnerDashboardPage() {
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-[#111827]">
-                            wants to rent&nbsp;
-                            <span className="text-[#16a34a]">{booking.listings?.title || 'your item'}</span>
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-sm text-[#6b7280]">
-                        {formatDate(booking.check_in_date)} – {formatDate(booking.check_out_date)}
-                        &nbsp;·&nbsp;{formatCurrency(booking.total_amount)}
+                        wants to rent&nbsp;
+                        <span className="text-[#16a34a]">{booking.listing?.title || 'your item'}</span>
                       </p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-[#6b7280]">
+                    {formatDate(booking.checkInDate)} – {formatDate(booking.checkOutDate)}
+                    &nbsp;·&nbsp;{formatCurrency(booking.totalAmount)}
+                  </p>
                     </div>
                     {/* Action buttons */}
                     <div className="flex gap-2 sm:flex-col sm:justify-center">

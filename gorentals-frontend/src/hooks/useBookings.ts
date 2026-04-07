@@ -11,7 +11,7 @@ export function useRenterBookings(renterId: string | undefined) {
   const fetch = useCallback(() => {
     if (!renterId) { setLoading(false); return; }
     setLoading(true);
-    getRenterBookings(renterId).then(data => {
+    getRenterBookings().then(data => {
       setBookings(data);
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -29,7 +29,7 @@ export function useOwnerBookings(ownerId: string | undefined) {
   const fetch = useCallback(() => {
     if (!ownerId) { setLoading(false); return; }
     setLoading(true);
-    getOwnerBookings(ownerId).then(data => {
+    getOwnerBookings().then(data => {
       setBookings(data);
       setLoading(false);
     }).catch(() => setLoading(false));

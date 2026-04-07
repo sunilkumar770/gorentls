@@ -64,34 +64,32 @@ export interface Listing {
 }
 
 export type BookingStatus =
-  | 'pending_confirmation'
-  | 'confirmed'
-  | 'renter_cancelled'
-  | 'owner_rejected'
-  | 'ready_for_pickup'
-  | 'in_progress'
-  | 'returned'
-  | 'completed'
-  | 'disputed';
+  | 'PENDING'
+  | 'ACCEPTED'
+  | 'REJECTED'
+  | 'CANCELLED'
+  | 'COMPLETED'
+  | 'IN_PROGRESS'
+  | 'RETURNED';
 
 export interface Booking {
   id: string;
-  listing_id: string;
-  store_id: string;
-  renter_id: string;
-  owner_id: string;
-  check_in_date: string;
-  check_out_date: string;
-  rental_cost: number;
-  service_fee: number;
-  security_deposit: number;
-  total_amount: number;
-  booking_status: BookingStatus;
-  payment_status: 'pending' | 'completed' | 'failed' | 'refunded';
-  razorpay_order_id: string | null;
-  razorpay_payment_id: string | null;
-  created_at: string;
-  listings?: Listing;
+  listingId: string;
+  storeId: string;
+  renterId: string;
+  ownerId: string;
+  checkInDate: string;
+  checkOutDate: string;
+  rentalCost: number;
+  serviceFee: number;
+  securityDeposit: number;
+  totalAmount: number;
+  status: BookingStatus;
+  paymentStatus: 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
+  razorpayOrderId: string | null;
+  razorpayPaymentId: string | null;
+  createdAt: string;
+  listing?: Listing;
 }
 
 export interface SearchFilters {

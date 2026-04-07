@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { Search, Plus, LayoutDashboard, LogOut, User, ChevronDown } from 'lucide-react';
+import { Search, Plus, LayoutDashboard, LogOut, User, ChevronDown, Calendar, ClipboardList } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 
@@ -111,7 +111,7 @@ export function Navbar() {
 
                       {/* Dropdown */}
                       {menuOpen && (
-                        <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-[#e5e7eb] py-1 z-50">
+                        <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-[#e5e7eb] py-1 z-50">
                           {/* User info header */}
                           <div className="px-4 py-3 border-b border-[#f3f4f6]">
                             <p className="text-sm font-semibold text-[#111827] truncate">
@@ -129,15 +129,35 @@ export function Navbar() {
                             My Rentals
                           </Link>
 
+                          <Link
+                            href="/my-bookings"
+                            onClick={() => setMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f9fafb] hover:text-[#111827] transition-colors"
+                          >
+                            <Calendar className="w-4 h-4 text-[#6b7280]" />
+                            My Bookings
+                          </Link>
+
                           {isOwner && (
-                            <Link
-                              href="/owner/dashboard"
-                              onClick={() => setMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f9fafb] hover:text-[#111827] transition-colors"
-                            >
-                              <User className="w-4 h-4 text-[#6b7280]" />
-                              Owner Dashboard
-                            </Link>
+                            <>
+                              <Link
+                                href="/owner/dashboard"
+                                onClick={() => setMenuOpen(false)}
+                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f9fafb] hover:text-[#111827] transition-colors"
+                              >
+                                <LayoutDashboard className="w-4 h-4 text-[#6b7280]" />
+                                Owner Dashboard
+                              </Link>
+                              
+                              <Link
+                                href="/owner/bookings"
+                                onClick={() => setMenuOpen(false)}
+                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f9fafb] hover:text-[#111827] transition-colors"
+                              >
+                                <ClipboardList className="w-4 h-4 text-[#6b7280]" />
+                                Manage Bookings
+                              </Link>
+                            </>
                           )}
 
                           <Link

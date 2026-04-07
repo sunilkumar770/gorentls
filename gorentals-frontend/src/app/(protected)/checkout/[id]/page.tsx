@@ -87,16 +87,9 @@ function CheckoutPageContent() {
     setProcessing(true);
     try {
       const booking = await createBooking({
-        listing_id: listing.id,
-        store_id: listing.owner_id,
-        owner_id: listing.owner_id,
-        renter_id: user.id,
-        check_in_date: startDateStr,
-        check_out_date: endDateStr,
-        rental_cost: rentalCost,
-        service_fee: serviceFee,
-        security_deposit: securityDeposit,
-        total_amount: totalAmount
+        listingId: listing.id,
+        startDate: startDateStr,
+        endDate: endDateStr
       });
       
       const scriptLoaded = await loadRazorpayScript();

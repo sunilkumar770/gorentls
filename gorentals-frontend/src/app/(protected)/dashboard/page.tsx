@@ -89,7 +89,7 @@ export default function DashboardPage() {
 
   const filteredBookings = activeFilter === 'all'
     ? bookings
-    : bookings.filter(b => b.booking_status === activeFilter);
+    : bookings.filter(b => b.status === activeFilter.toUpperCase());
 
   const handleCancel = async (bookingId: string) => {
     setCancellingId(bookingId);
@@ -141,7 +141,7 @@ export default function DashboardPage() {
           {FILTER_TABS.map(tab => {
             const count = tab.value === 'all'
               ? bookings.length
-              : bookings.filter(b => b.booking_status === tab.value).length;
+              : bookings.filter(b => b.status === tab.value.toUpperCase()).length;
             return (
               <button
                 key={tab.value}
@@ -191,8 +191,8 @@ export default function DashboardPage() {
         ) : (
           <div className="flex flex-col gap-4">
             {filteredBookings.map((booking) => {
-              const cfg = STATUS_CONFIG[booking.booking_status] || STATUS_CONFIG.renter_cancelled;
-              const image = booking.listings?.listing_images?.[0]?.image_url;
+              const cfg = STATUS_CONFIG[booking.status.toLowerCase()] || STATUS_CONFIG.renter_cancelled;
+              const image = booking.listing?.listing_images?.[0]?.image_url;
               return (
                 <div
                   key={booking.id}
@@ -214,13 +214,13 @@ export default function DashboardPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h3 className="font-semibold text-[#111827] truncate">
-                          {booking.listings?.title || 'Unnamed listing'}
+                          {booking.listing?.title || 'Unnamed listing'}
                         </h3>
                         <p className="text-sm text-[#6b7280] mt-0.5">
-                          {formatDate(booking.check_in_date)} → {formatDate(booking.check_out_date)}
+                          {formatDate(booking.checkInDate)} → {formatDate(booking.checkOutDate)}
                         </p>
                         <p className="text-sm text-[#6b7280]">
-                          {formatCurrency(booking.total_amount)} total
+                          {formatCurrency(booking.totalAmount)} total
                         </p>
                       </div>
                       <span className={`flex-shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full ring-1 ring-inset ${cfg.pill}`}>
@@ -231,19 +231,19 @@ export default function DashboardPage() {
                     {/* Actions row */}
                     <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[#f3f4f6]">
                       <Link
-                        href={`/item/${booking.listing_id}`}
+                        href={`/item/${booking.listingId}`}
                         className="text-xs text-[#16a34a] font-medium hover:underline"
                       >
                         View listing →
                       </Link>
 
-                      {booking.booking_status === 'completed' && (
+                      {booking.status === 'COMPLETED' && (
                         <button className="text-xs text-[#16a34a] font-medium border border-[#16a34a] px-3 py-1 rounded-lg hover:bg-[#f0fdf4] transition-colors flex items-center gap-1">
                           <CheckCircle className="w-3 h-3" /> Leave Review
                         </button>
                       )}
 
-                      {booking.booking_status === 'pending_confirmation' && (
+                      {booking.status === 'PENDING' && (
                         <button
                           onClick={() => handleCancel(booking.id)}
                           disabled={cancellingId === booking.id}
