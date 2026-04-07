@@ -53,8 +53,5 @@ export const userService = {
     return response.data;
   },
 
-  upgradeToOwner: async () => {
-    const response = await api.post<AuthResponse>('/users/upgrade');
-    return response.data;
-  }
+  // upgradeToOwner removed — /api/users/upgrade does not exist in backend
 };
