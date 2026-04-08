@@ -236,11 +236,6 @@ export default function DashboardPage() {
                         View listing →
                       </Link>
 
-                      {booking.status === 'COMPLETED' && (
-                        <button className="text-xs text-[#16a34a] font-medium border border-[#16a34a] px-3 py-1 rounded-lg hover:bg-[#f0fdf4] transition-colors flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3" /> Leave Review
-                        </button>
-                      )}
 
                       {booking.status === 'PENDING' && (
                         <button
