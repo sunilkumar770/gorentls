@@ -121,6 +121,9 @@ export async function signUp(
       phone,
       userType,
     });
+    // FIX: store token on registration — same as signIn()
+    const token = response.data.accessToken;
+    if (token) setToken(token);
     return { data: response.data };
   } catch (error: any) {
     return { error: error.response?.data?.message || error.message || 'Failed to create account' };
