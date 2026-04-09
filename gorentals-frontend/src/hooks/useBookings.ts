@@ -9,7 +9,11 @@ export function useRenterBookings(renterId: string | undefined) {
   const [loading, setLoading] = useState(true);
 
   const fetch = useCallback(() => {
-    if (!renterId) { setLoading(false); return; }
+    // If we don't have an ID yet, we might still be loading auth.
+    // In a protected route, we'll eventually get one.
+    // If we stay in 'loading' state, we avoid the "No rentals" flicker.
+    if (!renterId) return;
+
     setLoading(true);
     getRenterBookings().then(data => {
       setBookings(data);
@@ -27,7 +31,8 @@ export function useOwnerBookings(ownerId: string | undefined) {
   const [loading, setLoading] = useState(true);
 
   const fetch = useCallback(() => {
-    if (!ownerId) { setLoading(false); return; }
+    if (!ownerId) return;
+
     setLoading(true);
     getOwnerBookings().then(data => {
       setBookings(data);
