@@ -1,0 +1,38 @@
+﻿              List of relations
+ Schema |      Name       | Type  |  Owner   
+--------+-----------------+-------+----------
+ public | admin_users     | table | postgres
+ public | bookings        | table | postgres
+ public | business_owners | table | postgres
+ public | listings        | table | postgres
+ public | notifications   | table | postgres
+ public | payments        | table | postgres
+ public | user_profiles   | table | postgres
+ public | users           | table | postgres
+(8 rows)
+
+                                                         Table "public.users"
+    Column     |              Type              | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+---------------+--------------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+ id            | uuid                           |           | not null |         | plain    |             |              | 
+ created_at    | timestamp(6) without time zone |           |          |         | plain    |             |              | 
+ email         | character varying(255)         |           | not null |         | extended |             |              | 
+ full_name     | character varying(255)         |           |          |         | extended |             |              | 
+ is_active     | boolean                        |           |          |         | plain    |             |              | 
+ password_hash | character varying(255)         |           |          |         | extended |             |              | 
+ phone         | character varying(255)         |           |          |         | extended |             |              | 
+ updated_at    | timestamp(6) without time zone |           |          |         | plain    |             |              | 
+ user_type     | character varying(255)         |           | not null |         | extended |             |              | 
+Indexes:
+    "users_pkey" PRIMARY KEY, btree (id)
+    "uk_6dotkott2kjsp8vw4d0m25fb7" UNIQUE CONSTRAINT, btree (email)
+Check constraints:
+    "users_user_type_check" CHECK (user_type::text = ANY (ARRAY['RENTER'::character varying, 'OWNER'::character varying, 'ADMIN'::character varying]::text[]))
+Referenced by:
+    TABLE "listings" CONSTRAINT "fkawdvt0xd3lqlqyku8qw6m5kou" FOREIGN KEY (owner_id) REFERENCES users(id)
+    TABLE "bookings" CONSTRAINT "fkhi6uutgints5fj9cj244ecysh" FOREIGN KEY (renter_id) REFERENCES users(id)
+    TABLE "user_profiles" CONSTRAINT "fkjcad5nfve11khsnpwj1mv8frj" FOREIGN KEY (user_id) REFERENCES users(id)
+    TABLE "admin_users" CONSTRAINT "fknxke3qmphugkk619ghldnn9h2" FOREIGN KEY (user_id) REFERENCES users(id)
+    TABLE "business_owners" CONSTRAINT "fkpbmkcw9niune0aj16uwwc9v7l" FOREIGN KEY (user_id) REFERENCES users(id)
+Access method: heap
+

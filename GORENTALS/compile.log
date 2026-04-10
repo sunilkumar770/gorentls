@@ -1,0 +1,83 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ---------------------< com.rentit:rentit-platform >---------------------
+[INFO] Building RentIt Platform 1.0.0
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ rentit-platform ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ rentit-platform ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 53 source files with javac [debug parameters release 21] to target\classes
+[INFO] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/util/JwtUtil.java: Some input files use or override a deprecated API.
+[INFO] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/util/JwtUtil.java: Recompile with -Xlint:deprecation for details.
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/service/AdminService.java:[335,28] cannot find symbol
+  symbol:   method builder()
+  location: class com.rentit.dto.UserResponse
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/service/AdminService.java:[369,31] cannot find symbol
+  symbol:   method builder()
+  location: class com.rentit.dto.ListingResponse
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/service/BookingService.java:[390,41] cannot find symbol
+  symbol:   method builder()
+  location: class com.rentit.dto.ListingResponse
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/service/BookingService.java:[396,37] cannot find symbol
+  symbol:   method builder()
+  location: class com.rentit.dto.UserResponse
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/service/BookingService.java:[402,36] cannot find symbol
+  symbol:   method builder()
+  location: class com.rentit.dto.UserResponse
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/service/ListingService.java:[287,31] cannot find symbol
+  symbol:   method builder()
+  location: class com.rentit.dto.ListingResponse
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/service/ListingService.java:[289,36] cannot find symbol
+  symbol:   method builder()
+  location: class com.rentit.dto.UserResponse
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/dto/PagedResponse.java:[24,29] cannot find symbol
+  symbol:   method <T>builder()
+  location: class com.rentit.dto.PagedResponse
+[INFO] 8 errors 
+[INFO] -------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.135 s
+[INFO] Finished at: 2026-04-05T08:52:58+05:30
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.13.0:compile (default-compile) on project rentit-platform: Compilation failure: Compilation failure: 
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/service/AdminService.java:[335,28] cannot find symbol
+[ERROR]   symbol:   method builder()
+[ERROR]   location: class com.rentit.dto.UserResponse
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/service/AdminService.java:[369,31] cannot find symbol
+[ERROR]   symbol:   method builder()
+[ERROR]   location: class com.rentit.dto.ListingResponse
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/service/BookingService.java:[390,41] cannot find symbol
+[ERROR]   symbol:   method builder()
+[ERROR]   location: class com.rentit.dto.ListingResponse
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/service/BookingService.java:[396,37] cannot find symbol
+[ERROR]   symbol:   method builder()
+[ERROR]   location: class com.rentit.dto.UserResponse
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/service/BookingService.java:[402,36] cannot find symbol
+[ERROR]   symbol:   method builder()
+[ERROR]   location: class com.rentit.dto.UserResponse
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/service/ListingService.java:[287,31] cannot find symbol
+[ERROR]   symbol:   method builder()
+[ERROR]   location: class com.rentit.dto.ListingResponse
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/service/ListingService.java:[289,36] cannot find symbol
+[ERROR]   symbol:   method builder()
+[ERROR]   location: class com.rentit.dto.UserResponse
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/dto/PagedResponse.java:[24,29] cannot find symbol
+[ERROR]   symbol:   method <T>builder()
+[ERROR]   location: class com.rentit.dto.PagedResponse
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

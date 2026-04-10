@@ -1,0 +1,53 @@
+﻿                                                           Table "public.bookings"
+       Column        |              Type              | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+---------------------+--------------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+ id                  | uuid                           |           | not null |         | plain    |             |              | 
+ created_at          | timestamp(6) without time zone |           |          |         | plain    |             |              | 
+ end_date            | date                           |           | not null |         | plain    |             |              | 
+ payment_status      | character varying(255)         |           |          |         | extended |             |              | 
+ razorpay_order_id   | character varying(255)         |           |          |         | extended |             |              | 
+ razorpay_payment_id | character varying(255)         |           |          |         | extended |             |              | 
+ rental_amount       | numeric(38,2)                  |           | not null |         | main     |             |              | 
+ security_deposit    | numeric(38,2)                  |           | not null |         | main     |             |              | 
+ start_date          | date                           |           | not null |         | plain    |             |              | 
+ status              | character varying(255)         |           |          |         | extended |             |              | 
+ total_amount        | numeric(38,2)                  |           | not null |         | main     |             |              | 
+ total_days          | integer                        |           | not null |         | plain    |             |              | 
+ updated_at          | timestamp(6) without time zone |           |          |         | plain    |             |              | 
+ listing_id          | uuid                           |           | not null |         | plain    |             |              | 
+ renter_id           | uuid                           |           | not null |         | plain    |             |              | 
+Indexes:
+    "bookings_pkey" PRIMARY KEY, btree (id)
+Check constraints:
+    "bookings_status_check" CHECK (status::text = ANY (ARRAY['PENDING'::character varying, 'CONFIRMED'::character varying, 'ACTIVE'::character varying, 'COMPLETED'::character varying, 'CANCELLED'::character varying, 'REJECTED'::character varying]::text[]))
+Foreign-key constraints:
+    "fkhi6uutgints5fj9cj244ecysh" FOREIGN KEY (renter_id) REFERENCES users(id)
+    "fkpft2easulf9x9l18rabap7g59" FOREIGN KEY (listing_id) REFERENCES listings(id)
+Referenced by:
+    TABLE "payments" CONSTRAINT "fkc52o2b1jkxttngufqp3t7jr3h" FOREIGN KEY (booking_id) REFERENCES bookings(id)
+Access method: heap
+
+                                                       Table "public.user_profiles"
+      Column      |              Type              | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+------------------+--------------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+ id               | uuid                           |           | not null |         | plain    |             |              | 
+ address          | text                           |           |          |         | extended |             |              | 
+ city             | character varying(255)         |           |          |         | extended |             |              | 
+ created_at       | timestamp(6) without time zone |           |          |         | plain    |             |              | 
+ date_of_birth    | date                           |           |          |         | plain    |             |              | 
+ kyc_document_url | character varying(255)         |           |          |         | extended |             |              | 
+ kyc_status       | character varying(255)         |           |          |         | extended |             |              | 
+ pincode          | character varying(255)         |           |          |         | extended |             |              | 
+ profile_picture  | character varying(255)         |           |          |         | extended |             |              | 
+ state            | character varying(255)         |           |          |         | extended |             |              | 
+ updated_at       | timestamp(6) without time zone |           |          |         | plain    |             |              | 
+ user_id          | uuid                           |           | not null |         | plain    |             |              | 
+Indexes:
+    "user_profiles_pkey" PRIMARY KEY, btree (id)
+    "uk_e5h89rk3ijvdmaiig4srogdc6" UNIQUE CONSTRAINT, btree (user_id)
+Check constraints:
+    "user_profiles_kyc_status_check" CHECK (kyc_status::text = ANY (ARRAY['PENDING'::character varying, 'SUBMITTED'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying]::text[]))
+Foreign-key constraints:
+    "fkjcad5nfve11khsnpwj1mv8frj" FOREIGN KEY (user_id) REFERENCES users(id)
+Access method: heap
+

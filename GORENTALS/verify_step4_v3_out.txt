@@ -1,0 +1,7 @@
+﻿=== SETUP: Registering Users ===
+POST /api/auth/register-owner failed: 400 - {"message":"Cannot invoke \"String.toUpperCase()\" because the return value of \"com.rentit.dto.RegisterRequest.getUserType()\" is null"}
+POST /api/auth/login failed: 400 - {"message":"Invalid email or password"}
+Renter Token obtained: YES
+Owner Token obtained: NO
+Admin Token obtained: YES
+Γ¥î Failed to setup tokens. Aborting test.

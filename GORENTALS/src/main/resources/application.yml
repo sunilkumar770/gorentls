@@ -1,0 +1,52 @@
+spring:
+  application:
+    name: rentit-platform
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/rentit}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      # LOCAL DEV: 'update' — evolves schema, keeps data across restarts
+      # PRODUCTION: must be overridden to 'validate' via env var or application-prod.yml
+      # NEVER use 'create-drop' — it deletes all data on shutdown
+      ddl-auto: ${DDL_AUTO:update}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          lob:
+            non_contextual_creation: true
+        format_sql: true
+    show-sql: false   # turn off in non-debug runs to reduce noise
+
+  flyway:
+    enabled: false
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+razorpay:
+  key: ${RAZORPAY_KEY:rzp_test_xxx}
+  secret: ${RAZORPAY_SECRET:xxx}
+
+jwt:
+  # Default is safe for local dev (32+ chars)
+  # PRODUCTION: set JWT_SECRET env var to a securely generated 64-char random string
+  secret: ${JWT_SECRET:your-secret-key-change-in-production-min-32-characters-long}
+  expiration: 86400000   # 24 hours
+
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+
+logging:
+  level:
+    com.rentit: INFO            # was DEBUG — reduces noise
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN     # was DEBUG — was printing every query
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN

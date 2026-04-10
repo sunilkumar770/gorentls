@@ -1,0 +1,26 @@
+# application-prod.yml — activated with: java -jar app.jar --spring.profiles.active=prod
+# All values MUST come from environment variables in production — no fallbacks allowed
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate    # NEVER create/update in production
+    show-sql: false
+
+  datasource:
+    url: ${DB_URL}          # no fallback — deployment must provide this
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+jwt:
+  secret: ${JWT_SECRET}     # no fallback — deployment must provide this
+
+app:
+  frontend-url: ${FRONTEND_URL}   # no fallback — deployment must provide this
+
+logging:
+  level:
+    root: WARN
+    com.rentit: INFO
+    org.springframework.security: WARN
+    org.hibernate: WARN

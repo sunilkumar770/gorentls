@@ -1,0 +1,32 @@
+﻿                                                         Table "public.listings"
+      Column      |              Type              | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+------------------+--------------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+ id               | uuid                           |           | not null |         | plain    |             |              | 
+ category         | character varying(255)         |           |          |         | extended |             |              | 
+ city             | character varying(255)         |           |          |         | extended |             |              | 
+ created_at       | timestamp(6) without time zone |           |          |         | plain    |             |              | 
+ description      | text                           |           |          |         | extended |             |              | 
+ images           | jsonb                          |           |          |         | extended |             |              | 
+ is_available     | boolean                        |           |          |         | plain    |             |              | 
+ is_published     | boolean                        |           |          |         | plain    |             |              | 
+ latitude         | numeric(38,2)                  |           |          |         | main     |             |              | 
+ location         | character varying(255)         |           |          |         | extended |             |              | 
+ longitude        | numeric(38,2)                  |           |          |         | main     |             |              | 
+ price_per_day    | numeric(38,2)                  |           | not null |         | main     |             |              | 
+ rating_count     | integer                        |           |          |         | plain    |             |              | 
+ security_deposit | numeric(38,2)                  |           |          |         | main     |             |              | 
+ specifications   | jsonb                          |           |          |         | extended |             |              | 
+ state            | character varying(255)         |           |          |         | extended |             |              | 
+ title            | character varying(255)         |           | not null |         | extended |             |              | 
+ total_ratings    | numeric(38,2)                  |           |          |         | main     |             |              | 
+ type             | character varying(255)         |           |          |         | extended |             |              | 
+ updated_at       | timestamp(6) without time zone |           |          |         | plain    |             |              | 
+ owner_id         | uuid                           |           | not null |         | plain    |             |              | 
+Indexes:
+    "listings_pkey" PRIMARY KEY, btree (id)
+Foreign-key constraints:
+    "fkawdvt0xd3lqlqyku8qw6m5kou" FOREIGN KEY (owner_id) REFERENCES users(id)
+Referenced by:
+    TABLE "bookings" CONSTRAINT "fkpft2easulf9x9l18rabap7g59" FOREIGN KEY (listing_id) REFERENCES listings(id)
+Access method: heap
+

@@ -1,0 +1,200 @@
+﻿[INFO] Scanning for projects...
+[INFO] 
+[INFO] ---------------------< com.rentit:rentit-platform >---------------------
+[INFO] Building RentIt Platform 1.0.0
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.2.5:run (default-cli) > test-compile @ rentit-platform >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ rentit-platform ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ rentit-platform ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ rentit-platform ---
+[INFO] skip non existing resourceDirectory C:\Users\sunil\Downloads\gorentls\GORENTALS\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.11.0:testCompile (default-testCompile) @ rentit-platform ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] <<< spring-boot:3.2.5:run (default-cli) < test-compile @ rentit-platform <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.2.5:run (default-cli) @ rentit-platform ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-04-04T21:42:39.471+05:30  INFO 29340 --- [rentit-platform] [           main] com.rentit.GoRentals                     : Starting GoRentals using Java 23.0.2 with PID 29340 (C:\Users\sunil\Downloads\gorentls\GORENTALS\target\classes started by sunil in C:\Users\sunil\Downloads\gorentls\GORENTALS)
+2026-04-04T21:42:39.474+05:30 DEBUG 29340 --- [rentit-platform] [           main] com.rentit.GoRentals                     : Running with Spring Boot v3.2.5, Spring v6.1.6
+2026-04-04T21:42:39.480+05:30  INFO 29340 --- [rentit-platform] [           main] com.rentit.GoRentals                     : No active profile set, falling back to 1 default profile: "default"
+2026-04-04T21:42:40.374+05:30  INFO 29340 --- [rentit-platform] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-04T21:42:40.466+05:30  INFO 29340 --- [rentit-platform] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 83 ms. Found 8 JPA repository interfaces.
+2026-04-04T21:42:41.379+05:30  INFO 29340 --- [rentit-platform] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2026-04-04T21:42:41.391+05:30  INFO 29340 --- [rentit-platform] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-04T21:42:41.391+05:30  INFO 29340 --- [rentit-platform] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-04T21:42:41.469+05:30  INFO 29340 --- [rentit-platform] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-04T21:42:41.471+05:30  INFO 29340 --- [rentit-platform] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1913 ms
+2026-04-04T21:42:41.632+05:30  INFO 29340 --- [rentit-platform] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-04T21:42:41.690+05:30  INFO 29340 --- [rentit-platform] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-04T21:42:41.730+05:30  INFO 29340 --- [rentit-platform] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-04-04T21:42:41.989+05:30  INFO 29340 --- [rentit-platform] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-04T21:42:42.021+05:30  INFO 29340 --- [rentit-platform] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-04T21:42:42.210+05:30  INFO 29340 --- [rentit-platform] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@30dd00b6
+2026-04-04T21:42:42.212+05:30  INFO 29340 --- [rentit-platform] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-04T21:42:42.254+05:30  WARN 29340 --- [rentit-platform] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-04-04T21:42:43.804+05:30  INFO 29340 --- [rentit-platform] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-04T21:42:43.901+05:30 DEBUG 29340 --- [rentit-platform] [           main] org.hibernate.SQL                        : 
+    create table admin_users (
+        id uuid not null,
+        created_at timestamp(6),
+        permissions jsonb,
+        role varchar(255) not null,
+        updated_at timestamp(6),
+        user_id uuid not null,
+        primary key (id)
+    )
+Hibernate: 
+    create table admin_users (
+        id uuid not null,
+        created_at timestamp(6),
+        permissions jsonb,
+        role varchar(255) not null,
+        updated_at timestamp(6),
+        user_id uuid not null,
+        primary key (id)
+    )
+2026-04-04T21:42:43.922+05:30 DEBUG 29340 --- [rentit-platform] [           main] org.hibernate.SQL                        : 
+    create table bookings (
+        id uuid not null,
+        created_at timestamp(6),
+        end_date date not null,
+        payment_status varchar(255),
+        razorpay_order_id varchar(255),
+        razorpay_payment_id varchar(255),
+        rental_amount numeric(38,2) not null,
+        security_deposit numeric(38,2) not null,
+        start_date date not null,
+        status varchar(255) check (status in ('PENDING','CONFIRMED','ACTIVE','COMPLETED','CANCELLED','REJECTED')),
+        total_amount numeric(38,2) not null,
+        total_days integer not null,
+        updated_at timestamp(6),
+        listing_id uuid not null,
+        renter_id uuid not null,
+        primary key (id)
+    )
+Hibernate: 
+    create table bookings (
+        id uuid not null,
+        created_at timestamp(6),
+        end_date date not null,
+        payment_status varchar(255),
+        razorpay_order_id varchar(255),
+        razorpay_payment_id varchar(255),
+        rental_amount numeric(38,2) not null,
+        security_deposit numeric(38,2) not null,
+        start_date date not null,
+        status varchar(255) check (status in ('PENDING','CONFIRMED','ACTIVE','COMPLETED','CANCELLED','REJECTED')),
+        total_amount numeric(38,2) not null,
+        total_days integer not null,
+        updated_at timestamp(6),
+        listing_id uuid not null,
+        renter_id uuid not null,
+        primary key (id)
+    )
+2026-04-04T21:42:43.933+05:30 DEBUG 29340 --- [rentit-platform] [           main] org.hibernate.SQL                        : 
+    create table business_owners (
+        id uuid not null,
+        business_address varchar(255),
+        business_city varchar(255),
+        business_email varchar(255),
+        business_name varchar(255) not null,
+        business_phone varchar(255),
+        business_pincode varchar(255),
+        business_state varchar(255),
+        business_type varchar(255),
+        commission_rate numeric(38,2),
+        created_at timestamp(6),
+        gst_number varchar(255),
+        is_verified boolean,
+        pan_number varchar(255),
+        registration_number varchar(255),
+        updated_at timestamp(6),
+        user_id uuid not null,
+        primary key (id)
+    )
+Hibernate: 
+    create table business_owners (
+        id uuid not null,
+        business_address varchar(255),
+        business_city varchar(255),
+        business_email varchar(255),
+        business_name varchar(255) not null,
+        business_phone varchar(255),
+        business_pincode varchar(255),
+        business_state varchar(255),
+        business_type varchar(255),
+        commission_rate numeric(38,2),
+        created_at timestamp(6),
+        gst_number varchar(255),
+        is_verified boolean,
+        pan_number varchar(255),
+        registration_number varchar(255),
+        updated_at timestamp(6),
+        user_id uuid not null,
+        primary key (id)
+    )
+2026-04-04T21:42:43.942+05:30 DEBUG 29340 --- [rentit-platform] [           main] org.hibernate.SQL                        : 
+    create table listings (
+        id uuid not null,
+        category varchar(255),
+        city varchar(255),
+        created_at timestamp(6),
+        description TEXT,
+        images jsonb,
+        is_available boolean,
+        is_published boolean,
+        latitude numeric(38,2),
+        location varchar(255),
+        longitude numeric(38,2),
+        price_per_day numeric(38,2) not null,
+        rating_count integer,
+        security_deposit numeric(38,2),
+        specifications jsonb,
+        state varchar(255),
+        title varchar(255) not null,
+        total_ratings numeric(38,2),
+        type varchar(255),
+        updated_at timestamp(6),
+        owner_id uuid not null,
+        primary key (id)
+    )
+Hibernate: 
+    create table listings (
+        id uuid not null,
+        category varchar(255),
+        city varchar(255),
+        created_at timestamp(6),
+        description TEXT,
+        images jsonb,
+        is_available boolean,
+        is_published boolean,
+        latitude numeric(38,2),
+        location varchar(255),
+        longitude numeric(38,2),
+        price_per_day numeric(38,2) not null,
+        rating_count integer,
+        security_deposit numeric(38,2),
+        specifications jsonb,
+        state varchar(255),
+        title varchar(255) not null,
+        total_ratings numeric(38,2),

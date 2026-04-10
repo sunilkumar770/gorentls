@@ -1,0 +1,41 @@
+﻿[INFO] Scanning for projects...
+[INFO] 
+[INFO] ---------------------< com.rentit:rentit-platform >---------------------
+[INFO] Building RentIt Platform 1.0.0
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.3.2:clean (default-clean) @ rentit-platform ---
+[INFO] Deleting C:\Users\sunil\Downloads\gorentls\GORENTALS\target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ rentit-platform ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ rentit-platform ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 51 source files with javac [debug parameters release 21] to target\classes
+[INFO] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/util/JwtUtil.java: Some input files use or override a deprecated API.
+[INFO] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/util/JwtUtil.java: Recompile with -Xlint:deprecation for details.
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/config/SecurityConfig.java:[28,43] variable jwtAuthFilter not initialized in the default constructor
+[INFO] 1 error
+[INFO] -------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  3.115 s
+[INFO] Finished at: 2026-04-04T22:30:40+05:30
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.13.0:compile (default-compile) on project rentit-platform: Compilation failure
+[ERROR] /C:/Users/sunil/Downloads/gorentls/GORENTALS/src/main/java/com/rentit/config/SecurityConfig.java:[28,43] variable jwtAuthFilter not initialized in the default constructor
+[ERROR] 
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

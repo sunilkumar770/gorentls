@@ -1,0 +1,45 @@
+﻿=== TEST 1: Register + Login ===
+Register: {
+  "error": 400,
+  "body": "{\"message\":\"Email already registered\"}"
+}
+
+Token obtained: YES ΓÇö eyJhbGciOiJIUzI1NiJ9.eyJyb2xlI...
+
+=== TEST 2: Fetch bookings ΓÇö check status field ===
+Response: {
+  "content": [],
+  "pageable": {
+    "pageNumber": 0,
+    "pageSize": 20,
+    "sort": {
+      "empty": true,
+      "sorted": false,
+      "unsorted": true
+    },
+    "offset": 0,
+    "paged": true,
+    "unpaged": false
+  },
+  "last": true,
+  "totalElements": 0,
+  "totalPages": 0,
+  "first": true,
+  "size": 20,
+  "number": 0,
+  "sort": {
+    "empty": true,
+    "sorted": false,
+    "unsorted": true
+  },
+  "numberOfElements": 0,
+  "empty": true
+}
+
+ΓÜá∩╕Å  Empty list ΓÇö new user has no bookings. Status field cannot be verified yet.
+    Create a booking first, then re-run this script.
+
+=== TEST 3: Admin stats endpoint ===
+Admin token: NO ΓÇö {'error': 400, 'body': '{"message":"Admin not found"}'}
+ΓÜá∩╕Å  No admin account ΓÇö admin stats cannot be tested yet
+   Create an admin account or check if one exists in the DB

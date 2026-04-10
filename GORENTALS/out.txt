@@ -1,0 +1,21 @@
+﻿≡ƒÜÇ Starting GoRentals Full End-to-End Test Suite...
+
+≡ƒôª [TEST 1] Registering Owner: owner_1775372016917@test.com
+Γ£à Owner Registered & Authenticated Successfully.
+
+≡ƒôª [TEST 2] Registering Renter: renter_1775372016917@test.com
+Γ£à Renter Registered & Authenticated Successfully.
+
+≡ƒôª [TEST 3] Creating Listing via Authenticated Owner...
+Γ£à Listing Created Successfully. Artifact ID: 835cd616-b958-499f-9335-ad78d8f36736
+
+≡ƒôª [TEST 4] Searching Global Archive...
+ΓÜá∩╕Å Listing created but NOT found in global search results. (Expected if not auto-published).
+
+≡ƒôª [TEST 4.5] Publishing Listing...
+Γ£à Artifact Published successfully.
+
+≡ƒôª [TEST 5] Creating Booking via Authenticated Renter...
+Γ£à Acquisition Booking Created Successfully. Booking ID: 3c889c38-9832-4a32-b721-81a7ebcb443b
+
+≡ƒÄë ALL SYSTEMS OPTIMAL: End-to-End verification complete!
