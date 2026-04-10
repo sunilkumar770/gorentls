@@ -64,37 +64,6 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
-    // Option 2: Using DELETE method with success message
-    @DeleteMapping("/listings/{listingId}/reject-with-message")
-    public ResponseEntity<?> rejectListingWithMessage(@PathVariable UUID listingId) {
-        try {
-            adminService.rejectListing(listingId);
-            SuccessResponse successResponse = new SuccessResponse("Listing rejected successfully", true);
-            return ResponseEntity.ok(successResponse);
-        } catch (Exception e) {
-            ErrorResponse errorResponse = new ErrorResponse("Failed to reject listing: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-        }
-    }
-
-    // Option 3: Using PATCH method with JSON response (Alternative)
-    @PatchMapping("/listings/{listingId}/reject-alternative")
-    public ResponseEntity<Map<String, Object>> rejectListingAlternative(@PathVariable UUID listingId) {
-        Map<String, Object> response = new HashMap<>();
-        try {
-            adminService.rejectListing(listingId);
-            response.put("success", true);
-            response.put("message", "Listing rejected successfully");
-            response.put("listingId", listingId);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Failed to reject listing: " + e.getMessage());
-            response.put("listingId", listingId);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-    }
-
     @GetMapping("/transactions")
     public ResponseEntity<Page<TransactionResponse>> getAllTransactions(Pageable pageable) {
         return ResponseEntity.ok(adminService.getAllTransactions(pageable));
