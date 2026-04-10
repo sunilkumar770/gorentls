@@ -100,6 +100,26 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getAllTransactions(pageable));
     }
 
+    @GetMapping("/listings")
+    public ResponseEntity<Page<ListingResponse>> getAllListings(Pageable pageable) {
+        return ResponseEntity.ok(adminService.getAllListings(pageable));
+    }
+
+    @GetMapping("/bookings")
+    public ResponseEntity<Page<BookingResponse>> getAllBookings(Pageable pageable) {
+        return ResponseEntity.ok(adminService.getAllBookings(pageable));
+    }
+
+    @PatchMapping("/users/{userId}/suspend")
+    public ResponseEntity<UserResponse> suspendUser(@PathVariable UUID userId) {
+        return ResponseEntity.ok(adminService.suspendUser(userId));
+    }
+
+    @PatchMapping("/users/{userId}/unsuspend")
+    public ResponseEntity<UserResponse> unsuspendUser(@PathVariable UUID userId) {
+        return ResponseEntity.ok(adminService.unsuspendUser(userId));
+    }
+
     @GetMapping("/analytics")
     public ResponseEntity<PlatformAnalytics> getPlatformAnalytics(
             @RequestParam String startDate,

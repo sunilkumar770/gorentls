@@ -170,9 +170,13 @@ public class AdminService {
         @Transactional
         public void rejectListing(UUID listingId) {
                 Listing listing = listingRepository.findById(listingId)
-                                .orElseThrow(() -> new RuntimeException("Listing not found"));
+                                .orElseThrow(() -> new RuntimeException("Listing not found: " + listingId));
 
-                listingRepository.delete(listing);
+                // Soft delete — deactivate, don't delete. Preserves FK integrity.
+                listing.setIsPublished(false);
+                listing.setIsAvailable(false);
+                listing.setUpdatedAt(LocalDateTime.now());
+                listingRepository.save(listing);
         }
 
         /**
@@ -333,6 +337,31 @@ public class AdminService {
                                 .topCities(topCities)
                                 .build();
         }
+        public Page<ListingResponse> getAllListings(Pageable pageable) {
+                return listingRepository.findAll(pageable).map(this::mapToListingResponse);
+        }
+
+        public Page<BookingResponse> getAllBookings(Pageable pageable) {
+                return bookingRepository.findAll(pageable).map(this::mapToBookingResponse);
+        }
+
+        @Transactional
+        public UserResponse suspendUser(UUID userId) {
+                User user = userRepository.findById(userId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                user.setIsActive(false);
+                userRepository.save(user);
+                return mapToUserResponse(user);
+        }
+
+        @Transactional
+        public UserResponse unsuspendUser(UUID userId) {
+                User user = userRepository.findById(userId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                user.setIsActive(true);
+                userRepository.save(user);
+                return mapToUserResponse(user);
+        }
 
         // Helper methods to map entities to DTOs
 
@@ -416,6 +445,45 @@ public class AdminService {
                                 .razorpayOrderId(payment.getRazorpayOrderId())
                                 .razorpayPaymentId(payment.getRazorpayPaymentId())
                                 .createdAt(payment.getCreatedAt())
+                                .build();
+        }
+
+        private BookingResponse mapToBookingResponse(Booking booking) {
+                User renter = booking.getRenter();
+                User owner = booking.getListing().getOwner();
+
+                return BookingResponse.builder()
+                                .id(booking.getId())
+                                .listing(ListingResponse.builder()
+                                                .id(booking.getListing().getId())
+                                                .title(booking.getListing().getTitle())
+                                                .pricePerDay(booking.getListing().getPricePerDay())
+                                                .images(booking.getListing().getImages())
+                                                .build())
+                                .renter(UserResponse.builder()
+                                                .id(renter.getId())
+                                                .fullName(renter.getFullName())
+                                                .email(renter.getEmail())
+                                                .phone(renter.getPhone())
+                                                .build())
+                                .owner(UserResponse.builder()
+                                                .id(owner.getId())
+                                                .fullName(owner.getFullName())
+                                                .email(owner.getEmail())
+                                                .phone(owner.getPhone())
+                                                .build())
+                                .startDate(booking.getStartDate())
+                                .endDate(booking.getEndDate())
+                                .totalDays(booking.getTotalDays())
+                                .rentalAmount(booking.getRentalAmount())
+                                .securityDeposit(booking.getSecurityDeposit())
+                                .totalAmount(booking.getTotalAmount())
+                                .status(booking.getStatus().name())
+                                .paymentStatus(booking.getPaymentStatus())
+                                .razorpayOrderId(booking.getRazorpayOrderId())
+                                .razorpayPaymentId(booking.getRazorpayPaymentId())
+                                .createdAt(booking.getCreatedAt())
+                                .updatedAt(booking.getUpdatedAt())
                                 .build();
         }
 }
