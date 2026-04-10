@@ -43,10 +43,14 @@ jwt:
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  admin:
+    email: ${APP_ADMIN_EMAIL:admin@gorentals.com}
+    password: ${APP_ADMIN_PASSWORD:Admin@GoRentals2025!}
+    name: ${APP_ADMIN_NAME:GoRentals Admin}
 
 logging:
   level:
-    com.rentit: INFO            # was DEBUG — reduces noise
+    com.rentit: INFO
     org.springframework.security: WARN
-    org.hibernate.SQL: WARN     # was DEBUG — was printing every query
+    org.hibernate.SQL: WARN
     org.hibernate.type.descriptor.sql.BasicBinder: WARN

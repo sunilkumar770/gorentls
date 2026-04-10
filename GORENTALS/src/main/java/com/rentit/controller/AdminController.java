@@ -63,7 +63,7 @@ public class AdminController {
         adminService.rejectListing(listingId);
         return ResponseEntity.noContent().build();
     }
-    
+
     // Option 2: Using DELETE method with success message
     @DeleteMapping("/listings/{listingId}/reject-with-message")
     public ResponseEntity<?> rejectListingWithMessage(@PathVariable UUID listingId) {
@@ -76,7 +76,7 @@ public class AdminController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
-    
+
     // Option 3: Using PATCH method with JSON response (Alternative)
     @PatchMapping("/listings/{listingId}/reject-alternative")
     public ResponseEntity<Map<String, Object>> rejectListingAlternative(@PathVariable UUID listingId) {
