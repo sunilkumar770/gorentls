@@ -45,7 +45,7 @@ app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   admin:
     email: ${APP_ADMIN_EMAIL:admin@gorentals.com}
-    password: ${APP_ADMIN_PASSWORD:Admin@GoRentals2025!}
+    password: ${APP_ADMIN_PASSWORD:Hanuman@7766}
     name: ${APP_ADMIN_NAME:GoRentals Admin}
 
 logging:
