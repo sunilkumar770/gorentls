@@ -40,6 +40,9 @@ public class AdminService {
         @Autowired
         private PaymentRepository paymentRepository;
 
+        @Autowired
+        private NotificationService notificationService;
+
         /**
          * Get admin dashboard statistics
          */
@@ -161,6 +164,13 @@ public class AdminService {
                 listing.setUpdatedAt(LocalDateTime.now());
                 listingRepository.save(listing);
 
+                notificationService.sendNotification(
+                    listing.getOwner().getId(),
+                    "Listing Approved",
+                    "Your listing \"" + listing.getTitle() + "\" has been approved and is now live.",
+                    "LISTING_APPROVED"
+                );
+
                 return mapToListingResponse(listing);
         }
 
@@ -177,6 +187,13 @@ public class AdminService {
                 listing.setIsAvailable(false);
                 listing.setUpdatedAt(LocalDateTime.now());
                 listingRepository.save(listing);
+
+                notificationService.sendNotification(
+                    listing.getOwner().getId(),
+                    "Listing Rejected",
+                    "Your listing \"" + listing.getTitle() + "\" was not approved. Please review and resubmit.",
+                    "LISTING_REJECTED"
+                );
         }
 
         /**

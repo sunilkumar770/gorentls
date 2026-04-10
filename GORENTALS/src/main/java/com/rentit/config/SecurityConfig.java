@@ -46,6 +46,7 @@ public class SecurityConfig {
                 // Public — no token needed
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
+                .requestMatchers("/api/notifications/**").authenticated()
                 .requestMatchers("/api/listings/search").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 // Admin only
