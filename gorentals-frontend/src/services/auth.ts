@@ -82,16 +82,16 @@ export async function adminSignIn(
 }
 
 export const authService = {
-  login: async (data: any): Promise<any> => {
-    const response = await api.post('/auth/login', data);
-    const token = response.data.token || response.data.accessToken;
+  login: async (data: any): Promise<BackendAuthResponse> => {
+    const response = await api.post<BackendAuthResponse>('/auth/login', data);
+    const token = response.data.accessToken;
     if (token) setToken(token);
     return response.data;
   },
 
-  register: async (data: any): Promise<any> => {
-    const response = await api.post('/auth/register', data);
-    const token = response.data.token || response.data.accessToken;
+  register: async (data: any): Promise<BackendAuthResponse> => {
+    const response = await api.post<BackendAuthResponse>('/auth/register', data);
+    const token = response.data.accessToken;
     if (token) setToken(token);
     return response.data;
   },

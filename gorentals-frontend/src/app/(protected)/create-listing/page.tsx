@@ -50,7 +50,7 @@ export default function CreateListingWizard() {
   if (!isOwner) {
     return (
       <div className="container mx-auto px-4 py-16">
-        <UpgradeOwnerCard variant="overlay" />
+        <UpgradeOwnerCard />
       </div>
     );
   }

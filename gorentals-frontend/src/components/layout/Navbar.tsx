@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { Search, Plus, LayoutDashboard, LogOut, User, ChevronDown, Calendar, ClipboardList } from 'lucide-react';
+import { Search, Plus, LayoutDashboard, LogOut, User, ChevronDown, Calendar, ClipboardList, Shield } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 
 export function Navbar() {
-  const { user, profile, isOwner, loading, logout } = useAuth();
+  const { user, profile, isOwner, isAdmin, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -137,6 +137,17 @@ export function Navbar() {
                             <Calendar className="w-4 h-4 text-[#6b7280]" />
                             My Bookings
                           </Link>
+
+                          {isAdmin && (
+                            <Link
+                              href="/admin"
+                              onClick={() => setMenuOpen(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-[#f97316] hover:bg-[#f97316]/5 transition-colors"
+                            >
+                              <Shield className="w-4 h-4 text-[#f97316]" />
+                              Admin Control Center
+                            </Link>
+                          )}
 
                           {isOwner && (
                             <>

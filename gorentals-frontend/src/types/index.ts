@@ -8,7 +8,7 @@ export interface Profile {
   profilePicture: string | null;
   userType: UserType | null;
   isActive: boolean;
-  kycStatus: 'PENDING' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+  kycStatus: 'PENDING' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | null;
   kycDocumentType: string | null;
   kycDocumentId: string | null;
   kycDocumentUrl: string | null;

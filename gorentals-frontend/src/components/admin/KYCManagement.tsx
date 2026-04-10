@@ -80,7 +80,7 @@ export function KYCManagement() {
       <div className="grid grid-cols-1 gap-4">
         {submissions.map((user) => (
           <Card key={user.id} className="p-8 bg-white border-none shadow-ambient rounded-[2.5rem] flex flex-col md:flex-row md:items-center justify-between gap-8 group transition-all hover:shadow-[0_20px_48px_rgba(37,25,19,0.08)]">
-            
+
             <div className="flex items-center gap-6">
               <div className="h-16 w-16 rounded-2xl bg-[#fff8f6] flex items-center justify-center ring-1 ring-[#f97316]/10 text-[#251913]">
                 {user.profilePicture ? (
@@ -106,8 +106,8 @@ export function KYCManagement() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 className="rounded-xl border-[#251913]/5 bg-[#fff8f6] text-[#251913] hover:bg-white font-bold text-xs p-5"
                 onClick={() => window.open(user.kycDocumentUrl || '#', '_blank')}
@@ -117,7 +117,7 @@ export function KYCManagement() {
                 View Document
               </Button>
 
-              <Button 
+              <Button
                 className="bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-md font-display font-black text-xs p-5"
                 onClick={() => handleApprove(user.id)}
                 loading={processing === user.id}
@@ -126,7 +126,7 @@ export function KYCManagement() {
                 Approve Verification
               </Button>
 
-              <Button 
+              <Button
                 variant="ghost"
                 className="text-red-500 hover:bg-red-50 rounded-xl font-bold text-xs p-5"
               >
