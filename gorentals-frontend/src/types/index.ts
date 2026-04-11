@@ -101,3 +101,32 @@ export interface SearchFilters {
   end_date?: string;
   sort?: 'newest' | 'price_asc' | 'price_desc' | 'rating';
 }
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+export type NotificationType =
+  | 'BOOKING_CONFIRMED'
+  | 'NEW_BOOKING'
+  | 'LISTING_APPROVED'
+  | 'LISTING_REJECTED'
+  | 'PAYMENT_CONFIRMED'
+  | 'PAYMENT_RECEIVED'
+  | 'PAYMENT_FAILED'
+  | string; // forward-compatible with future types
+
+export interface Notification {
+  id:        string;
+  title:     string;
+  message:   string;
+  type:      NotificationType;
+  isRead:    boolean;
+  createdAt: string;
+}
+
+export interface NotificationPage {
+  content:        Notification[];
+  totalElements:  number;
+  totalPages:     number;
+  number:         number;
+  size:           number;
+}
