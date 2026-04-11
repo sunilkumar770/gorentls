@@ -2,9 +2,39 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { Search, Plus, LayoutDashboard, LogOut, User, ChevronDown, Calendar, ClipboardList, Shield } from 'lucide-react';
+import { Search, Plus, LayoutDashboard, LogOut, User, ChevronDown, Calendar, ClipboardList, Shield, Bell } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+
+/** Poll unread notification count every 30 s while logged in. */
+function useUnreadCount(loggedIn: boolean) {
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchCount = useCallback(async () => {
+    if (!loggedIn) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('gr_token') : null;
+      if (!token) return;
+      const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+      const res = await fetch(`${base}/notifications/unread-count`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadCount(data.unreadCount ?? 0);
+      }
+    } catch { /* silently ignore — bell badge is non-critical */ }
+  }, [loggedIn]);
+
+  useEffect(() => {
+    fetchCount();
+    if (!loggedIn) return;
+    const id = setInterval(fetchCount, 30_000);
+    return () => clearInterval(id);
+  }, [fetchCount, loggedIn]);
+
+  return unreadCount;
+}
 
 export function Navbar() {
   const { user, profile, isOwner, isAdmin, loading, logout } = useAuth();
@@ -12,6 +42,7 @@ export function Navbar() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const unreadCount = useUnreadCount(!!user);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -83,6 +114,20 @@ export function Navbar() {
               <>
                 {user ? (
                   <>
+                    {/* Notification bell */}
+                    <Link
+                      href="/notifications"
+                      title="Notifications"
+                      className="relative p-2 rounded-lg text-[#6b7280] hover:text-[#111827] hover:bg-[#f9fafb] transition-colors"
+                    >
+                      <Bell className="w-5 h-5" />
+                      {unreadCount > 0 && (
+                        <span className="absolute top-1 right-1 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </Link>
+
                     {/* Add listing shortcut */}
                     <Link
                       href="/create-listing"

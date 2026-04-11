@@ -62,7 +62,7 @@ export async function signIn(
 }
 
 /**
- * Admin login — hits /auth/admin/login (separate from regular /auth/login)
+ * Admin login — hits /auth/admin-login (separate from regular /auth/login)
  * Backend requires ADMIN role — regular user credentials will fail here.
  */
 export async function adminSignIn(
@@ -70,7 +70,7 @@ export async function adminSignIn(
   password: string
 ): Promise<{ data?: BackendAuthResponse; error?: string }> {
   try {
-    const response = await api.post('/auth/admin/login', { email, password });
+    const response = await api.post('/auth/admin-login', { email, password });
     const token = response.data.accessToken;
     if (token) setToken(token);
     return { data: response.data };
