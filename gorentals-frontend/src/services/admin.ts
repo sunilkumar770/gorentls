@@ -25,7 +25,6 @@ export interface AdminUser {
   isActive: boolean;
   isVerified: boolean;
   createdAt: string;
-  // KYC fields
   kycStatus: 'PENDING' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | null;
   kycDocumentType: string | null;
   kycDocumentId: string | null;
@@ -54,6 +53,17 @@ export interface AdminBooking {
   };
 }
 
+export interface AuditLog {
+  id: string;
+  adminEmail: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  description: string;
+  ipAddress: string | null;
+  createdAt: string;
+}
+
 export interface PageResponse<T> {
   content: T[];
   totalElements: number;
@@ -70,8 +80,14 @@ export const adminService = {
   },
 
   // ── Users ────────────────────────────────────────────────────────────────
-  getUsers: async (page = 0, size = 20): Promise<PageResponse<AdminUser>> => {
-    const r = await api.get(`/admin/users?page=${page}&size=${size}`);
+  /**
+   * Fetch paginated users with optional free-text search.
+   * search='' returns all users.
+   */
+  getUsers: async (page = 0, size = 20, search = ''): Promise<PageResponse<AdminUser>> => {
+    const params = new URLSearchParams({ page: String(page), size: String(size) });
+    if (search.trim()) params.set('search', search.trim());
+    const r = await api.get(`/admin/users?${params}`);
     return r.data;
   },
 
@@ -91,8 +107,13 @@ export const adminService = {
   },
 
   // ── Owners ───────────────────────────────────────────────────────────────
-  getOwners: async (page = 0, size = 20): Promise<PageResponse<AdminUser>> => {
-    const r = await api.get(`/admin/owners?page=${page}&size=${size}`);
+  /**
+   * Fetch paginated owners with optional free-text search.
+   */
+  getOwners: async (page = 0, size = 20, search = ''): Promise<PageResponse<AdminUser>> => {
+    const params = new URLSearchParams({ page: String(page), size: String(size) });
+    if (search.trim()) params.set('search', search.trim());
+    const r = await api.get(`/admin/owners?${params}`);
     return r.data;
   },
 
@@ -125,6 +146,12 @@ export const adminService = {
   // ── Bookings ─────────────────────────────────────────────────────────────
   getAllBookings: async (page = 0, size = 20): Promise<PageResponse<AdminBooking>> => {
     const r = await api.get(`/admin/bookings?page=${page}&size=${size}`);
+    return r.data;
+  },
+
+  // ── Audit Log ────────────────────────────────────────────────────────────
+  getAuditLog: async (page = 0, size = 50): Promise<PageResponse<AuditLog>> => {
+    const r = await api.get(`/admin/audit-log?page=${page}&size=${size}`);
     return r.data;
   },
 };

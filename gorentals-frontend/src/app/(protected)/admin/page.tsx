@@ -6,16 +6,19 @@ import {
   Shield, Users, Package, TrendingUp,
   CheckCircle2, XCircle, Building2, BookOpen,
   ChevronLeft, ChevronRight, RefreshCw, AlertCircle,
+  Search, X, ClipboardList,
 } from 'lucide-react';
 import {
   adminService,
   type AdminStats,
   type AdminUser,
   type AdminBooking,
+  type AuditLog,
 } from '@/services/admin';
+import { useDebounce } from '@/hooks/useDebounce';
 import { formatCurrency } from '@/lib/utils';
 
-type Tab = 'overview' | 'users' | 'owners' | 'listings' | 'bookings';
+type Tab = 'overview' | 'users' | 'owners' | 'listings' | 'bookings' | 'audit';
 
 // ─── Shared UI pieces ─────────────────────────────────────────────────────────
 
@@ -112,9 +115,38 @@ function Td({ children, className = '' }: { children: ReactNode; className?: str
   return <td className={`px-4 py-3 ${className}`}>{children}</td>;
 }
 
+/** Search bar with a clear (×) button */
+function SearchBar({
+  value, onChange, placeholder = 'Search…',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div className="relative max-w-sm">
+      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8c7164]" />
+      <input
+        type="text"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full pl-8 pr-8 py-2 text-sm rounded-xl border border-[#251913]/10 bg-white
+                   focus:outline-none focus:ring-2 focus:ring-[#f97316]/30 placeholder:text-[#8c7164]/60"
+      />
+      {value && (
+        <button onClick={() => onChange('')}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8c7164] hover:text-[#251913]">
+          <X size={14} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
 
-function OverviewTab({ stats }: { stats: AdminStats }) {
+function OverviewTab({ stats, onRetry }: { stats: AdminStats; onRetry: () => void }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -143,6 +175,12 @@ function OverviewTab({ stats }: { stats: AdminStats }) {
           icon={<CheckCircle2 size={20} />}
           subtext="Live and rentable on platform" />
       </div>
+      <div className="flex justify-end">
+        <button onClick={onRetry}
+          className="flex items-center gap-1.5 text-xs text-[#8c7164] hover:text-[#251913] transition-colors">
+          <RefreshCw size={12} /> Refresh stats
+        </button>
+      </div>
     </div>
   );
 }
@@ -155,17 +193,21 @@ function UsersTab() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 350);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const d = await adminService.getUsers(page);
+      const d = await adminService.getUsers(page, 20, debouncedSearch);
       setUsers(d.content);
       setTotalPages(d.totalPages);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, [page]);
+  }, [page, debouncedSearch]);
 
+  // Reset to page 0 when search changes
+  useEffect(() => { setPage(0); }, [debouncedSearch]);
   useEffect(() => { load(); }, [load]);
 
   const act = async (id: string, fn: () => Promise<unknown>) => {
@@ -175,55 +217,60 @@ function UsersTab() {
     finally { setBusy(null); }
   };
 
-  if (loading) return <Loader label="users" />;
-
   return (
-    <div>
-      <TableWrap>
-        <thead className="bg-[#251913]/[0.04]">
-          <tr><Th>Name</Th><Th>Email</Th><Th>Phone</Th><Th>Type</Th><Th>Status</Th><Th>Verified</Th><Th>Actions</Th></tr>
-        </thead>
-        <tbody className="divide-y divide-[#251913]/5">
-          {users.length === 0 && (
-            <tr><td colSpan={7} className="px-4 py-12 text-center text-[#8c7164]">No users found.</td></tr>
-          )}
-          {users.map(u => (
-            <tr key={u.id} className="hover:bg-[#251913]/[0.02] transition-colors">
-              <Td><span className="font-semibold text-[#251913]">{u.fullName}</span></Td>
-              <Td><span className="text-[#8c7164] text-xs">{u.email}</span></Td>
-              <Td><span className="text-[#8c7164]">{u.phone || '—'}</span></Td>
-              <Td><StatusBadge status={u.userType} /></Td>
-              <Td><StatusBadge status={u.isActive ? 'ACTIVE' : 'SUSPENDED'} /></Td>
-              <Td>
-                {u.isVerified
-                  ? <CheckCircle2 size={16} className="text-green-500" />
-                  : <XCircle size={16} className="text-yellow-500" />}
-              </Td>
-              <Td>
-                <div className="flex gap-1.5 flex-wrap">
-                  {!u.isVerified && u.userType !== 'ADMIN' && (
-                    <ActionBtn label="Verify KYC" variant="success"
-                      disabled={busy === u.id}
-                      onClick={() => act(u.id, () => adminService.verifyUserKYC(u.id))} />
-                  )}
-                  {u.isActive && u.userType !== 'ADMIN' && (
-                    <ActionBtn label="Suspend" variant="danger"
-                      disabled={busy === u.id}
-                      onClick={() => act(u.id, () => adminService.suspendUser(u.id))} />
-                  )}
-                  {!u.isActive && u.userType !== 'ADMIN' && (
-                    <ActionBtn label="Unsuspend" variant="success"
-                      disabled={busy === u.id}
-                      onClick={() => act(u.id, () => adminService.unsuspendUser(u.id))} />
-                  )}
-                </div>
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </TableWrap>
-      <Pagination page={page} totalPages={totalPages}
-        onPrev={() => setPage(p => p - 1)} onNext={() => setPage(p => p + 1)} />
+    <div className="space-y-3">
+      <SearchBar value={search} onChange={setSearch} placeholder="Search by name, email or phone…" />
+      {loading ? <Loader label="users" /> : (
+        <>
+          <TableWrap>
+            <thead className="bg-[#251913]/[0.04]">
+              <tr><Th>Name</Th><Th>Email</Th><Th>Phone</Th><Th>Type</Th><Th>Status</Th><Th>Verified</Th><Th>Actions</Th></tr>
+            </thead>
+            <tbody className="divide-y divide-[#251913]/5">
+              {users.length === 0 && (
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-[#8c7164]">
+                  {search ? `No users match "${search}"` : 'No users found.'}
+                </td></tr>
+              )}
+              {users.map(u => (
+                <tr key={u.id} className="hover:bg-[#251913]/[0.02] transition-colors">
+                  <Td><span className="font-semibold text-[#251913]">{u.fullName}</span></Td>
+                  <Td><span className="text-[#8c7164] text-xs">{u.email}</span></Td>
+                  <Td><span className="text-[#8c7164]">{u.phone || '—'}</span></Td>
+                  <Td><StatusBadge status={u.userType} /></Td>
+                  <Td><StatusBadge status={u.isActive ? 'ACTIVE' : 'SUSPENDED'} /></Td>
+                  <Td>
+                    {u.isVerified
+                      ? <CheckCircle2 size={16} className="text-green-500" />
+                      : <XCircle size={16} className="text-yellow-500" />}
+                  </Td>
+                  <Td>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {!u.isVerified && u.userType !== 'ADMIN' && (
+                        <ActionBtn label="Verify KYC" variant="success"
+                          disabled={busy === u.id}
+                          onClick={() => act(u.id, () => adminService.verifyUserKYC(u.id))} />
+                      )}
+                      {u.isActive && u.userType !== 'ADMIN' && (
+                        <ActionBtn label="Suspend" variant="danger"
+                          disabled={busy === u.id}
+                          onClick={() => act(u.id, () => adminService.suspendUser(u.id))} />
+                      )}
+                      {!u.isActive && u.userType !== 'ADMIN' && (
+                        <ActionBtn label="Restore" variant="success"
+                          disabled={busy === u.id}
+                          onClick={() => act(u.id, () => adminService.unsuspendUser(u.id))} />
+                      )}
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </TableWrap>
+          <Pagination page={page} totalPages={totalPages}
+            onPrev={() => setPage(p => p - 1)} onNext={() => setPage(p => p + 1)} />
+        </>
+      )}
     </div>
   );
 }
@@ -236,61 +283,91 @@ function OwnersTab() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 350);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const d = await adminService.getOwners(page);
+      const d = await adminService.getOwners(page, 20, debouncedSearch);
       setOwners(d.content);
       setTotalPages(d.totalPages);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, [page]);
+  }, [page, debouncedSearch]);
 
+  useEffect(() => { setPage(0); }, [debouncedSearch]);
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <Loader label="owners" />;
-
   return (
-    <div>
-      <TableWrap>
-        <thead className="bg-[#251913]/[0.04]">
-          <tr><Th>Name</Th><Th>Email</Th><Th>Phone</Th><Th>Status</Th><Th>Verified</Th><Th>Joined</Th><Th>Actions</Th></tr>
-        </thead>
-        <tbody className="divide-y divide-[#251913]/5">
-          {owners.length === 0 && (
-            <tr><td colSpan={7} className="px-4 py-12 text-center text-[#8c7164]">No owners found.</td></tr>
-          )}
-          {owners.map(o => (
-            <tr key={o.id} className="hover:bg-[#251913]/[0.02] transition-colors">
-              <Td><span className="font-semibold text-[#251913]">{o.fullName}</span></Td>
-              <Td><span className="text-[#8c7164] text-xs">{o.email}</span></Td>
-              <Td><span className="text-[#8c7164]">{o.phone || '—'}</span></Td>
-              <Td><StatusBadge status={o.isActive ? 'ACTIVE' : 'SUSPENDED'} /></Td>
-              <Td>
-                {o.isVerified
-                  ? <CheckCircle2 size={16} className="text-green-500" />
-                  : <XCircle size={16} className="text-yellow-500" />}
-              </Td>
-              <Td><span className="text-[#8c7164] text-xs">{o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-IN') : '—'}</span></Td>
-              <Td>
-                {!o.isVerified && (
-                  <ActionBtn label="Verify Owner" variant="success"
-                    disabled={busy === o.id}
-                    onClick={async () => {
-                      setBusy(o.id);
-                      try { await adminService.verifyOwner(o.id); await load(); }
-                      catch (e) { console.error(e); }
-                      finally { setBusy(null); }
-                    }} />
-                )}
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </TableWrap>
-      <Pagination page={page} totalPages={totalPages}
-        onPrev={() => setPage(p => p - 1)} onNext={() => setPage(p => p + 1)} />
+    <div className="space-y-3">
+      <SearchBar value={search} onChange={setSearch} placeholder="Search owners by name, email or phone…" />
+      {loading ? <Loader label="owners" /> : (
+        <>
+          <TableWrap>
+            <thead className="bg-[#251913]/[0.04]">
+              <tr><Th>Name</Th><Th>Email</Th><Th>Phone</Th><Th>Status</Th><Th>Verified</Th><Th>Joined</Th><Th>Actions</Th></tr>
+            </thead>
+            <tbody className="divide-y divide-[#251913]/5">
+              {owners.length === 0 && (
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-[#8c7164]">
+                  {search ? `No owners match "${search}"` : 'No owners found.'}
+                </td></tr>
+              )}
+              {owners.map(o => (
+                <tr key={o.id} className="hover:bg-[#251913]/[0.02] transition-colors">
+                  <Td><span className="font-semibold text-[#251913]">{o.fullName}</span></Td>
+                  <Td><span className="text-[#8c7164] text-xs">{o.email}</span></Td>
+                  <Td><span className="text-[#8c7164]">{o.phone || '—'}</span></Td>
+                  <Td><StatusBadge status={o.isActive ? 'ACTIVE' : 'SUSPENDED'} /></Td>
+                  <Td>
+                    {o.isVerified
+                      ? <CheckCircle2 size={16} className="text-green-500" />
+                      : <XCircle size={16} className="text-yellow-500" />}
+                  </Td>
+                  <Td><span className="text-[#8c7164] text-xs">{o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-IN') : '—'}</span></Td>
+                  <Td>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {!o.isVerified && (
+                        <ActionBtn label="Verify Owner" variant="success"
+                          disabled={busy === o.id}
+                          onClick={async () => {
+                            setBusy(o.id);
+                            try { await adminService.verifyOwner(o.id); await load(); }
+                            catch (e) { console.error(e); }
+                            finally { setBusy(null); }
+                          }} />
+                      )}
+                      {o.isActive && (
+                        <ActionBtn label="Suspend" variant="danger"
+                          disabled={busy === o.id}
+                          onClick={async () => {
+                            setBusy(o.id);
+                            try { await adminService.suspendUser(o.id); await load(); }
+                            catch (e) { console.error(e); }
+                            finally { setBusy(null); }
+                          }} />
+                      )}
+                      {!o.isActive && (
+                        <ActionBtn label="Restore" variant="success"
+                          disabled={busy === o.id}
+                          onClick={async () => {
+                            setBusy(o.id);
+                            try { await adminService.unsuspendUser(o.id); await load(); }
+                            catch (e) { console.error(e); }
+                            finally { setBusy(null); }
+                          }} />
+                      )}
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </TableWrap>
+          <Pagination page={page} totalPages={totalPages}
+            onPrev={() => setPage(p => p - 1)} onNext={() => setPage(p => p + 1)} />
+        </>
+      )}
     </div>
   );
 }
@@ -326,8 +403,7 @@ function ListingsTab() {
     finally { setBusy(null); }
   };
 
-  // Field name is flexible — backend might return status or approvalStatus
-  const getStatus = (l: any) => l.approvalStatus || l.status || '—';
+  const getStatus = (l: any) => l.approvalStatus || (l.isPublished ? 'LIVE' : 'PENDING');
 
   return (
     <div className="space-y-4">
@@ -371,7 +447,7 @@ function ListingsTab() {
                   </Td>
                   <Td><StatusBadge status={getStatus(l)} /></Td>
                   <Td>
-                    {(getStatus(l).toUpperCase() === 'PENDING') && (
+                    {(!l.isPublished) && (
                       <div className="flex gap-1.5">
                         <ActionBtn label="Approve" variant="success"
                           disabled={busy === l.id}
@@ -463,12 +539,89 @@ function BookingsTab() {
   );
 }
 
+// ─── Audit Log Tab ────────────────────────────────────────────────────────────
+
+/** Action badge colours for audit log */
+const actionColour = (action: string): string => {
+  const a = action.toUpperCase();
+  if (a.includes('SUSPEND') || a.includes('REJECT')) return 'bg-red-100 text-red-600';
+  if (a.includes('VERIFY') || a.includes('APPROVE') || a.includes('UNSUSPEND')) return 'bg-green-100 text-green-700';
+  return 'bg-blue-100 text-blue-700';
+};
+
+function AuditLogTab() {
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const d = await adminService.getAuditLog(page);
+      setLogs(d.content);
+      setTotalPages(d.totalPages);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  }, [page]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const fmt = (d: string) =>
+    d ? new Date(d).toLocaleString('en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    }) : '—';
+
+  if (loading) return <Loader label="audit log" />;
+
+  return (
+    <div>
+      <TableWrap>
+        <thead className="bg-[#251913]/[0.04]">
+          <tr><Th>Time</Th><Th>Admin</Th><Th>Action</Th><Th>Entity</Th><Th>Description</Th><Th>IP</Th></tr>
+        </thead>
+        <tbody className="divide-y divide-[#251913]/5">
+          {logs.length === 0 && (
+            <tr><td colSpan={6} className="px-4 py-12 text-center text-[#8c7164]">
+              No audit entries yet. Actions like Verify, Suspend, Approve will appear here.
+            </td></tr>
+          )}
+          {logs.map(l => (
+            <tr key={l.id} className="hover:bg-[#251913]/[0.02] transition-colors">
+              <Td><span className="text-[#8c7164] text-xs whitespace-nowrap">{fmt(l.createdAt)}</span></Td>
+              <Td><span className="text-xs font-medium text-[#251913]">{l.adminEmail}</span></Td>
+              <Td>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${actionColour(l.action)}`}>
+                  {l.action}
+                </span>
+              </Td>
+              <Td>
+                <span className="text-xs text-[#8c7164]">{l.entityType}</span>
+                {l.entityId && (
+                  <span className="block text-xs text-[#8c7164]/60 font-mono truncate max-w-[100px]">
+                    {l.entityId.slice(0, 8)}…
+                  </span>
+                )}
+              </Td>
+              <Td><span className="text-xs text-[#251913]">{l.description}</span></Td>
+              <Td><span className="text-xs text-[#8c7164] font-mono">{l.ipAddress || '—'}</span></Td>
+            </tr>
+          ))}
+        </tbody>
+      </TableWrap>
+      <Pagination page={page} totalPages={totalPages}
+        onPrev={() => setPage(p => p - 1)} onNext={() => setPage(p => p + 1)} />
+    </div>
+  );
+}
+
 // ─── Helper Components ────────────────────────────────────────────────────────
 
 function Loader({ label }: { label: string }) {
   return (
     <div className="py-16 text-center text-[#8c7164] text-sm">
-      Loading {label}...
+      Loading {label}…
     </div>
   );
 }
@@ -489,19 +642,24 @@ export default function AdminDashboard() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState(false);
 
-  useEffect(() => {
+  const loadStats = useCallback(() => {
+    setStatsLoading(true);
+    setStatsError(false);
     adminService.getStats()
       .then(d => setStats(d))
       .catch(() => setStatsError(true))
       .finally(() => setStatsLoading(false));
   }, []);
 
+  useEffect(() => { loadStats(); }, [loadStats]);
+
   const tabs: { id: Tab; label: string; icon: ReactNode }[] = [
-    { id: 'overview', label: 'Overview', icon: <TrendingUp size={15} /> },
-    { id: 'users', label: 'Users', icon: <Users size={15} /> },
-    { id: 'owners', label: 'Owners', icon: <Building2 size={15} /> },
-    { id: 'listings', label: 'Listings', icon: <Package size={15} /> },
-    { id: 'bookings', label: 'Bookings', icon: <BookOpen size={15} /> },
+    { id: 'overview',  label: 'Overview',  icon: <TrendingUp size={15} /> },
+    { id: 'users',     label: 'Users',     icon: <Users size={15} /> },
+    { id: 'owners',    label: 'Owners',    icon: <Building2 size={15} /> },
+    { id: 'listings',  label: 'Listings',  icon: <Package size={15} /> },
+    { id: 'bookings',  label: 'Bookings',  icon: <BookOpen size={15} /> },
+    { id: 'audit',     label: 'Audit Log', icon: <ClipboardList size={15} /> },
   ];
 
   return (
@@ -515,10 +673,10 @@ export default function AdminDashboard() {
           </div>
           <div>
             <h1 className="font-display text-2xl font-bold text-[#251913]">Control Center</h1>
-            <p className="text-sm text-[#8c7164]">System-wide oversight & management</p>
+            <p className="text-sm text-[#8c7164]">System-wide oversight &amp; management</p>
           </div>
         </div>
-        <button onClick={() => window.location.reload()}
+        <button onClick={loadStats}
           title="Refresh all data"
           className="p-2 rounded-xl border border-[#251913]/10 hover:bg-[#251913]/5 transition-colors">
           <RefreshCw size={16} className="text-[#8c7164]" />
@@ -543,16 +701,21 @@ export default function AdminDashboard() {
         {activeTab === 'overview' && (
           statsLoading ? <Loader label="stats" /> :
             statsError ? (
-              <div className="py-16 text-center text-red-500 text-sm">
-                Failed to load stats. Make sure backend is running on port 8080.
+              <div className="py-16 text-center space-y-3">
+                <p className="text-red-500 text-sm">Failed to load stats. Make sure backend is running on port 8080.</p>
+                <button onClick={loadStats}
+                  className="px-4 py-2 text-sm font-semibold bg-[#f97316] text-white rounded-xl hover:bg-[#ea6b0e] transition-colors">
+                  Retry
+                </button>
               </div>
             ) :
-              stats ? <OverviewTab stats={stats} /> : null
+              stats ? <OverviewTab stats={stats} onRetry={loadStats} /> : null
         )}
-        {activeTab === 'users' && <UsersTab />}
-        {activeTab === 'owners' && <OwnersTab />}
+        {activeTab === 'users'    && <UsersTab />}
+        {activeTab === 'owners'   && <OwnersTab />}
         {activeTab === 'listings' && <ListingsTab />}
         {activeTab === 'bookings' && <BookingsTab />}
+        {activeTab === 'audit'    && <AuditLogTab />}
       </div>
 
     </div>

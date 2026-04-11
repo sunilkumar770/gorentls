@@ -1,55 +1,51 @@
-Write-Host ""
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "   GoRentals — Starting Platform" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host ""
+ï»¿# GoRentals One-Click Dev Launcher
+# Run from repo root: .\START.ps1
+# Requires: Java 21, Maven, Node 18+
 
-# 1 — PostgreSQL
-$pg = Get-Service -Name "postgresql*" -EA SilentlyContinue | Select-Object -First 1
-if (-not $pg) {
-    Write-Host "[ERROR] PostgreSQL service not found. Is it installed?" -ForegroundColor Red
+if (-not $env:JWT_SECRET) {
+    Write-Host ''
+    Write-Host '  JWT_SECRET is not set!' -ForegroundColor Red
+    Write-Host '  Generate one with:' -ForegroundColor Yellow
+    Write-Host '    $bytes = New-Object byte[] 48' -ForegroundColor Yellow
+    Write-Host '    [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)' -ForegroundColor Yellow
+    Write-Host '    $env:JWT_SECRET = [System.Convert]::ToBase64String($bytes)' -ForegroundColor Yellow
+    Write-Host '  Then re-run: .\START.ps1' -ForegroundColor Yellow
     exit 1
 }
-if ($pg.Status -ne 'Running') {
-    Write-Host "[1/4] Starting PostgreSQL..." -ForegroundColor Yellow
-    Start-Service $pg.Name
-    Start-Sleep 4
+
+Write-Host 'Starting GoRentals...' -ForegroundColor Cyan
+
+Write-Host 'Starting backend on :8080...' -ForegroundColor Green
+$backendJob = Start-Job -ScriptBlock {
+    $env:JWT_SECRET = $args[0]
+    Set-Location $using:PSScriptRoot\GORENTALS
+    mvn spring-boot:run -q
+} -ArgumentList $env:JWT_SECRET
+
+Start-Sleep -Seconds 3
+
+Write-Host 'Starting frontend on :3000...' -ForegroundColor Green
+$frontendJob = Start-Job -ScriptBlock {
+    Set-Location $using:PSScriptRoot\gorentals-frontend
+    npm run dev
 }
-Write-Host "[1/4] PostgreSQL: Running" -ForegroundColor Green
 
-# 2 — Kill stale port 8080
-$p = (Get-NetTCPConnection -LocalPort 8080 -EA SilentlyContinue).OwningProcess
-if ($p) {
-    Stop-Process -Id $p -Force
-    Write-Host "[2/4] Cleared stale process on port 8080 (PID $p)" -ForegroundColor Yellow
-    Start-Sleep 2
-} else {
-    Write-Host "[2/4] Port 8080: Free" -ForegroundColor Green
+Write-Host ''
+Write-Host '  Backend:   http://localhost:8080' -ForegroundColor Cyan
+Write-Host '  Frontend:  http://localhost:3000' -ForegroundColor Cyan
+Write-Host '  Press Ctrl+C to stop.' -ForegroundColor DarkGray
+Write-Host ''
+
+try {
+    while ($true) {
+        Receive-Job -Job $backendJob  | ForEach-Object { Write-Host [backend] $_ -ForegroundColor DarkGray }
+        Receive-Job -Job $frontendJob | ForEach-Object { Write-Host [frontend] $_ -ForegroundColor DarkCyan }
+        if ($backendJob.State  -eq 'Failed') { Write-Host 'Backend crashed.' -ForegroundColor Red; break }
+        if ($frontendJob.State -eq 'Failed') { Write-Host 'Frontend crashed.' -ForegroundColor Red; break }
+        Start-Sleep -Milliseconds 500
+    }
+} finally {
+    Stop-Job  -Job $backendJob, $frontendJob -ErrorAction SilentlyContinue
+    Remove-Job -Job $backendJob, $frontendJob -Force -ErrorAction SilentlyContinue
+    Write-Host 'Stopped. Goodbye!' -ForegroundColor Green
 }
-
-# 3 — Backend
-Write-Host "[3/4] Launching Backend (Spring Boot)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command",
-    "Write-Host 'GoRentals Backend' -ForegroundColor Cyan; cd 'C:\Users\sunil\Downloads\gorentls\GORENTALS'; .\mvnw spring-boot:run"
-Write-Host "[3/4] Backend starting — waiting 35 seconds..." -ForegroundColor Yellow
-Start-Sleep 35
-
-# 4 — Frontend
-Write-Host "[4/4] Launching Frontend (Next.js)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command",
-    "Write-Host 'GoRentals Frontend' -ForegroundColor Cyan; cd 'C:\Users\sunil\Downloads\gorentls\gorentals-frontend'; npm run dev"
-Start-Sleep 6
-
-Write-Host ""
-Write-Host "========================================" -ForegroundColor Green
-Write-Host "   GoRentals is READY" -ForegroundColor Green
-Write-Host "========================================" -ForegroundColor Green
-Write-Host ""
-Write-Host "  App:      http://localhost:3000" -ForegroundColor White
-Write-Host "  Admin:    http://localhost:3000/admin" -ForegroundColor White
-Write-Host "  API:      http://localhost:8080/api" -ForegroundColor White
-Write-Host ""
-Write-Host "  Admin login:" -ForegroundColor Gray
-Write-Host "    Email:    admin@gorentals.com" -ForegroundColor Gray
-Write-Host "    Password: Admin@GoRentals2025!" -ForegroundColor Gray
-Write-Host ""

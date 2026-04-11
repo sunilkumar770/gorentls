@@ -10,9 +10,9 @@ spring:
 
   jpa:
     hibernate:
-      # LOCAL DEV: 'update' — evolves schema, keeps data across restarts
-      # PRODUCTION: override via env var: DDL_AUTO=validate
-      ddl-auto: ${DDL_AUTO:update}
+      # PRODUCTION: 'validate' — Hibernate checks schema matches entities, never modifies it.
+      # Flyway owns all CREATE/ALTER statements.
+      ddl-auto: ${DDL_AUTO:validate}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -23,33 +23,38 @@ spring:
     show-sql: false
 
   flyway:
-    enabled: false
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
 
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
 
-# ─── Error Config ─────────────────────────────────────────────────────────────
+# ─── Error Config ──────────────────────────────────────────────────────────────
 server:
   error:
     include-message: on_param
     include-exception: false
     include-stacktrace: never
 
-# ─── Razorpay ─────────────────────────────────────────────────────────────────
+# ─── Razorpay ──────────────────────────────────────────────────────────────────
 razorpay:
   key: ${RAZORPAY_KEY:rzp_test_xxx}
   secret: ${RAZORPAY_SECRET:xxx}
   webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
 
-# ─── JWT ──────────────────────────────────────────────────────────────────────
-# PRODUCTION: set JWT_SECRET env var to a 64-char random string
+# ─── JWT ───────────────────────────────────────────────────────────────────────
+# SECURITY: JWT_SECRET must be set as an environment variable.
+# No insecure fallback — startup will fail with a clear error if not set.
+# Generate with: [System.Convert]::ToBase64String((1..48 | % { [byte](Get-Random -Max 256) }))
 jwt:
-  secret: ${JWT_SECRET:GoRentalsSecretKey2025SuperSecureHardcodedForDev}
+  secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:86400000}
 
-# ─── App ──────────────────────────────────────────────────────────────────────
+# ─── App ───────────────────────────────────────────────────────────────────────
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   admin:
@@ -59,10 +64,11 @@ app:
   platform:
     commission-rate: ${COMMISSION_RATE:0.10}
 
-# ─── Logging ──────────────────────────────────────────────────────────────────
+# ─── Logging ───────────────────────────────────────────────────────────────────
 logging:
   level:
     com.rentit: INFO
     org.springframework.security: WARN
     org.hibernate.SQL: WARN
     org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.flywaydb: INFO
