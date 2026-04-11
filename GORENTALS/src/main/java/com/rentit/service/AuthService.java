@@ -158,22 +158,6 @@ public class AuthService {
     }
 
     public AuthResponse adminLogin(LoginRequest request) {
-        // Emergency seed for E2E Test (Step 8 Audit)
-        if ("admin@gorentals.com".equals(request.getEmail()) && 
-            !userRepository.existsByEmail("admin@gorentals.com")) {
-            User admin = new User();
-            admin.setEmail("admin@gorentals.com");
-            admin.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-            admin.setFullName("System Admin");
-            admin.setUserType(User.UserType.ADMIN);
-            User savedAdmin = userRepository.save(admin);
-            
-            AdminUser adminRef = new AdminUser();
-            adminRef.setUser(savedAdmin);
-            adminRef.setRole("SUPER_ADMIN");
-            adminUserRepository.save(adminRef);
-        }
-
         // Check if admin user exists in admin_users table
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Admin not found"));

@@ -45,7 +45,7 @@ public class AuthController {
         }
     }
 
-    @PostMapping("/admin/login")
+    @PostMapping("/admin-login")
     public ResponseEntity<?> adminLogin(@Valid @RequestBody LoginRequest request) {
         try {
             AuthResponse response = authService.adminLogin(request);

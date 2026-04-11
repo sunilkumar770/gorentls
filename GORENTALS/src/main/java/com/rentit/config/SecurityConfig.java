@@ -1,5 +1,6 @@
 package com.rentit.config;
 
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.beans.factory.annotation.Value;
 import java.util.Arrays;
 import com.rentit.security.JwtAuthenticationFilter;
@@ -24,6 +25,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Value("${app.frontend-url:http://localhost:3000}")
