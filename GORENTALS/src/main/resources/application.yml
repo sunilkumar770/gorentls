@@ -11,8 +11,7 @@ spring:
   jpa:
     hibernate:
       # LOCAL DEV: 'update' — evolves schema, keeps data across restarts
-      # PRODUCTION: must be overridden to 'validate' via env var or application-prod.yml
-      # NEVER use 'create-drop' — it deletes all data on shutdown
+      # PRODUCTION: override via env var: DDL_AUTO=validate
       ddl-auto: ${DDL_AUTO:update}
     properties:
       hibernate:
@@ -21,7 +20,7 @@ spring:
           lob:
             non_contextual_creation: true
         format_sql: true
-    show-sql: false   # turn off in non-debug runs to reduce noise
+    show-sql: false
 
   flyway:
     enabled: false
@@ -31,23 +30,36 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
 
+# ─── Error Config ─────────────────────────────────────────────────────────────
+server:
+  error:
+    include-message: on_param
+    include-exception: false
+    include-stacktrace: never
+
+# ─── Razorpay ─────────────────────────────────────────────────────────────────
 razorpay:
   key: ${RAZORPAY_KEY:rzp_test_xxx}
   secret: ${RAZORPAY_SECRET:xxx}
+  webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
 
+# ─── JWT ──────────────────────────────────────────────────────────────────────
+# PRODUCTION: set JWT_SECRET env var to a 64-char random string
 jwt:
-  # Default is safe for local dev (32+ chars)
-  # PRODUCTION: set JWT_SECRET env var to a securely generated 64-char random string
-  secret: ${JWT_SECRET:your-secret-key-change-in-production-min-32-characters-long}
-  expiration: 86400000   # 24 hours
+  secret: ${JWT_SECRET:GoRentalsSecretKey2025SuperSecureHardcodedForDev}
+  expiration: ${JWT_EXPIRATION:86400000}
 
+# ─── App ──────────────────────────────────────────────────────────────────────
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   admin:
     email: ${APP_ADMIN_EMAIL:admin@gorentals.com}
-    password: ${APP_ADMIN_PASSWORD:Hanuman@7766}
+    password: ${APP_ADMIN_PASSWORD:Admin@GoRentals2025!}
     name: ${APP_ADMIN_NAME:GoRentals Admin}
+  platform:
+    commission-rate: ${COMMISSION_RATE:0.10}
 
+# ─── Logging ──────────────────────────────────────────────────────────────────
 logging:
   level:
     com.rentit: INFO
