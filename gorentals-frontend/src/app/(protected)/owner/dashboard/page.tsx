@@ -175,7 +175,7 @@ export default function OwnerDashboardPage() {
     }
   };
 
-  const isKycApproved = profile?.kycStatus === 'VERIFIED';
+  const isKycApproved = profile?.kycStatus === 'APPROVED';
 
   return (
     <div className="min-h-screen bg-[#f9fafb]">

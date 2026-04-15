@@ -122,7 +122,7 @@ export default function AdminDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [users.length]);
+  }, []);
 
   useEffect(() => { if (isAdmin) loadTab(activeTab); }, [activeTab, isAdmin, loadTab]);
   useEffect(() => { if (isAdmin) loadTab('overview'); }, [isAdmin]); // eslint-disable-line
@@ -142,8 +142,8 @@ export default function AdminDashboardPage() {
   async function approveKyc(userId: string) {
     setBusy(p => new Set(p).add(userId));
     try {
-      await api.patch(`/admin/users/${userId}/kyc`, { kycStatus: 'VERIFIED' });
-      setUsers(p => p.map(u => u.id === userId ? { ...u, kycStatus: 'VERIFIED' } : u));
+      await api.patch(`/admin/users/${userId}/kyc`, { kycStatus: 'APPROVED' });
+      setUsers(p => p.map(u => u.id === userId ? { ...u, kycStatus: 'APPROVED' } : u));
       toast.success('KYC approved.');
     } catch { toast.error('Failed to approve KYC.'); }
     finally { setBusy(p => { const s = new Set(p); s.delete(userId); return s; }); }
@@ -352,7 +352,7 @@ export default function AdminDashboardPage() {
                               </td>
                               <td className="px-4 py-3">
                                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold
-                                  ${kyc === 'VERIFIED' ? 'bg-green-100 text-green-700' :
+                                  ${kyc === 'APPROVED' ? 'bg-green-100 text-green-700' :
                                     kyc === 'REJECTED'  ? 'bg-red-100 text-red-700'
                                                         : 'bg-yellow-100 text-yellow-700'}`}>
                                   {kyc}
@@ -373,7 +373,7 @@ export default function AdminDashboardPage() {
                                       label="Reject" variant="red" />
                                   </div>
                                 )}
-                                {kyc === 'VERIFIED' && (
+                                {kyc === 'APPROVED' && (
                                   <span className="text-xs text-gray-400 flex items-center gap-1">
                                     <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> Verified
                                   </span>

@@ -211,7 +211,7 @@ export interface Profile {
   pincode?: string;
   city?:       string;
   state?:      string;
-  kycStatus?:  'NOT_SUBMITTED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+  kycStatus?:  'NOT_SUBMITTED' | 'PENDING' | 'APPROVED' | 'REJECTED';
   isActive?:   boolean;
   createdAt:   string;
   updatedAt:   string;

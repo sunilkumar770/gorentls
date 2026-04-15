@@ -165,7 +165,7 @@ export default function CreateListingWizard() {
     !!form.category &&
     !!form.city.trim();
 
-  const isKycApproved = user?.kycStatus === 'VERIFIED';
+  const isKycApproved = user?.kycStatus === 'APPROVED';
 
   return (
     <div className="min-h-screen bg-[#f9fafb] flex flex-col">
