@@ -175,8 +175,21 @@ export default function OwnerDashboardPage() {
     }
   };
 
+  const isKycApproved = profile?.kycStatus === 'VERIFIED';
+
   return (
     <div className="min-h-screen bg-[#f9fafb]">
+      {/* KYC Warning Banner */}
+      {!isKycApproved && (
+        <div className="bg-amber-50 border-b border-amber-200 py-3 px-4">
+          <div className="max-w-6xl mx-auto flex items-center gap-3 text-amber-800">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <p className="text-sm font-medium">
+              Your KYC is pending verification. You can list items, but your listings won&apos;t be visible to renters until KYC is approved.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Navbar */}
       <nav className="sticky top-0 z-50 bg-white border-b border-[#e5e7eb]">

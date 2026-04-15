@@ -45,71 +45,9 @@ export default function CheckoutPage() {
   }, []);
 
   async function handlePayNow() {
-    if (!booking || !sdkReady) return;
-    setPaying(true);
-    try {
-      // Step 1 — create Razorpay order on backend
-      const order = await initiatePayment(booking.id);
-
-      // Step 2 — open modal
-      const RzpCls: any = window.Razorpay;
-      const rzp = new RzpCls({
-        key:         order.keyId,
-        amount:      order.amount,
-        currency:    order.currency ?? 'INR',
-        name:        'GoRentals',
-        description: booking.listing?.title ?? 'Rental booking',
-        order_id:    order.orderId,
-        prefill: {
-          name:    booking.renter?.fullName ?? '',
-          email:   booking.renter?.email    ?? '',
-          contact: booking.renter?.phone    ?? '',
-        },
-        theme: { color: '#16a34a' },
-        modal: {
-          ondismiss: () => { setPaying(false); toast('Payment cancelled.', { icon: '⚠️' }); },
-        },
-        // Step 3 — verify after modal success
-        handler: async (response: any) => {
-          try {
-            await verifyPayment({
-              bookingId:           booking.id,
-              razorpayOrderId:     response.razorpay_order_id,
-              razorpayPaymentId:   response.razorpay_payment_id,
-              razorpaySignature:   response.razorpay_signature,
-            });
-            const p = new URLSearchParams({
-              bookingId: booking.id,
-              status:    'success',
-              title:     encodeURIComponent(booking.listing?.title ?? ''),
-              amount:    String(booking.totalAmount),
-              dates:     encodeURIComponent(
-                `${formatDate(booking.startDate)} – ${formatDate(booking.endDate)}`
-              ),
-            });
-            router.push(`/payment/success?${p.toString()}`);
-          } catch (err: any) {
-            toast.error(
-              `Payment received (ID: ${response.razorpay_payment_id.slice(0,14)}…) ` +
-              `but verification failed. Contact support@gorentals.com.`,
-              { duration: 10000 }
-            );
-            setPaying(false);
-          }
-        },
-      });
-
-      rzp.on('payment.failed', (res: any) => {
-        toast.error(`Payment failed: ${res.error?.description ?? 'Please try again.'}`);
-        setPaying(false);
-        router.push('/payment/success?status=failed');
-      });
-
-      rzp.open();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Could not initiate payment. Please retry.');
-      setPaying(false);
-    }
+    if (!booking) return;
+    toast("Payments coming soon — we'll notify you when it's live.", { icon: 'ℹ️' });
+    return;
   }
 
   if (loading) return (

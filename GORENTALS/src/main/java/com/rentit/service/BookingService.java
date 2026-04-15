@@ -37,6 +37,9 @@ public class BookingService {
     private PaymentRepository paymentRepository;
     
     @Autowired
+    private BlockedDateRepository blockedDateRepository;
+
+    @Autowired
     private NotificationService notificationService;
 
     /**
@@ -74,10 +77,13 @@ public class BookingService {
             throw new RuntimeException("End date must be after start date");
         }
         
-        // Check for conflicting bookings
+        // Check for conflicting bookings (both in bookings and blocked_dates table)
         boolean isBooked = bookingRepository.isListingBooked(listing.getId(), startDate, endDate);
-        if (isBooked) {
-            throw new RuntimeException("Listing is already booked for the selected dates");
+        boolean isBlocked = blockedDateRepository.isDateRangeBlocked(listing.getId(), startDate, endDate);
+
+        if (isBooked || isBlocked) {
+            // Blocker 4: Use 409 Conflict logic (handled by throwing exception here, controller/frontend must catch)
+            throw new IllegalStateException("These dates are not available");
         }
         
         // Calculate total days and amount
@@ -476,6 +482,23 @@ public class BookingService {
             throw new IllegalStateException(
                 "Invalid booking transition: " + current + " → " + newStatus
                 + ". Booking ID: " + bookingId);
+
+        // ── Handle Blocked Dates (Idempotent) ──────────────────────────────────────
+        if (newStatus == BookingStatus.ACCEPTED || newStatus == BookingStatus.CONFIRMED) {
+            // Block dates
+            if (blockedDateRepository.findByListing_IdAndBooking_Id(booking.getListing().getId(), booking.getId()).isEmpty()) {
+                BlockedDate bd = new BlockedDate();
+                bd.setListing(booking.getListing());
+                bd.setBooking(booking);
+                bd.setStartDate(booking.getStartDate());
+                bd.setEndDate(booking.getEndDate());
+                bd.setReason("BOOKING");
+                blockedDateRepository.save(bd);
+            }
+        } else if (newStatus == BookingStatus.CANCELLED || newStatus == BookingStatus.REJECTED) {
+            // Unblock dates
+            blockedDateRepository.deleteByListing_IdAndBooking_Id(booking.getListing().getId(), booking.getId());
+        }
 
         booking.setStatus(newStatus);
         booking.setUpdatedAt(java.time.LocalDateTime.now());

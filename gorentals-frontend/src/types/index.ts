@@ -266,3 +266,15 @@ export interface Conversation {
   unreadCount:    number;
   createdAt:      string;
 }
+
+// ── Availability ──────────────────────────────────────────────
+export interface BlockedRange {
+  startDate: string;   // YYYY-MM-DD
+  endDate:   string;   // YYYY-MM-DD
+  reason:    'BOOKING' | 'MANUAL';
+  id?:       string;
+}
+
+export interface AvailabilityResponse {
+  blockedRanges: BlockedRange[];
+}

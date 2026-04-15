@@ -79,7 +79,7 @@ export default function ProfileSettingsPage() {
     }
     setPwdLoading(true);
     try {
-      await api.patch('/users/profile/password', {
+      await api.post('/users/password', {
         currentPassword: currentPwd,
         newPassword: newPwd,
       });

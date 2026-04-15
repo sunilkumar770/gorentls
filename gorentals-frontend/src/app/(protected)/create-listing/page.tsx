@@ -7,11 +7,12 @@ import { CATEGORIES } from "@/constants";
 import api from "@/lib/axios";
 import {
   Camera, ImagePlus, Loader2, MapPin,
-  CheckCircle2, Package, Tag, ArrowRight, ArrowLeft,
+  CheckCircle2, Package, Tag, ArrowRight, ArrowLeft, AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import UpgradeOwnerCard from "@/components/UpgradeOwnerCard";
 import AddressPicker, { AddressUpdate } from "@/components/maps/AddressPicker";
+import { uploadFile } from "@/services/storage";
 
 // ─── HELPERS OUTSIDE THE PAGE COMPONENT ─────────────────────────────────────
 // NEVER define component functions inside CreateListingWizard.
@@ -102,13 +103,29 @@ export default function CreateListingWizard() {
     setImages((prev) => prev.filter((_, idx) => idx !== i));
 
   const uploadImages = async (): Promise<string[]> => {
-    // TODO: replace with real Cloudinary upload
-    return [
-      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=800",
-    ];
+    const urls: string[] = [];
+    for (const file of images) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`Image ${file.name} exceeds 5MB limit.`);
+        continue;
+      }
+      try {
+        const fileName = `listing-${Date.now()}-${file.name}`;
+        const url = await uploadFile(file, 'listing-images', fileName);
+        urls.push(url);
+      } catch (err) {
+        console.error('Failed to upload image:', file.name, err);
+        toast.error(`Failed to upload ${file.name}`);
+      }
+    }
+    return urls;
   };
 
   const handleSubmit = async () => {
+    if (images.length > 5) {
+      toast.error("You can upload a maximum of 5 images.");
+      return;
+    }
     setLoading(true);
     try {
       const imageUrls = await uploadImages();
@@ -124,9 +141,14 @@ export default function CreateListingWizard() {
         state:           form.state,
         images:          imageUrls,
         isAvailable:     true,
-        isPublished:     true,
+        isPublished:     isKycApproved, // Use KYC gate
       });
-      toast.success("Listing published successfully!");
+
+      if (!isKycApproved) {
+        toast.success("Listing created as draft. Complete KYC to publish.");
+      } else {
+        toast.success("Listing published successfully!");
+      }
       router.push(`/item/${res.data.id}`);
     } catch (err) {
       toast.error("Failed to create listing. Please try again.");
@@ -143,8 +165,20 @@ export default function CreateListingWizard() {
     !!form.category &&
     !!form.city.trim();
 
+  const isKycApproved = user?.kycStatus === 'VERIFIED';
+
   return (
     <div className="min-h-screen bg-[#f9fafb] flex flex-col">
+      {!isKycApproved && (
+        <div className="bg-amber-50 border-b border-amber-200 py-3 px-4">
+          <div className="max-w-4xl mx-auto flex items-center gap-3 text-amber-800">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <p className="text-sm font-medium">
+              Your KYC is pending verification. You can list items, but your listings won&apos;t be visible to renters until KYC is approved.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Top bar */}
       <div className="bg-white border-b border-[#e5e7eb] sticky top-0 z-10">
