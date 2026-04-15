@@ -24,6 +24,14 @@ public class JwtUtil {
     @Value("${app.jwt.expiration}")
     private Long expiration;
 
+    @jakarta.annotation.PostConstruct
+    public void validateSecret() {
+        if (secret == null || secret.isBlank() || secret.contains("your-secret-key")) {
+            logger.error("FATAL: JWT_SECRET is not set or using default value!");
+            throw new IllegalStateException("JWT_SECRET env var is not set. Refusing to start.");
+        }
+    }
+
     /**
      * Extract username from token
      */

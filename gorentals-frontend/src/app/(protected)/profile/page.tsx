@@ -79,7 +79,7 @@ export default function ProfileSettingsPage() {
     }
     setPwdLoading(true);
     try {
-      await api.patch('/users/profile/password', {
+      await api.post('/users/password', {
         currentPassword: currentPwd,
         newPassword: newPwd,
       });
@@ -179,20 +179,20 @@ export default function ProfileSettingsPage() {
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                      kycStatus === 'VERIFIED' ? 'bg-[#f0fdf4] text-[#16a34a]' : 
+                      kycStatus === 'APPROVED' ? 'bg-[#f0fdf4] text-[#16a34a]' :
                       kycStatus === 'PENDING' ? 'bg-amber-50 text-amber-500' : 'bg-gray-100 text-gray-500'
                     }`}>
-                      {kycStatus === 'VERIFIED' ? <CheckCircle2 className="w-6 h-6" /> :
+                      {kycStatus === 'APPROVED' ? <CheckCircle2 className="w-6 h-6" /> :
                        kycStatus === 'PENDING' ? <Clock className="w-6 h-6" /> :
                        <Shield className="w-6 h-6" />}
                     </div>
                     <div>
                       <h3 className="font-bold text-[#111827]">
-                        {kycStatus === 'VERIFIED' ? 'Identity Verified' : 
+                        {kycStatus === 'APPROVED' ? 'Identity Verified' :
                          kycStatus === 'PENDING' ? 'Verification Pending' : 'Action Required'}
                       </h3>
                       <p className="text-sm text-[#6b7280]">
-                        {kycStatus === 'VERIFIED' 
+                        {kycStatus === 'APPROVED'
                           ? 'You can now rent and list items freely.'
                           : kycStatus === 'PENDING'
                           ? 'We are reviewing your documents.'
@@ -200,7 +200,7 @@ export default function ProfileSettingsPage() {
                       </p>
                     </div>
                   </div>
-                  {kycStatus !== 'VERIFIED' && (
+                  {kycStatus !== 'APPROVED' && (
                     <button 
                       onClick={() => setRequestingKYC(true)}
                       className="px-5 py-2.5 rounded-xl font-semibold text-sm bg-[#16a34a] hover:bg-[#15803d] text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

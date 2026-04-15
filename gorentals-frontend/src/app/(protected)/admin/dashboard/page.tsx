@@ -19,7 +19,7 @@ interface DashboardStats {
   totalListings: number;
   totalBookings: number;
   totalRevenue:  number;
-  pendingKyc:    number;
+  pendingKYC:    number; // Aligned with backend
   activeListings?: number;
   pendingBookings?: number;
 }
@@ -93,25 +93,27 @@ export default function AdminDashboardPage() {
       switch (tab) {
         case 'overview': {
           const res = await api.get<DashboardStats>('/admin/dashboard/stats');
+          console.log('[admin] stats:', res.data);
           setStats(res.data);
           break;
         }
         case 'users':
         case 'owners': {
-          if (users.length === 0) {
-            const res = await api.get<AdminUser[]>('/admin/users');
-            setUsers(Array.isArray(res.data) ? res.data : []);
-          }
+          const res = await api.get<{ content: AdminUser[] }>('/admin/users');
+          console.log('[admin] users:', res.data.content);
+          setUsers(Array.isArray(res.data.content) ? res.data.content : []);
           break;
         }
         case 'listings': {
-          const res = await api.get<AdminListing[]>('/admin/listings');
-          setListings(Array.isArray(res.data) ? res.data : []);
+          const res = await api.get<{ content: AdminListing[] }>('/admin/listings');
+          console.log('[admin] listings:', res.data.content);
+          setListings(Array.isArray(res.data.content) ? res.data.content : []);
           break;
         }
         case 'bookings': {
-          const res = await api.get<AdminBooking[]>('/admin/bookings');
-          setBookings(Array.isArray(res.data) ? res.data : []);
+          const res = await api.get<{ content: AdminBooking[] }>('/admin/bookings');
+          console.log('[admin] bookings:', res.data.content);
+          setBookings(Array.isArray(res.data.content) ? res.data.content : []);
           break;
         }
       }
@@ -120,7 +122,7 @@ export default function AdminDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [users.length]);
+  }, []);
 
   useEffect(() => { if (isAdmin) loadTab(activeTab); }, [activeTab, isAdmin, loadTab]);
   useEffect(() => { if (isAdmin) loadTab('overview'); }, [isAdmin]); // eslint-disable-line
@@ -140,8 +142,8 @@ export default function AdminDashboardPage() {
   async function approveKyc(userId: string) {
     setBusy(p => new Set(p).add(userId));
     try {
-      await api.patch(`/admin/users/${userId}/kyc`, { kycStatus: 'VERIFIED' });
-      setUsers(p => p.map(u => u.id === userId ? { ...u, kycStatus: 'VERIFIED' } : u));
+      await api.patch(`/admin/users/${userId}/kyc`, { kycStatus: 'APPROVED' });
+      setUsers(p => p.map(u => u.id === userId ? { ...u, kycStatus: 'APPROVED' } : u));
       toast.success('KYC approved.');
     } catch { toast.error('Failed to approve KYC.'); }
     finally { setBusy(p => { const s = new Set(p); s.delete(userId); return s; }); }
@@ -268,13 +270,13 @@ export default function AdminDashboardPage() {
                       <StatCard icon={<IndianRupee className="w-5 h-5 text-emerald-600" />}
                                 label="Revenue"        value={`₹${(stats.totalRevenue ?? 0).toLocaleString('en-IN')}`} />
                       <StatCard icon={<AlertCircle className="w-5 h-5 text-yellow-500" />}
-                                label="Pending KYC"   value={stats.pendingKyc}    accent />
+                                label="Pending KYC"   value={stats.pendingKYC}    accent />
                     </div>
 
                     {/* Quick Actions */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {[
-                        { label: 'Review KYC Applications', tab: 'users'    as TabId, count: stats.pendingKyc,    color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
+                        { label: 'Review KYC Applications', tab: 'users'    as TabId, count: stats.pendingKYC,    color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
                         { label: 'Pending Listings',        tab: 'listings' as TabId, count: listings.filter(l => !l.isPublished).length, color: 'text-orange-600 bg-orange-50 border-orange-200' },
                         { label: 'View All Bookings',       tab: 'bookings' as TabId, count: stats.totalBookings,  color: 'text-blue-600 bg-blue-50 border-blue-200' },
                       ].map(a => (
@@ -350,7 +352,7 @@ export default function AdminDashboardPage() {
                               </td>
                               <td className="px-4 py-3">
                                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold
-                                  ${kyc === 'VERIFIED' ? 'bg-green-100 text-green-700' :
+                                  ${kyc === 'APPROVED' ? 'bg-green-100 text-green-700' :
                                     kyc === 'REJECTED'  ? 'bg-red-100 text-red-700'
                                                         : 'bg-yellow-100 text-yellow-700'}`}>
                                   {kyc}
@@ -371,7 +373,7 @@ export default function AdminDashboardPage() {
                                       label="Reject" variant="red" />
                                   </div>
                                 )}
-                                {kyc === 'VERIFIED' && (
+                                {kyc === 'APPROVED' && (
                                   <span className="text-xs text-gray-400 flex items-center gap-1">
                                     <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> Verified
                                   </span>

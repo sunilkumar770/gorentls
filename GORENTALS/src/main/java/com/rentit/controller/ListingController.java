@@ -1,5 +1,6 @@
 package com.rentit.controller;
 
+import com.rentit.dto.AvailabilityResponse;
 import com.rentit.dto.ListingRequest;
 import com.rentit.dto.ListingResponse;
 import com.rentit.dto.PagedResponse;
@@ -109,6 +110,31 @@ public class ListingController {
             @PathVariable UUID id,
             @AuthenticationPrincipal UserDetails userDetails) {
         listingService.deleteListing(id, userDetails.getUsername());
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{id}/availability")
+    public ResponseEntity<AvailabilityResponse> getAvailability(@PathVariable UUID id) {
+        return ResponseEntity.ok(listingService.getAvailability(id));
+    }
+
+    @PostMapping("/{id}/block-dates")
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<?> blockDates(
+            @PathVariable UUID id,
+            @RequestBody AvailabilityResponse.BlockedRange request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        listingService.blockDates(id, request.getStartDate(), request.getEndDate(), userDetails.getUsername());
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{id}/block-dates/{blockId}")
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<?> unblockDates(
+            @PathVariable UUID id,
+            @PathVariable UUID blockId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        listingService.unblockDates(id, blockId, userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 

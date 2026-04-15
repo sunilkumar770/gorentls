@@ -1,11 +1,15 @@
 package com.rentit.service;
 
+import com.rentit.dto.AvailabilityResponse;
 import com.rentit.dto.ListingRequest;
 import com.rentit.dto.ListingResponse;
 import com.rentit.dto.PagedResponse;
 import com.rentit.dto.UserResponse;
+import com.rentit.model.BlockedDate;
 import com.rentit.model.Listing;
 import com.rentit.model.User;
+import com.rentit.model.UserProfile;
+import com.rentit.repository.BlockedDateRepository;
 import com.rentit.repository.ListingRepository;
 import com.rentit.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.security.access.AccessDeniedException;
 import java.math.BigDecimal;
+import java.util.List;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -30,6 +35,9 @@ public class ListingService {
     @Autowired
     private UserRepository userRepository;
     
+    @Autowired
+    private BlockedDateRepository blockedDateRepository;
+
     @Autowired
     private NotificationService notificationService;
 
@@ -104,7 +112,17 @@ public class ListingService {
         listing.setSpecifications(request.getSpecifications());
         listing.setImages(request.getImages());
         listing.setIsAvailable(request.getIsAvailable()  != null ? request.getIsAvailable()  : Boolean.TRUE);
-        listing.setIsPublished(request.getIsPublished()  != null ? request.getIsPublished()  : Boolean.TRUE);
+
+        // Soft block: Force isPublished=false if KYC is not APPROVED
+        boolean isKycApproved = owner.getProfile() != null &&
+                                owner.getProfile().getKycStatus() == UserProfile.KYCStatus.APPROVED;
+
+        if (!isKycApproved) {
+            listing.setIsPublished(false);
+        } else {
+            listing.setIsPublished(request.getIsPublished() != null ? request.getIsPublished() : Boolean.TRUE);
+        }
+
         listing.setTotalRatings(BigDecimal.ZERO);
         listing.setRatingCount(0);
         listing.setCreatedAt(LocalDateTime.now());
@@ -314,6 +332,60 @@ public class ListingService {
     public PagedResponse<ListingResponse> getFeaturedListings(Pageable pageable) {
         Page<Listing> listings = listingRepository.findByIsPublishedTrueOrderByTotalRatingsDesc(pageable);
         return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
+    }
+
+    @Transactional
+    public void blockDates(UUID listingId, java.time.LocalDate startDate, java.time.LocalDate endDate, String ownerEmail) {
+        Listing listing = listingRepository.findById(listingId)
+            .orElseThrow(() -> new RuntimeException("Listing not found"));
+
+        if (!listing.getOwner().getEmail().equals(ownerEmail)) {
+            throw new AccessDeniedException("You do not own this listing");
+        }
+
+        BlockedDate blockedDate = new BlockedDate();
+        blockedDate.setListing(listing);
+        blockedDate.setStartDate(startDate);
+        blockedDate.setEndDate(endDate);
+        blockedDate.setReason("MANUAL");
+
+        blockedDateRepository.save(blockedDate);
+    }
+
+    @Transactional
+    public void unblockDates(UUID listingId, UUID blockId, String ownerEmail) {
+        Listing listing = listingRepository.findById(listingId)
+            .orElseThrow(() -> new RuntimeException("Listing not found"));
+
+        if (!listing.getOwner().getEmail().equals(ownerEmail)) {
+            throw new AccessDeniedException("You do not own this listing");
+        }
+
+        BlockedDate blockedDate = blockedDateRepository.findById(blockId)
+            .orElseThrow(() -> new RuntimeException("Blocked date not found"));
+
+        if (!blockedDate.getListing().getId().equals(listingId)) {
+            throw new IllegalArgumentException("Blocked date does not belong to this listing");
+        }
+
+        blockedDateRepository.delete(blockedDate);
+    }
+
+    public AvailabilityResponse getAvailability(UUID listingId) {
+        List<BlockedDate> blockedDates = blockedDateRepository.findByListing_Id(listingId);
+
+        List<AvailabilityResponse.BlockedRange> ranges = blockedDates.stream()
+            .map(b -> AvailabilityResponse.BlockedRange.builder()
+                .id(b.getId())
+                .startDate(b.getStartDate())
+                .endDate(b.getEndDate())
+                .reason(b.getReason())
+                .build())
+            .collect(java.util.stream.Collectors.toList());
+
+        return AvailabilityResponse.builder()
+            .blockedRanges(ranges)
+            .build();
     }
 
     /**

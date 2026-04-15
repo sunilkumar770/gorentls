@@ -19,7 +19,19 @@ export async function markAllAsRead(): Promise<void> {
   await api.patch('/notifications/read-all');
 }
 
-export async function getUnreadCount(): Promise<number> {
-  const res = await api.get<{ count: number }>('/notifications/unread-count');
-  return res.data.count ?? 0;
+export async function deleteNotification(notificationId: string): Promise<void> {
+  await api.delete(`/notifications/${notificationId}`);
 }
+
+export async function getUnreadCount(): Promise<number> {
+  const res = await api.get<{ unreadCount: number }>('/notifications/unread-count');
+  return res.data.unreadCount ?? 0;
+}
+
+export const notificationService = {
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
+  getUnreadCount,
+  deleteNotification,
+};

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/axios';
 import AddressPicker, { type AddressUpdate } from '@/components/maps/AddressPicker';
+import CalendarManager from '@/components/listing/CalendarManager';
 import { Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import type { Listing } from '@/types';
@@ -165,6 +166,9 @@ export default function EditListingPage() {
               ))}
             </div>
           </div>
+
+          {/* Availability Calendar */}
+          <CalendarManager listingId={id as string} />
 
           {/* Item details */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
