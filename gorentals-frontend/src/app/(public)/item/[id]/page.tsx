@@ -7,9 +7,13 @@ import api from '@/lib/axios';
 import { useAuth } from '@/hooks/useAuth';
 import { createBooking } from '@/services/bookings';
 import { todayISO, daysBetween } from '@/lib/utils';
-import { MapPin, Shield, Calendar, Loader2, ChevronLeft, Package } from 'lucide-react';
+import { MapPin, Shield, Calendar, Loader2, ChevronLeft, Package, Info } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import type { Listing } from '@/types';
+import type { Listing, BlockedRange } from '@/types';
+import { getAvailability } from '@/services/availability';
+import { DayPicker, DateRange } from 'react-day-picker';
+import { format, isSameDay, startOfDay } from 'date-fns';
+import 'react-day-picker/dist/style.css';
 
 export default function ItemDetailPage() {
   const { id }   = useParams<{ id: string }>();
@@ -17,29 +21,33 @@ export default function ItemDetailPage() {
   const { user } = useAuth();
   const isAuthenticated = !!user;
 
-  const [listing,   setListing]   = useState<Listing | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState<string | null>(null);
-  const [startDate, setStartDate] = useState('');
-  const [endDate,   setEndDate]   = useState('');
-  const [booking,   setBooking]   = useState(false);
-  const [activeImg, setActiveImg] = useState(0);
-
-  const TODAY      = todayISO();
-  const minEndDate = startDate
-    ? new Date(new Date(startDate).getTime() + 86_400_000).toISOString().split('T')[0]
-    : TODAY;
+  const [listing,       setListing]     = useState<Listing | null>(null);
+  const [loading,       setLoading]     = useState(true);
+  const [error,         setError]       = useState<string | null>(null);
+  const [booking,       setBooking]     = useState(false);
+  const [activeImg,     setActiveImg]   = useState(0);
+  const [blockedRanges, setBlockedRanges] = useState<BlockedRange[]>([]);
+  const [selectedRange, setSelectedRange] = useState<DateRange | undefined>();
 
   useEffect(() => {
-    api.get<Listing>(`/listings/${id}`)
-      .then(r  => { setListing(r.data); setLoading(false); })
+    Promise.all([
+      api.get<Listing>(`/listings/${id}`),
+      getAvailability(id as string)
+    ])
+      .then(([listingRes, availRes]) => {
+        setListing(listingRes.data);
+        setBlockedRanges(availRes.blockedRanges);
+        setLoading(false);
+      })
       .catch(() => { setError('This listing could not be found.'); setLoading(false); });
   }, [id]);
 
   // Production pricing formula: total = (days × pricePerDay) + securityDeposit
-  const days    = startDate && endDate ? daysBetween(new Date(startDate), new Date(endDate)) : 0;
-  const rental  = days * (listing?.price_per_day ?? 0);
-  const deposit = listing?.security_deposit ?? 0;
+  const startDate = selectedRange?.from ? format(selectedRange.from, 'yyyy-MM-dd') : '';
+  const endDate   = selectedRange?.to ? format(selectedRange.to, 'yyyy-MM-dd') : '';
+  const days    = selectedRange?.from && selectedRange?.to ? daysBetween(selectedRange.from, selectedRange.to) : 0;
+  const rental  = days * (listing?.price_per_day ?? listing?.pricePerDay ?? 0);
+  const deposit = listing?.security_deposit ?? listing?.securityDeposit ?? 0;
   const total   = rental + deposit;
 
   const isOwnListing = !!user && listing?.owner?.id === user.id;
@@ -60,7 +68,11 @@ export default function ItemDetailPage() {
       });
       router.push(`/checkout/${b.id}`);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Could not create booking. Please try again.');
+      if (err.response?.status === 409) {
+        toast.error('These dates are not available. Please choose different dates.');
+      } else {
+        toast.error(err?.response?.data?.message ?? 'Could not create booking. Please try again.');
+      }
       setBooking(false);
     }
   }
@@ -210,26 +222,35 @@ export default function ItemDetailPage() {
                 )}
               </div>
 
-              <div className="space-y-3 mb-5">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                    <Calendar className="w-3.5 h-3.5 inline mr-1" />Start Date
-                  </label>
-                  <input type="date" min={TODAY} value={startDate}
-                         onChange={e => { setStartDate(e.target.value); if (endDate && e.target.value >= endDate) setEndDate(''); }}
-                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm
-                                    focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a]" />
+              <div className="mb-5">
+                <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wider">
+                  Select Rental Dates
+                </label>
+                <div className="flex justify-center border rounded-2xl p-2 bg-gray-50/50">
+                  <DayPicker
+                    mode="range"
+                    selected={selectedRange}
+                    onSelect={setSelectedRange}
+                    disabled={[
+                      { before: startOfDay(new Date()) },
+                      ...blockedRanges.map(r => ({ from: new Date(r.startDate), to: new Date(r.endDate) }))
+                    ]}
+                    styles={{
+                      caption: { color: '#111827', fontWeight: '700' },
+                      head_cell: { color: '#6b7280', fontSize: '0.65rem', fontWeight: '700' },
+                      day: { fontWeight: '500' }
+                    }}
+                    modifiersStyles={{
+                      selected: { backgroundColor: '#16a34a', color: 'white' },
+                      today: { color: '#16a34a', fontWeight: 'bold' }
+                    }}
+                  />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                    <Calendar className="w-3.5 h-3.5 inline mr-1" />End Date
-                  </label>
-                  <input type="date" min={minEndDate} value={endDate} disabled={!startDate}
-                         onChange={e => setEndDate(e.target.value)}
-                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm
-                                    focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a]
-                                    disabled:bg-gray-50 disabled:cursor-not-allowed" />
-                </div>
+                {selectedRange?.from && !selectedRange?.to && (
+                  <p className="text-[10px] text-orange-600 mt-2 flex items-center gap-1">
+                    <Info className="w-3 h-3" /> Select return date to continue
+                  </p>
+                )}
               </div>
 
               {days > 0 && (

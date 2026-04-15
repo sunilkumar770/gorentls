@@ -61,6 +61,17 @@ public class GlobalExceptionHandler {
             .body(Map.of("error", "Bad Request", "message", ex.getMessage()));
     }
 
+    // ── Illegal State (e.g. date conflict) ──────────────────────────────────
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalState(IllegalStateException ex) {
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+        if (ex.getMessage().contains("dates are not available")) {
+            status = HttpStatus.CONFLICT;
+        }
+        return ResponseEntity.status(status)
+            .body(Map.of("error", "Conflict", "message", ex.getMessage()));
+    }
+
     // ── Catch-all — LAST resort, logs full stack trace ──────────────────────
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleAll(Exception ex) {

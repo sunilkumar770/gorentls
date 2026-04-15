@@ -202,7 +202,7 @@ export interface Profile {
   pincode?: string;
   city?:       string;
   state?:      string;
-  kycStatus?:  'NOT_SUBMITTED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+  kycStatus?:  'NOT_SUBMITTED' | 'PENDING' | 'APPROVED' | 'REJECTED';
   isActive?:   boolean;
   createdAt:   string;
   updatedAt:   string;
@@ -256,4 +256,16 @@ export interface Conversation {
   lastMessageAt?: string;
   unreadCount:    number;
   createdAt:      string;
+}
+
+// ── Availability ──────────────────────────────────────────────
+export interface BlockedRange {
+  startDate: string;   // YYYY-MM-DD
+  endDate:   string;   // YYYY-MM-DD
+  reason:    'BOOKING' | 'MANUAL';
+  id?:       string;
+}
+
+export interface AvailabilityResponse {
+  blockedRanges: BlockedRange[];
 }

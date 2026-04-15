@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { X, Shield, CheckCircle, AlertCircle, Upload, Loader2, CreditCard, User, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { updateProfile } from '@/services/user';
+import { submitKYC } from '@/services/user';
+import { uploadFile } from '@/services/storage';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 
@@ -19,8 +20,15 @@ export default function KYCModal({ isOpen, onClose }: KYCModalProps) {
   const [idNumber, setIdNumber] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState(1);
+  const [file, setFile] = useState<File | null>(null);
 
   if (!isOpen) return null;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,15 +36,20 @@ export default function KYCModal({ isOpen, onClose }: KYCModalProps) {
       toast.error('Please enter your ID number.');
       return;
     }
+    if (!file) {
+      toast.error('Please upload an ID document.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      // Simulate document upload by passing a placeholder URL
-      const updated = await updateProfile({
-        kycStatus: 'PENDING',
-        kycDocumentType: docType,
-        kycDocumentId: idNumber,
-        kycDocumentUrl: `https://gorentals.cdn/kyc/${docType}-${Date.now()}.pdf`,
+      const fileName = `${docType}-${Date.now()}-${file.name}`;
+      const documentUrl = await uploadFile(file, 'kyc-documents', fileName);
+
+      const updated = await submitKYC({
+        documentType: docType.toUpperCase(),
+        idNumber: idNumber,
+        documentUrl: documentUrl,
       });
       updateUser(updated);
       setStep(2);
@@ -111,9 +124,17 @@ export default function KYCModal({ isOpen, onClose }: KYCModalProps) {
                 />
               </div>
 
-              <div className="p-6 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center gap-2 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
+              <div className="relative p-6 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center gap-2 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
+                <input
+                  type="file"
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                  onChange={handleFileChange}
+                  accept=".pdf,image/*"
+                />
                 <Upload className="w-6 h-6 text-[#8c7164]" />
-                <span className="text-sm font-bold text-[#8c7164]">Upload ID Document</span>
+                <span className="text-sm font-bold text-[#8c7164]">
+                  {file ? file.name : 'Upload ID Document'}
+                </span>
                 <span className="text-[10px] text-gray-400 font-medium">(PDF, Jpg or Png up to 5MB)</span>
               </div>
 

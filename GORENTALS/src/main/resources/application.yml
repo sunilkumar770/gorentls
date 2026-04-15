@@ -24,6 +24,11 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
+        jdbc:
+          lob:
+            non_contextual_creation: true
+    show-sql: false
+    open-in-view: false
 
   servlet:
     multipart:
@@ -33,11 +38,27 @@ spring:
   flyway:
     enabled: false
 
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+razorpay:
+  key:
+    id: ${RAZORPAY_KEY:rzp_test_xxx}
+    secret: ${RAZORPAY_SECRET:xxx}
+
+app:
+  admin:
+    email: ${APP_ADMIN_EMAIL:admin@gorentals.com}
+    password: ${APP_ADMIN_PASSWORD:Admin@GoRentals2025!}
+    name: ${APP_ADMIN_NAME:GoRentals Admin}
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+
 # JWT — all values from environment, no fallback in prod
 jwt:
-  secret: ${JWT_SECRET}              # NO default — app refuses to start if missing
-  expiration: ${JWT_EXPIRATION:86400000}    # 24h in ms (override to 3600000 for 1h in prod)
-  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:86400000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
 # Cloudinary — image uploads
 cloudinary:

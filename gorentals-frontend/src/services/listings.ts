@@ -168,17 +168,30 @@ export const getAllListings = getListings;
 export type ListingSearchParams = SearchFilters;
 
 // ─── Image Management ─────────────────────────────────────────────────────────
-export async function uploadListingImages(listingId: string, files: File[]): Promise<void> {
-  const form = new FormData();
-  files.forEach(f => form.append('files', f));
-  await api.post(`/listings/${listingId}/images`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+// For the production-hardened flow, we upload to Supabase and then update the listing via PUT
+export async function updateListingImages(listingId: string, imageUrls: string[]): Promise<Listing> {
+  const res = await api.get(`/listings/${listingId}`);
+  const currentData = res.data;
+
+  const payload = {
+    ...currentData,
+    images: imageUrls,
+  };
+
+  const updated = await api.put(`/listings/${listingId}`, payload);
+  return mapListingResponse(updated.data);
 }
 
-export async function deleteListingImage(listingId: string, imageId: string): Promise<void> {
-  await api.delete(`/listings/${listingId}/images/${imageId}`);
+// Keeping these as no-ops or removing if they are replaced by direct listing update logic
+export async function uploadListingImages(_listingId: string, _files: File[]): Promise<void> {
+  console.warn('Use direct Supabase upload instead of uploadListingImages');
 }
 
-export async function setPrimaryImage(listingId: string, imageId: string): Promise<void> {
-  await api.patch(`/listings/${listingId}/images/${imageId}/primary`);
+export async function deleteListingImage(_listingId: string, _imageId: string): Promise<void> {
+  console.warn('Handle deletion via updateListingImages');
+}
+
+export async function setPrimaryImage(_listingId: string, _imageId: string): Promise<void> {
+  console.warn('Handle primary image via order in updateListingImages');
 }
 
