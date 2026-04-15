@@ -164,7 +164,17 @@ public class ListingService {
         listing.setSpecifications(request.getSpecifications());
         listing.setImages(request.getImages());
         if (request.getIsAvailable() != null) listing.setIsAvailable(request.getIsAvailable());
-        if (request.getIsPublished() != null) listing.setIsPublished(request.getIsPublished());
+
+        if (request.getIsPublished() != null) {
+            boolean isKycApproved = user.getProfile() != null &&
+                                    user.getProfile().getKycStatus() == UserProfile.KYCStatus.APPROVED;
+            if (request.getIsPublished() && !isKycApproved) {
+                listing.setIsPublished(false);
+            } else {
+                listing.setIsPublished(request.getIsPublished());
+            }
+        }
+
         listing.setUpdatedAt(LocalDateTime.now());
         
         Listing updatedListing = listingRepository.save(listing);
@@ -185,6 +195,13 @@ public class ListingService {
         // Verify ownership
         if (!listing.getOwner().getId().equals(user.getId())) {
             throw new RuntimeException("You are not authorized to publish this listing");
+        }
+
+        // KYC check
+        boolean isKycApproved = user.getProfile() != null &&
+                                user.getProfile().getKycStatus() == UserProfile.KYCStatus.APPROVED;
+        if (!isKycApproved) {
+            throw new RuntimeException("You must complete KYC verification before publishing a listing");
         }
         
         // Check if listing is complete
@@ -341,6 +358,11 @@ public class ListingService {
 
         if (!listing.getOwner().getEmail().equals(ownerEmail)) {
             throw new AccessDeniedException("You do not own this listing");
+        }
+
+        // Check for conflicts
+        if (blockedDateRepository.isDateRangeBlocked(listingId, startDate, endDate)) {
+            throw new IllegalStateException("These dates are already blocked");
         }
 
         BlockedDate blockedDate = new BlockedDate();

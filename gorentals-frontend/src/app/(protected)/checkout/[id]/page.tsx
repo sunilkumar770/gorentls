@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/axios';
-import { initiatePayment, verifyPayment } from '@/services/payments';
-import { Shield, MapPin, Calendar, Loader2, ChevronLeft, AlertCircle } from 'lucide-react';
+import { Shield, MapPin, Calendar, ChevronLeft, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
 import type { Booking } from '@/types';
@@ -19,8 +18,6 @@ export default function CheckoutPage() {
   const [booking,  setBooking]  = useState<Booking | null>(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
-  const [paying,   setPaying]   = useState(false);
-  const [sdkReady, setSdkReady] = useState(false);
 
   // Load booking details
   useEffect(() => {
@@ -28,21 +25,6 @@ export default function CheckoutPage() {
       .then(r  => { setBooking(r.data); setLoading(false); })
       .catch(() => { setError('Could not load booking details.'); setLoading(false); });
   }, [bookingId]);
-
-  // Inject Razorpay SDK once
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (window.Razorpay) { setSdkReady(true); return; }
-    const existing = document.getElementById('rzp-sdk');
-    if (existing) { existing.addEventListener('load', () => setSdkReady(true)); return; }
-    const s    = document.createElement('script');
-    s.id       = 'rzp-sdk';
-    s.src      = 'https://checkout.razorpay.com/v1/checkout.js';
-    s.async    = true;
-    s.onload   = () => setSdkReady(true);
-    s.onerror  = () => toast.error('Failed to load payment SDK. Please refresh.');
-    document.body.appendChild(s);
-  }, []);
 
   async function handlePayNow() {
     if (!booking) return;
@@ -171,16 +153,15 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        <button onClick={handlePayNow} disabled={paying || !sdkReady}
+        <button onClick={handlePayNow}
                 className="w-full h-14 bg-[#16a34a] text-white font-bold text-base rounded-2xl
                            flex items-center justify-center gap-2 hover:bg-[#15803d] shadow-sm
-                           disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
-          {paying && <Loader2 className="w-5 h-5 animate-spin" />}
-          {!sdkReady ? 'Loading…' : paying ? 'Opening Razorpay…' : `Pay ₹${booking.totalAmount.toLocaleString('en-IN')}`}
+                           transition-all active:scale-[0.98]">
+          Pay ₹{booking.totalAmount.toLocaleString('en-IN')}
         </button>
 
         <p className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-4">
-          <Shield className="w-3.5 h-3.5" /> 256-bit SSL · Secured by Razorpay
+          <Shield className="w-3.5 h-3.5" /> 256-bit SSL · Secure Checkout
         </p>
       </div>
     </div>

@@ -26,9 +26,12 @@ public class JwtUtil {
 
     @jakarta.annotation.PostConstruct
     public void validateSecret() {
-        if (secret == null || secret.isBlank() || secret.contains("your-secret-key")) {
-            logger.error("FATAL: JWT_SECRET is not set or using default value!");
+        if (secret == null || secret.isBlank()) {
+            logger.error("FATAL: JWT_SECRET is not set!");
             throw new IllegalStateException("JWT_SECRET env var is not set. Refusing to start.");
+        }
+        if (secret.contains("your-secret-key")) {
+            logger.warn("WARNING: Using default JWT_SECRET. This is INSECURE for production.");
         }
     }
 

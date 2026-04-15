@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from '@/services/notifications';
-import api from '@/lib/axios';
+import { notificationService } from '@/services/notifications';
 import type { Notification }                from '@/types';
 import {
   Bell, BellOff, CheckCheck, Trash2, BookCheck,
@@ -203,7 +202,7 @@ export default function NotificationsPage() {
   const load = useCallback(async (p = page) => {
     setLoading(true);
     try {
-      const data = await getNotifications(p, 20);
+      const data = await notificationService.getNotifications(p, 20);
       setNotifications(data.content);
       setTotalPages(data.totalPages);
       setTotalElements(data.totalElements);
@@ -217,7 +216,7 @@ export default function NotificationsPage() {
 
   const refreshCount = useCallback(async () => {
     try {
-      setUnread(await getUnreadCount());
+      setUnread(await notificationService.getUnreadCount());
     } catch { /* non-critical */ }
   }, []);
 
@@ -226,7 +225,7 @@ export default function NotificationsPage() {
   const handleRead = async (id: string) => {
     setBusy(id);
     try {
-      await markAsRead(id);
+      await notificationService.markAsRead(id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
       setUnread(u => Math.max(0, u - 1));
     } catch (e) { console.error(e); }
@@ -236,7 +235,7 @@ export default function NotificationsPage() {
   const handleDelete = async (id: string) => {
     setBusy(id);
     try {
-      await api.delete(`/notifications/${id}`);
+      await notificationService.deleteNotification(id);
       setNotifications(prev => prev.filter(n => n.id !== id));
       setTotalElements(t => t - 1);
       await refreshCount();
@@ -247,7 +246,7 @@ export default function NotificationsPage() {
   const handleMarkAllRead = async () => {
     setMarkingAll(true);
     try {
-      await markAllAsRead();
+      await notificationService.markAllAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnread(0);
     } catch (e) { console.error(e); }
