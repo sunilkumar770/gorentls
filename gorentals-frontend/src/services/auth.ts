@@ -1,5 +1,5 @@
 import api from '@/lib/axios';
-import type { Profile, UserType } from '@/types';
+import type { Profile, UserRole } from '@/types';
 
 // Shape the backend actually returns
 export interface BackendAuthResponse {
@@ -11,26 +11,27 @@ export interface BackendAuthResponse {
   userId: string;
 }
 
-/** Convert a BackendAuthResponse into a frontend Profile */
-export function buildProfile(data: BackendAuthResponse): Profile {
+/** 
+ * Normalizes the backend auth response into a consistent frontend Profile shape.
+ * Backend may return: role | userType, name | fullName, id | userId
+ */
+export function buildProfile(data: any): Profile {
+  const rawType: string = data.userType ?? data.role ?? '';
+  const userType = rawType.replace(/^ROLE_/, '').toUpperCase();
+
   return {
-    id:              data.userId,
-    email:           data.email,
-    fullName:        data.fullName,
-    phone:           null,
-    profilePicture:  null,
-    userType:        data.userType as UserType,
-    isActive:        true,
-    kycStatus:       'PENDING',
-    kycDocumentType: null,
-    kycDocumentId:   null,
-    kycDocumentUrl:  null,
-    city:            null,
-    state:           null,
-    address:         null,
-    pincode:         null,
-    createdAt:       new Date().toISOString(),
-  };
+    id:              data.id       ?? data.userId    ?? '',
+    fullName:        data.fullName ?? data.name      ?? '',
+    email:           data.email    ?? '',
+    phone:           data.phone    ?? data.phoneNumber ?? '',
+    role:            userType as UserRole,
+    userType:        userType as any,
+    kycStatus:       data.kycStatus ?? 'PENDING',
+    isActive:        data.isActive ?? true,
+    isVerified:      data.isVerified ?? data.verified ?? false,
+    createdAt:       data.createdAt ?? new Date().toISOString(),
+    updatedAt:       data.updatedAt ?? new Date().toISOString(),
+  } as Profile;
 }
 
 // Helper: sync token to BOTH storage locations
@@ -57,29 +58,49 @@ export async function signIn(
     if (token) setToken(token);
     return { data: response.data };
   } catch (error: any) {
-    return { error: error.response?.data?.message || error.message || 'Invalid email or password' };
+    const msg =
+      error.response?.data?.message ??
+      error.response?.data?.error   ??
+      error.response?.statusText    ??
+      error.message                 ??
+      'Login failed. Please try again.';
+    console.error('[signIn] HTTP', error.response?.status, msg);
+    return { error: msg };
   }
 }
 
-/**
- * Admin login — hits /auth/admin-login (separate from regular /auth/login)
- * Backend requires ADMIN role — regular user credentials will fail here.
+/** 
+ * Legacy alias for signIn to match user provided snippet 
  */
+export const loginUser = signIn;
+
 export async function adminSignIn(
   email: string,
   password: string
 ): Promise<{ data?: BackendAuthResponse; error?: string }> {
   try {
-    const response = await api.post('/auth/admin-login', { email, password });
+    const response = await api.post<BackendAuthResponse>('/auth/admin-login', { email, password });
     const token = response.data.accessToken;
     if (token) setToken(token);
     return { data: response.data };
   } catch (error: any) {
+    const msg =
+      error.response?.data?.message ??
+      error.response?.data?.error   ??
+      error.response?.statusText    ??
+      error.message                 ??
+      'Admin login failed.';
+    console.error('[adminSignIn] HTTP', error.response?.status, msg);
     return {
-      error: error.response?.data?.message || error.message || 'Invalid admin credentials',
+      error: msg,
     };
   }
 }
+
+/** 
+ * Legacy alias for adminSignIn to match user provided snippet 
+ */
+export const loginAdmin = adminSignIn;
 
 export const authService = {
   login: async (data: any): Promise<BackendAuthResponse> => {

@@ -17,7 +17,7 @@ export default function StoresPage() {
 
   useEffect(() => {
     getListings({ city: selectedCity === 'All Cities' ? undefined : selectedCity })
-      .then(setListings)
+      .then((data: any) => setListings(Array.isArray(data) ? data : data.content))
       .finally(() => setLoading(false));
   }, [selectedCity]);
 
@@ -28,11 +28,11 @@ export default function StoresPage() {
   // Group by store/owner
   const storeMap = new Map<string, { name: string; city: string; listings: Listing[] }>();
   filtered.forEach(l => {
-    const storeId = l.owner_id || 'unknown';
+    const storeId = l.owner?.id || 'unknown';
     if (!storeMap.has(storeId)) {
       storeMap.set(storeId, {
-        name: (l.stores as any)?.store_name || 'Independent Collector',
-        city: (l.stores as any)?.store_city || 'Unknown Location',
+        name: l.owner?.fullName || 'Independent Collector',
+        city: l.city || 'Unknown Location',
         listings: [],
       });
     }
@@ -128,7 +128,7 @@ export default function StoresPage() {
                     <Link key={l.id} href={`/item/${l.id}`}>
                       <div className="flex justify-between items-center py-3 px-4 bg-[#fff8f6] rounded-[0.75rem] hover:bg-[#ffeae0] transition-colors">
                         <span className="text-sm font-bold text-[#251913] truncate max-w-[60%]">{l.title}</span>
-                        <span className="text-sm font-black text-[#f97316]">{formatCurrency(l.price_per_day)}/d</span>
+                        <span className="text-sm font-black text-[#f97316]">{formatCurrency(l.price_per_day ?? l.pricePerDay ?? 0)}/d</span>
                       </div>
                     </Link>
                   ))}

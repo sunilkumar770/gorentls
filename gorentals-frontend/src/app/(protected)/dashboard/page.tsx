@@ -5,55 +5,27 @@ export const dynamic = 'force-dynamic';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRenterBookings } from '@/hooks/useBookings';
-import { formatCurrency, formatDate } from '@/lib/utils';
-import { Calendar, Package, Loader2, XCircle, CheckCircle } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
+import {
+  Calendar, Package, Loader2,
+  TrendingUp, Clock, ArrowRight,
+} from 'lucide-react';
 import Link from 'next/link';
 import { cancelBooking } from '@/services/bookings';
 import { toast } from 'react-hot-toast';
-import type { BookingStatus } from '@/types';
 
+// ── Status config — every value the backend actually sends ─────────────────
 const STATUS_CONFIG: Record<string, { label: string; pill: string; dot: string }> = {
-  PENDING: {
-    label: 'Pending',
-    pill: 'bg-amber-50 text-amber-700 ring-amber-200',
-    dot: '🟡',
-  },
-  CONFIRMED: {
-    label: 'Confirmed',
-    pill: 'bg-[#f0fdf4] text-[#16a34a] ring-[#16a34a]/20',
-    dot: '🟢',
-  },
-  ACTIVE: {
-    label: 'In Progress',
-    pill: 'bg-blue-50 text-blue-700 ring-blue-200',
-    dot: '🔵',
-  },
-  COMPLETED: {
-    label: 'Completed',
-    pill: 'bg-[#f0fdf4] text-[#15803d] ring-[#16a34a]/20',
-    dot: '✅',
-  },
-  REJECTED: {
-    label: 'Rejected',
-    pill: 'bg-red-50 text-red-700 ring-red-200',
-    dot: '❌',
-  },
-  CANCELLED: {
-    label: 'Cancelled',
-    pill: 'bg-gray-100 text-[#6b7280] ring-gray-200',
-    dot: '⭕',
-  },
+  PENDING:     { label: 'Pending Approval', pill: 'bg-amber-50  text-amber-700  ring-1 ring-amber-200',  dot: '🟡' },
+  ACCEPTED:    { label: 'Accepted',         pill: 'bg-green-50  text-green-700  ring-1 ring-green-200',  dot: '🟢' },
+  CONFIRMED:   { label: 'Confirmed',        pill: 'bg-green-50  text-green-700  ring-1 ring-green-200',  dot: '🟢' },
+  IN_PROGRESS: { label: 'In Progress',      pill: 'bg-blue-50   text-blue-700   ring-1 ring-blue-200',   dot: '🔵' },
+  COMPLETED:   { label: 'Completed',        pill: 'bg-gray-100  text-gray-600   ring-1 ring-gray-200',   dot: '✅' },
+  RETURNED:    { label: 'Returned',         pill: 'bg-gray-100  text-gray-600   ring-1 ring-gray-200',   dot: '📦' },
+  REJECTED:    { label: 'Rejected',         pill: 'bg-red-50    text-red-700    ring-1 ring-red-200',    dot: '❌' },
+  CANCELLED:   { label: 'Cancelled',        pill: 'bg-gray-100  text-gray-500   ring-1 ring-gray-200',   dot: '⭕' },
 };
 
-const FILTER_TABS = [
-  { label: 'All', value: 'ALL' },
-  { label: 'Pending', value: 'PENDING' },
-  { label: 'Confirmed', value: 'CONFIRMED' },
-  { label: 'Completed', value: 'COMPLETED' },
-  { label: 'Rejected', value: 'REJECTED' },
-];
-
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
 function BookingSkeleton() {
   return (
     <div className="flex gap-4 bg-white rounded-xl p-5 shadow-sm animate-pulse">
@@ -68,33 +40,41 @@ function BookingSkeleton() {
   );
 }
 
-// ─── Page ────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const { bookings, loading: bookingsLoading, refetch } = useRenterBookings(user?.id);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState('ALL');
 
   if (authLoading) {
     return (
       <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 rounded-full border-4 border-[#16a34a]/20 border-t-[#16a34a] animate-spin" />
-          <span className="text-sm text-[#6b7280]">Loading your bookings…</span>
+          <span className="text-sm text-[#6b7280]">Loading your dashboard…</span>
         </div>
       </div>
     );
   }
 
-  const filteredBookings = activeFilter === 'ALL'
-    ? bookings
-    : bookings.filter(b => b.status === activeFilter);
+  // ── KPI derivations (correct enum values) ────────────────────────────────
+  const activeCount  = bookings.filter(b =>
+    b.status === 'ACCEPTED' || b.status === 'CONFIRMED' || b.status === 'IN_PROGRESS'
+  ).length;
+  const pendingCount = bookings.filter(b => b.status === 'PENDING').length;
+  const totalSpent   = bookings
+    .filter(b => b.paymentStatus === 'COMPLETED' || b.paymentStatus === 'PAID')
+    .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+
+  // Last 3 bookings sorted newest-first
+  const recentBookings = [...bookings]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 3);
 
   const handleCancel = async (bookingId: string) => {
     setCancellingId(bookingId);
     try {
       await cancelBooking(bookingId);
-      toast.success('Booking cancelled successfully.');
+      toast.success('Booking cancelled.');
       refetch?.();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to cancel booking.');
@@ -105,7 +85,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#f9fafb]">
-      {/* Navbar */}
       <nav className="sticky top-0 z-50 bg-white border-b border-[#e5e7eb]">
         <div className="max-w-4xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 font-bold text-xl text-[#111827]">
@@ -119,143 +98,138 @@ export default function DashboardPage() {
       </nav>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-8 py-10">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-[#111827]">My Rentals</h1>
-            <p className="text-[#6b7280] text-sm mt-1">
-              Welcome back, <span className="font-semibold text-[#111827]">{profile?.fullName || 'User'}</span>
-            </p>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-[#111827]">
+            Welcome back{profile?.fullName ? `, ${profile.fullName.split(' ')[0]}` : ''}!
+          </h1>
+          <p className="text-[#6b7280] mt-1">Here's a summary of your rental activity.</p>
+        </div>
+
+        {/* ── KPI Cards ─────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-3 gap-4 mb-10">
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e5e7eb]">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Package className="w-4 h-4 text-blue-600" />
+              </div>
+              <span className="text-xs text-[#6b7280] font-medium">Active</span>
+            </div>
+            <p className="text-2xl font-bold text-[#111827]">{activeCount}</p>
+            <p className="text-xs text-[#9ca3af] mt-0.5">ongoing rentals</p>
           </div>
-          <Link
-            href="/search"
-            className="px-4 py-2 bg-[#16a34a] text-white text-sm font-medium rounded-lg hover:bg-[#15803d] transition-colors"
-          >
-            Browse listings
+
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e5e7eb]">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center">
+                <Clock className="w-4 h-4 text-amber-600" />
+              </div>
+              <span className="text-xs text-[#6b7280] font-medium">Pending</span>
+            </div>
+            <p className="text-2xl font-bold text-[#111827]">{pendingCount}</p>
+            <p className="text-xs text-[#9ca3af] mt-0.5">awaiting approval</p>
+          </div>
+
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e5e7eb]">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 bg-[#f0fdf4] rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-[#16a34a]" />
+              </div>
+              <span className="text-xs text-[#6b7280] font-medium">Spent</span>
+            </div>
+            <p className="text-2xl font-bold text-[#111827]">
+              ₹{totalSpent.toLocaleString('en-IN')}
+            </p>
+            <p className="text-xs text-[#9ca3af] mt-0.5">total paid</p>
+          </div>
+        </div>
+
+        {/* ── Recent Bookings ──────────────────────────────────────────── */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-[#111827]">Recent bookings</h2>
+          <Link href="/my-bookings"
+                className="text-sm text-[#16a34a] font-medium hover:underline flex items-center gap-1">
+            View all <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        {/* Filter pills */}
-        <div className="flex gap-2 flex-wrap mb-6">
-          {FILTER_TABS.map(tab => {
-            const count = tab.value === 'ALL'
-              ? bookings.length
-              : bookings.filter(b => b.status === tab.value).length;
-            return (
-              <button
-                key={tab.value}
-                onClick={() => setActiveFilter(tab.value)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                  activeFilter === tab.value
-                    ? 'bg-[#f0fdf4] text-[#16a34a] ring-1 ring-[#16a34a]'
-                    : 'bg-white text-[#6b7280] ring-1 ring-[#e5e7eb] hover:ring-[#d1d5db]'
-                }`}
-              >
-                {tab.label}
-                {count > 0 && (
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-                    activeFilter === tab.value ? 'bg-[#16a34a] text-white' : 'bg-[#f3f4f6] text-[#6b7280]'
-                  }`}>
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Content */}
         {bookingsLoading ? (
           <div className="flex flex-col gap-4">
-            <BookingSkeleton />
-            <BookingSkeleton />
-            <BookingSkeleton />
+            {[1, 2, 3].map(i => <BookingSkeleton key={i} />)}
           </div>
-        ) : filteredBookings.length === 0 ? (
-          <div className="bg-white rounded-2xl p-16 text-center shadow-sm">
-            <Calendar className="w-12 h-12 text-[#d1d5db] mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-[#111827] mb-2">No rentals found</h3>
-            <p className="text-[#6b7280] text-sm mb-6 max-w-xs mx-auto">
-              {activeFilter === 'ALL'
-                ? "You haven't made any bookings yet."
-                : `No ${STATUS_CONFIG[activeFilter]?.label.toLowerCase() || ''} bookings.`}
-            </p>
-            <Link
-              href="/search"
-              className="px-5 py-2.5 bg-[#16a34a] text-white text-sm font-medium rounded-lg hover:bg-[#15803d] transition-colors"
-            >
+        ) : recentBookings.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-12 text-center">
+            <div className="w-14 h-14 bg-[#f3f4f6] rounded-full flex items-center justify-center mx-auto mb-4">
+              <Calendar className="w-7 h-7 text-[#9ca3af]" />
+            </div>
+            <h3 className="font-bold text-[#111827] mb-1">No bookings yet</h3>
+            <p className="text-[#6b7280] text-sm mb-5">Start renting items near you.</p>
+            <Link href="/search"
+                  className="inline-flex items-center justify-center px-6 py-2.5 bg-[#16a34a] text-white text-sm font-semibold rounded-xl hover:bg-[#15803d] transition-colors">
               Browse listings
             </Link>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            {filteredBookings.map((booking) => {
-              const cfg = STATUS_CONFIG[booking.status] || STATUS_CONFIG.CANCELLED;
-              const image = booking.listing?.listing_images?.[0]?.image_url;
+            {recentBookings.map(booking => {
+              const cfg = STATUS_CONFIG[booking.status]
+                ?? { label: booking.status, pill: 'bg-gray-100 text-gray-600', dot: '•' };
+              const canCancel =
+                booking.status === 'PENDING' || booking.status === 'ACCEPTED';
+
               return (
-                <div
-                  key={booking.id}
-                  className="bg-white rounded-xl shadow-sm p-5 flex flex-col sm:flex-row gap-4 hover:shadow-md transition-shadow"
-                >
-                  {/* Thumbnail */}
-                  <div className="w-full sm:w-20 h-20 sm:h-16 rounded-lg overflow-hidden bg-[#f9fafb] flex-shrink-0">
-                    {image ? (
-                      <img src={image} alt="" className="w-full h-full object-cover" />
+                <div key={booking.id}
+                     className="bg-white rounded-xl shadow-sm border border-[#e5e7eb] p-5 flex gap-4 items-start">
+                  <div className="w-20 h-16 bg-[#f3f4f6] rounded-lg flex-shrink-0 overflow-hidden">
+                    {booking.listing?.listing_images?.[0]?.image_url ? (
+                      <img src={booking.listing.listing_images[0].image_url}
+                           alt={booking.listing?.title}
+                           className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Package className="w-6 h-6 text-[#d1d5db]" />
+                        <Package className="w-5 h-5 text-[#9ca3af]" />
                       </div>
                     )}
                   </div>
 
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="font-semibold text-[#111827] truncate">
-                          {booking.listing?.title || 'Unnamed listing'}
-                        </h3>
-                        <p className="text-sm text-[#6b7280] mt-0.5">
-                          {formatDate(booking.checkInDate)} → {formatDate(booking.checkOutDate)}
-                        </p>
-                        <p className="text-sm text-[#6b7280]">
-                          {formatCurrency(booking.totalAmount)} total
-                        </p>
-                      </div>
-                      <span className={`flex-shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full ring-1 ring-inset ${cfg.pill}`}>
-                        {cfg.dot} {cfg.label}
-                      </span>
-                    </div>
+                    <p className="font-semibold text-[#111827] truncate text-sm">
+                      {booking.listing?.title ?? 'Unknown item'}
+                    </p>
+                    <p className="text-xs text-[#6b7280] mt-0.5">
+                      {booking.checkInDate && booking.checkOutDate
+                        ? `${formatDate(booking.checkInDate)} – ${formatDate(booking.checkOutDate)}`
+                        : '—'}
+                    </p>
+                    <span className={`mt-1.5 inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium ${cfg.pill}`}>
+                      {cfg.dot} {cfg.label}
+                    </span>
+                  </div>
 
-                    {/* Actions row */}
-                    <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[#f3f4f6]">
-                      <Link
-                        href={`/item/${booking.listingId}`}
-                        className="text-xs text-[#16a34a] font-medium hover:underline"
-                      >
-                        View listing →
-                      </Link>
-
-
-                      {booking.status === 'PENDING' && (
-                        <button
-                          onClick={() => handleCancel(booking.id)}
-                          disabled={cancellingId === booking.id}
-                          className="text-xs text-red-600 font-medium border border-red-200 px-3 py-1 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1 disabled:opacity-50"
-                        >
-                          {cancellingId === booking.id ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <XCircle className="w-3 h-3" />
-                          )}
-                          Cancel
-                        </button>
-                      )}
-                    </div>
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <p className="text-sm font-bold text-[#111827]">
+                      ₹{(booking.totalAmount || 0).toLocaleString('en-IN')}
+                    </p>
+                    {canCancel && (
+                      <button disabled={cancellingId === booking.id}
+                              onClick={() => handleCancel(booking.id)}
+                              className="text-xs text-red-600 hover:text-red-700 font-medium disabled:opacity-50">
+                        {cancellingId === booking.id
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : 'Cancel'}
+                      </button>
+                    )}
                   </div>
                 </div>
               );
             })}
+
+            {bookings.length > 3 && (
+              <Link href="/my-bookings"
+                    className="flex items-center justify-center gap-1.5 text-sm text-[#16a34a] font-medium
+                               py-3 border border-[#16a34a]/30 rounded-xl hover:bg-[#f0fdf4] transition-colors">
+                View all {bookings.length} bookings <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            )}
           </div>
         )}
       </div>

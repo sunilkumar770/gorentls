@@ -1,18 +1,15 @@
 package com.rentit.service;
 
-import com.rentit.dto.*;
+import com.rentit.dto.messaging.*;
 import com.rentit.model.*;
-import com.rentit.model.Message.MessageStatus;
 import com.rentit.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -23,137 +20,189 @@ public class MessageService {
 
     private static final Logger log = LoggerFactory.getLogger(MessageService.class);
 
-    @Autowired private ConversationRepository conversationRepo;
-    @Autowired private MessageRepository messageRepo;
-    @Autowired private UserRepository userRepo;
-    @Autowired private ListingRepository listingRepo;
-    @Autowired private SimpMessagingTemplate messagingTemplate;
+    private final ConversationRepository conversationRepository;
+    private final ChatMessageRepository  messageRepository;
+    private final UserRepository         userRepository;
+    private final ListingRepository      listingRepository;
+    private final SimpMessagingTemplate  messagingTemplate;
 
+    public MessageService(ConversationRepository conversationRepository,
+                          ChatMessageRepository  messageRepository,
+                          UserRepository         userRepository,
+                          ListingRepository      listingRepository,
+                          SimpMessagingTemplate  messagingTemplate) {
+        this.conversationRepository = conversationRepository;
+        this.messageRepository      = messageRepository;
+        this.userRepository         = userRepository;
+        this.listingRepository      = listingRepository;
+        this.messagingTemplate      = messagingTemplate;
+    }
+
+    // ── REAL-TIME CORE ────────────────────────────────────────────────────────
     @Transactional
-    public ConversationResponse startConversation(StartConversationRequest req, String renterEmail) {
-        User renter = findUserByEmail(renterEmail);
-        Listing listing = listingRepo.findById(req.getListingId())
-                .orElseThrow(() -> new RuntimeException("Listing not found: " + req.getListingId()));
-        User owner = listing.getOwner();
-        
-        if (owner.getId().equals(renter.getId())) {
-            throw new IllegalArgumentException("Owner cannot message their own listing");
-        }
+    public void processIncomingMessage(WsSendMessageRequest request, String senderEmail) {
+        User sender = userRepository.findByEmail(senderEmail)
+            .orElseThrow(() -> new RuntimeException("Sender not found: " + senderEmail));
+        UUID convId = UUID.fromString(request.getConversationId());
+        Conversation conv = conversationRepository.findById(convId)
+            .orElseThrow(() -> new RuntimeException("Conversation not found: " + convId));
 
-        Conversation conv = conversationRepo
-                .findByListingIdAndRenterId(listing.getId(), renter.getId())
-                .orElseGet(() -> {
-                    Conversation c = new Conversation();
-                    c.setListing(listing); 
-                    c.setRenter(renter); 
-                    c.setOwner(owner);
-                    return conversationRepo.save(c);
-                });
+        boolean isParticipant =
+            conv.getOwner().getId().equals(sender.getId()) ||
+            conv.getRenter().getId().equals(sender.getId());
+        if (!isParticipant)
+            throw new AccessDeniedException("Not a participant in " + convId);
 
-        if (req.getInitialMessage() != null && !req.getInitialMessage().isBlank()) {
-            SendMessageRequest msgReq = new SendMessageRequest();
-            msgReq.setConversationId(conv.getId());
-            msgReq.setMessageText(req.getInitialMessage());
-            msgReq.setMessageType(Message.MessageType.TEXT);
-            sendMessage(msgReq, renterEmail);
-        }
-        
-        return ConversationResponse.from(conversationRepo.findById(conv.getId()).orElseThrow());
-    }
-
-    @Transactional(readOnly = true)
-    public List<ConversationResponse> getConversations(String userEmail) {
-        User user = findUserByEmail(userEmail);
-        return conversationRepo.findAllByUserId(user.getId())
-                .stream()
-                .map(ConversationResponse::from)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public ConversationResponse getConversation(UUID id, String userEmail) {
-        User user = findUserByEmail(userEmail);
-        assertParticipant(id, user.getId());
-        return ConversationResponse.from(conversationRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Conversation not found")));
-    }
-
-    @Transactional(readOnly = true)
-    public List<MessageResponse> getMessages(UUID conversationId, String userEmail, int page, int size) {
-        User user = findUserByEmail(userEmail);
-        assertParticipant(conversationId, user.getId());
-        return messageRepo.findByConversationId(conversationId,
-                PageRequest.of(page, size, Sort.by("createdAt").descending()))
-                .stream()
-                .map(MessageResponse::from)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional
-    public void markAsRead(UUID conversationId, String userEmail) {
-        User user = findUserByEmail(userEmail);
-        assertParticipant(conversationId, user.getId());
-        messageRepo.markAllAsRead(conversationId, user.getId());
-        
-        conversationRepo.findById(conversationId).ifPresent(conv -> {
-            if (conv.getRenter().getId().equals(user.getId())) {
-                conv.setRenterUnread(0);
-            } else {
-                conv.setOwnerUnread(0);
-            }
-            conversationRepo.save(conv);
-        });
-    }
-
-    @Transactional
-    public MessageResponse sendMessage(SendMessageRequest req, String senderEmail) {
-        User sender = findUserByEmail(senderEmail);
-        assertParticipant(req.getConversationId(), sender.getId());
-        
-        Conversation conv = conversationRepo.findById(req.getConversationId())
-                .orElseThrow(() -> new RuntimeException("Conversation not found"));
-
-        Message msg = new Message();
-        msg.setConversation(conv); 
+        // schema alignment: message_text (DB) mapped to messageText (Entity)
+        ChatMessage msg = new ChatMessage();
+        msg.setConversation(conv);
         msg.setSender(sender);
-        msg.setMessageText(req.getMessageText());
-        msg.setMessageType(req.getMessageType() != null ? req.getMessageType() : Message.MessageType.TEXT);
-        msg.setStatus(MessageStatus.SENT); 
-        msg.setTempId(req.getTempId());
-        Message saved = messageRepo.save(msg);
-
-        boolean senderIsRenter = conv.getRenter().getId().equals(sender.getId());
-        conv.setLastMessage(req.getMessageText()); 
-        conv.setLastMessageAt(LocalDateTime.now());
+        msg.setMessageText(request.getMessageText());
         
-        if (senderIsRenter) {
-            conv.setOwnerUnread(conv.getOwnerUnread() + 1);
-        } else {
-            conv.setRenterUnread(conv.getRenterUnread() + 1);
+        if (request.getTempId() != null && !request.getTempId().trim().isEmpty()) {
+            try { msg.setTempId(UUID.fromString(request.getTempId())); }
+            catch (Exception e) { log.warn("[MSG] Invalid tempId UUID: {}", request.getTempId()); }
         }
-        conversationRepo.save(conv);
 
-        MessageResponse response = MessageResponse.from(saved);
-        User recipient = senderIsRenter ? conv.getOwner() : conv.getRenter();
+        if (request.getMessageType() != null) {
+            try { msg.setMessageType(ChatMessage.MessageType.valueOf(request.getMessageType())); }
+            catch (IllegalArgumentException e) { msg.setMessageType(ChatMessage.MessageType.TEXT); }
+        }
+        msg.setStatus(ChatMessage.MessageStatus.SENT);
+        messageRepository.save(msg);
+        log.info("[MSG] Persisted id={} conv={}", msg.getId(), convId);
 
-        // Push to both participants
-        messagingTemplate.convertAndSend("/topic/conversation." + conv.getId(), response);
-        messagingTemplate.convertAndSendToUser(recipient.getEmail(), "/queue/messages", response);
+        boolean senderIsOwner = conv.getOwner().getId().equals(sender.getId());
+        if (senderIsOwner) conv.setRenterUnread(conv.getRenterUnread() + 1);
+        else               conv.setOwnerUnread(conv.getOwnerUnread() + 1);
+        conversationRepository.save(conv);
 
-        saved.setStatus(MessageStatus.DELIVERED);
-        messageRepo.save(saved);
-        
-        return MessageResponse.from(saved);
+        MessageResponse response = mapToMessageResponse(msg);
+
+        // Broadcast 1: both users in the chat room receive instantly
+        messagingTemplate.convertAndSend("/topic/conversation." + convId, response);
+
+        // Broadcast 2: recipient inbox → Navbar badge increments without page refresh
+        String recipientEmail = senderIsOwner
+            ? conv.getRenter().getEmail() : conv.getOwner().getEmail();
+        messagingTemplate.convertAndSendToUser(recipientEmail, "/queue/messages", response);
+        log.info("[MSG] Broadcast → topic + /user/{}/queue/messages", recipientEmail);
     }
 
-    private User findUserByEmail(String email) {
-        return userRepo.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found: " + email));
+    // ── REST ─────────────────────────────────────────────────────────────────
+    public List<ConversationResponse> getUserConversations(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        return conversationRepository.findAllByParticipant(user)
+            .stream().map(this::mapToConversationResponse).collect(Collectors.toList());
     }
 
-    private void assertParticipant(UUID conversationId, UUID userId) {
-        if (!conversationRepo.isParticipant(conversationId, userId)) {
-            throw new SecurityException("Access denied to conversation " + conversationId);
+    public ConversationResponse getConversation(UUID id, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        Conversation conv = conversationRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        if (!conv.getOwner().getId().equals(user.getId()) &&
+            !conv.getRenter().getId().equals(user.getId()))
+            throw new AccessDeniedException("Access denied");
+        return mapToConversationResponse(conv);
+    }
+
+    @Transactional
+    public ConversationResponse startConversation(StartConversationRequest request,
+                                                   String renterEmail) {
+        User renter = userRepository.findByEmail(renterEmail)
+            .orElseThrow(() -> new RuntimeException("Renter not found"));
+        Listing listing = listingRepository.findById(request.getListingId())
+            .orElseThrow(() -> new RuntimeException("Listing not found"));
+
+        return conversationRepository
+            .findByListingIdAndRenterId(listing.getId(), renter.getId())
+            .map(this::mapToConversationResponse)
+            .orElseGet(() -> {
+                Conversation conv = new Conversation();
+                conv.setListing(listing);
+                conv.setOwner(listing.getOwner()); 
+                conv.setRenter(renter);
+                conversationRepository.save(conv);
+
+                WsSendMessageRequest init = new WsSendMessageRequest();
+                init.setConversationId(conv.getId().toString());
+                init.setMessageText(request.getMessage());
+                init.setMessageType("TEXT");
+                processIncomingMessage(init, renterEmail);
+                return mapToConversationResponse(
+                    conversationRepository.findById(conv.getId()).orElseThrow());
+            });
+    }
+
+    public List<MessageResponse> getMessages(UUID conversationId, String userEmail,
+                                              int page, int size) {
+        User user = userRepository.findByEmail(userEmail)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        Conversation conv = conversationRepository.findById(conversationId)
+            .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        if (!conv.getOwner().getId().equals(user.getId()) &&
+            !conv.getRenter().getId().equals(user.getId()))
+            throw new AccessDeniedException("Access denied");
+        return messageRepository
+            .findByConversationIdOrderByCreatedAtAsc(conversationId, PageRequest.of(page, size))
+            .stream().map(this::mapToMessageResponse).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void markConversationRead(UUID conversationId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        Conversation conv = conversationRepository.findById(conversationId)
+            .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        if (conv.getOwner().getId().equals(user.getId()))
+            conv.setOwnerUnread(0);
+        else
+            conv.setRenterUnread(0);
+        conversationRepository.save(conv);
+        log.info("[MSG] Read cleared: conv={} user={}", conversationId, userEmail);
+    }
+
+    // ── Mappers ───────────────────────────────────────────────────────────────
+    private ConversationResponse mapToConversationResponse(Conversation conv) {
+        String lastText = null;
+        LocalDateTime lastAt = null;
+        if (conv.getMessages() != null && !conv.getMessages().isEmpty()) {
+            ChatMessage last = conv.getMessages().get(conv.getMessages().size() - 1);
+            lastText = last.getMessageText();
+            lastAt   = last.getCreatedAt();
         }
+        return ConversationResponse.builder()
+            .id(conv.getId())
+            .listingId(conv.getListing().getId())
+            .listingTitle(conv.getListing().getTitle())
+            .ownerId(conv.getOwner().getId())
+            .ownerName(conv.getOwner().getFullName())
+            .ownerEmail(conv.getOwner().getEmail())
+            .renterId(conv.getRenter().getId())
+            .renterName(conv.getRenter().getFullName())
+            .renterEmail(conv.getRenter().getEmail())
+            .lastMessage(lastText)
+            .lastMessageAt(lastAt)
+            .ownerUnread(conv.getOwnerUnread())
+            .renterUnread(conv.getRenterUnread())
+            .createdAt(conv.getCreatedAt())
+            .build();
+    }
+
+    private MessageResponse mapToMessageResponse(ChatMessage m) {
+        return MessageResponse.builder()
+            .id(m.getId())
+            .tempId(m.getTempId() != null ? m.getTempId().toString() : null)
+            .conversationId(m.getConversation().getId())
+            .senderId(m.getSender().getId())
+            .senderName(m.getSender().getFullName())
+            .senderEmail(m.getSender().getEmail())
+            .messageText(m.getMessageText())
+            .messageType(m.getMessageType() != null ? m.getMessageType().name() : "TEXT")
+            .status(m.getStatus()      != null ? m.getStatus().name()      : "SENT")
+            .createdAt(m.getCreatedAt())
+            .build();
     }
 }

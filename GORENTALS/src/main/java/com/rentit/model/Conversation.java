@@ -1,17 +1,17 @@
 package com.rentit.model;
 
-import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.UpdateTimestamp;
-
-import jakarta.persistence.*;
+import jakarta.persistence.*;   // Spring Boot 3.3.6
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
-@Data
 @Entity
-@Table(name = "conversations")
+@Table(name = "conversations",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"listing_id", "renter_id"}))
 public class Conversation {
 
     @Id
@@ -29,24 +29,23 @@ public class Conversation {
     private Booking booking;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "renter_id", nullable = false)
-    private User renter;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
-    @Column(name = "last_message")
-    private String lastMessage;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "renter_id", nullable = false)
+    private User renter;
 
-    @Column(name = "last_message_at")
-    private LocalDateTime lastMessageAt;
-
-    @Column(name = "renter_unread", nullable = false)
-    private Integer renterUnread = 0;
+    @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL,
+               fetch = FetchType.LAZY, orphanRemoval = true)
+    @OrderBy("createdAt ASC")
+    private List<ChatMessage> messages = new ArrayList<>();
 
     @Column(name = "owner_unread", nullable = false)
-    private Integer ownerUnread = 0;
+    private int ownerUnread = 0;
+
+    @Column(name = "renter_unread", nullable = false)
+    private int renterUnread = 0;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -56,91 +55,20 @@ public class Conversation {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-	public UUID getId() {
-		return id;
-	}
-
-	public void setId(UUID id) {
-		this.id = id;
-	}
-
-	public Listing getListing() {
-		return listing;
-	}
-
-	public void setListing(Listing listing) {
-		this.listing = listing;
-	}
-
-	public Booking getBooking() {
-		return booking;
-	}
-
-	public void setBooking(Booking booking) {
-		this.booking = booking;
-	}
-
-	public User getRenter() {
-		return renter;
-	}
-
-	public void setRenter(User renter) {
-		this.renter = renter;
-	}
-
-	public User getOwner() {
-		return owner;
-	}
-
-	public void setOwner(User owner) {
-		this.owner = owner;
-	}
-
-	public String getLastMessage() {
-		return lastMessage;
-	}
-
-	public void setLastMessage(String lastMessage) {
-		this.lastMessage = lastMessage;
-	}
-
-	public LocalDateTime getLastMessageAt() {
-		return lastMessageAt;
-	}
-
-	public void setLastMessageAt(LocalDateTime lastMessageAt) {
-		this.lastMessageAt = lastMessageAt;
-	}
-
-	public Integer getRenterUnread() {
-		return renterUnread;
-	}
-
-	public void setRenterUnread(Integer renterUnread) {
-		this.renterUnread = renterUnread;
-	}
-
-	public Integer getOwnerUnread() {
-		return ownerUnread;
-	}
-
-	public void setOwnerUnread(Integer ownerUnread) {
-		this.ownerUnread = ownerUnread;
-	}
-
-	public LocalDateTime getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(LocalDateTime createdAt) {
-		this.createdAt = createdAt;
-	}
-
-	public LocalDateTime getUpdatedAt() {
-		return updatedAt;
-	}
-
-	public void setUpdatedAt(LocalDateTime updatedAt) {
-		this.updatedAt = updatedAt;
-	}
+    public UUID              getId()                 { return id; }
+    public Listing           getListing()            { return listing; }
+    public void              setListing(Listing v)   { this.listing = v; }
+    public Booking           getBooking()            { return booking; }
+    public void              setBooking(Booking v)   { this.booking = v; }
+    public User              getOwner()              { return owner; }
+    public void              setOwner(User v)        { this.owner = v; }
+    public User              getRenter()             { return renter; }
+    public void              setRenter(User v)       { this.renter = v; }
+    public List<ChatMessage> getMessages()           { return messages; }
+    public int               getOwnerUnread()        { return ownerUnread; }
+    public void              setOwnerUnread(int n)   { this.ownerUnread = n; }
+    public int               getRenterUnread()       { return renterUnread; }
+    public void              setRenterUnread(int n)  { this.renterUnread = n; }
+    public LocalDateTime     getCreatedAt()          { return createdAt; }
+    public LocalDateTime     getUpdatedAt()          { return updatedAt; }
 }

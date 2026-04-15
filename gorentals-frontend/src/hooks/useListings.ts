@@ -1,21 +1,23 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { getListings, getListing } from '@/services/listings';
-import type { Listing, SearchFilters } from '@/types';
+import { getAllListings, getListing } from '@/services/listings';
+import type { ListingSearchParams } from '@/services/listings';
+import type { Listing } from '@/types';
 
-export function useListings(initialFilters: SearchFilters = {}) {
+export function useListings(initialFilters: ListingSearchParams = {}) {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<SearchFilters>(initialFilters);
+  const [filters, setFilters] = useState<ListingSearchParams>(initialFilters);
 
   const fetchListings = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getListings(filters);
-      setListings(data);
+      const data = await getAllListings(filters);
+      // Ensure we extract the array from PagedResponse if needed
+      setListings(Array.isArray(data) ? data : (data as any).content || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch listings');
     } finally {

@@ -16,6 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.security.access.AccessDeniedException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -102,8 +103,8 @@ public class ListingService {
         listing.setState(request.getState());
         listing.setSpecifications(request.getSpecifications());
         listing.setImages(request.getImages());
-        listing.setIsAvailable(true);
-        listing.setIsPublished(true); // Default to published for verification
+        listing.setIsAvailable(request.getIsAvailable()  != null ? request.getIsAvailable()  : Boolean.TRUE);
+        listing.setIsPublished(request.getIsPublished()  != null ? request.getIsPublished()  : Boolean.TRUE);
         listing.setTotalRatings(BigDecimal.ZERO);
         listing.setRatingCount(0);
         listing.setCreatedAt(LocalDateTime.now());
@@ -144,6 +145,8 @@ public class ListingService {
         listing.setState(request.getState());
         listing.setSpecifications(request.getSpecifications());
         listing.setImages(request.getImages());
+        if (request.getIsAvailable() != null) listing.setIsAvailable(request.getIsAvailable());
+        if (request.getIsPublished() != null) listing.setIsPublished(request.getIsPublished());
         listing.setUpdatedAt(LocalDateTime.now());
         
         Listing updatedListing = listingRepository.save(listing);
@@ -151,9 +154,6 @@ public class ListingService {
         return mapToListingResponse(updatedListing);
     }
 
-    /**
-     * Publish a listing (make it visible to renters)
-     */
     @Transactional
     public ListingResponse publishListing(UUID id, String userEmail) {
         // Get the listing
@@ -184,6 +184,20 @@ public class ListingService {
         Listing publishedListing = listingRepository.save(listing);
         
         return mapToListingResponse(publishedListing);
+    }
+
+    @Transactional
+    public ListingResponse updateAvailability(UUID id, Boolean isAvailable, String ownerEmail) {
+        Listing listing = listingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Listing not found: " + id));
+
+        if (!listing.getOwner().getEmail().equals(ownerEmail)) {
+            throw new AccessDeniedException("Forbidden: You do not own listing " + id);
+        }
+
+        listing.setIsAvailable(isAvailable);
+        listing.setUpdatedAt(LocalDateTime.now());
+        return mapToListingResponse(listingRepository.save(listing));
     }
 
     /**

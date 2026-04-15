@@ -97,7 +97,7 @@ public class BookingService {
         booking.setRentalAmount(rentalAmount);
         booking.setSecurityDeposit(securityDeposit);
         booking.setTotalAmount(totalAmount);
-        booking.setStatus(Booking.BookingStatus.PENDING);
+        booking.setStatus(BookingStatus.PENDING);
         booking.setPaymentStatus("PENDING");
         booking.setCreatedAt(LocalDateTime.now());
         
@@ -172,16 +172,16 @@ public class BookingService {
         }
         
         // Check if booking can be cancelled
-        if (booking.getStatus() == Booking.BookingStatus.COMPLETED) {
+        if (booking.getStatus() == BookingStatus.COMPLETED) {
             throw new RuntimeException("Cannot cancel completed booking");
         }
         
-        if (booking.getStatus() == Booking.BookingStatus.CANCELLED) {
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
             throw new RuntimeException("Booking is already cancelled");
         }
         
         // Update status
-        booking.setStatus(Booking.BookingStatus.CANCELLED);
+        booking.setStatus(BookingStatus.CANCELLED);
         booking.setUpdatedAt(LocalDateTime.now());
         
         Booking savedBooking = bookingRepository.save(booking);
@@ -229,12 +229,12 @@ public class BookingService {
         }
         
         // Check if booking can be accepted
-        if (booking.getStatus() != Booking.BookingStatus.PENDING) {
+        if (booking.getStatus() != BookingStatus.PENDING) {
             throw new RuntimeException("Booking cannot be accepted in current status: " + booking.getStatus());
         }
         
         // Update status
-        booking.setStatus(Booking.BookingStatus.CONFIRMED);
+        booking.setStatus(BookingStatus.CONFIRMED);
         booking.setUpdatedAt(LocalDateTime.now());
         
         Booking savedBooking = bookingRepository.save(booking);
@@ -268,12 +268,12 @@ public class BookingService {
         }
         
         // Check if booking can be rejected
-        if (booking.getStatus() != Booking.BookingStatus.PENDING) {
+        if (booking.getStatus() != BookingStatus.PENDING) {
             throw new RuntimeException("Booking cannot be rejected in current status: " + booking.getStatus());
         }
         
         // Update status
-        booking.setStatus(Booking.BookingStatus.REJECTED);
+        booking.setStatus(BookingStatus.REJECTED);
         booking.setUpdatedAt(LocalDateTime.now());
         
         Booking savedBooking = bookingRepository.save(booking);
@@ -307,12 +307,12 @@ public class BookingService {
         }
         
         // Check if booking can be completed
-        if (booking.getStatus() != Booking.BookingStatus.CONFIRMED) {
+        if (booking.getStatus() != BookingStatus.CONFIRMED) {
             throw new RuntimeException("Booking cannot be completed in current status: " + booking.getStatus());
         }
         
         // Update status
-        booking.setStatus(Booking.BookingStatus.COMPLETED);
+        booking.setStatus(BookingStatus.COMPLETED);
         booking.setUpdatedAt(LocalDateTime.now());
         
         Booking savedBooking = bookingRepository.save(booking);
@@ -419,5 +419,68 @@ public class BookingService {
                 .createdAt(booking.getCreatedAt())
                 .updatedAt(booking.getUpdatedAt())
                 .build();
+    }
+    /**
+     * Central status transition method. Called by all PATCH action endpoints.
+     * Validates caller authorization and enforces the state machine.
+     */
+    @Transactional
+    public BookingResponse updateStatus(UUID bookingId, BookingStatus newStatus, String callerEmail) {
+
+        Booking booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+
+        User caller = userRepository.findByEmail(callerEmail)
+            .orElseThrow(() -> new RuntimeException("User not found: " + callerEmail));
+
+        boolean isOwner  = booking.getListing().getOwner().getEmail().equals(callerEmail);
+        boolean isRenter = booking.getRenter().getEmail().equals(callerEmail);
+        boolean isAdmin  = caller.getUserType() == User.UserType.ADMIN;
+
+        // ── Authorization matrix ─────────────────────────────────────────────────
+        switch (newStatus) {
+            case ACCEPTED:
+            case REJECTED:
+            case COMPLETED:
+                if (!isOwner && !isAdmin)
+                    throw new org.springframework.security.access.AccessDeniedException(
+                        "Only the listing owner can perform this action.");
+                break;
+            case CANCELLED:
+                if (!isOwner && !isRenter && !isAdmin)
+                    throw new org.springframework.security.access.AccessDeniedException(
+                        "Not authorized to cancel this booking.");
+                break;
+            default:
+                throw new IllegalArgumentException("Unsupported direct status transition to: " + newStatus);
+        }
+
+        // ── State machine guard ───────────────────────────────────────────────────
+        BookingStatus current = booking.getStatus();
+        boolean validTransition = switch (current) {
+            case PENDING     -> newStatus == BookingStatus.ACCEPTED
+                             || newStatus == BookingStatus.REJECTED
+                             || newStatus == BookingStatus.CANCELLED;
+            case ACCEPTED    -> newStatus == BookingStatus.CONFIRMED
+                             || newStatus == BookingStatus.COMPLETED
+                             || newStatus == BookingStatus.CANCELLED;
+            case CONFIRMED   -> newStatus == BookingStatus.IN_PROGRESS
+                             || newStatus == BookingStatus.COMPLETED
+                             || newStatus == BookingStatus.CANCELLED;
+            case IN_PROGRESS -> newStatus == BookingStatus.COMPLETED
+                             || newStatus == BookingStatus.CANCELLED;
+            default          -> false; // COMPLETED, REJECTED, CANCELLED are terminal
+        };
+
+        if (!validTransition)
+            throw new IllegalStateException(
+                "Invalid booking transition: " + current + " → " + newStatus
+                + ". Booking ID: " + bookingId);
+
+        booking.setStatus(newStatus);
+        booking.setUpdatedAt(java.time.LocalDateTime.now());
+
+        Booking saved = bookingRepository.save(booking);
+        return mapToBookingResponse(saved);
     }
 }

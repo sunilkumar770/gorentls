@@ -1,6 +1,7 @@
 package com.rentit.repository;
 
 import com.rentit.model.Booking;
+import com.rentit.model.BookingStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -41,29 +42,29 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     /**
      * Find bookings by status
      */
-    Page<Booking> findByStatus(Booking.BookingStatus status, Pageable pageable);
+    Page<Booking> findByStatus(BookingStatus status, Pageable pageable);
     
     /**
      * Count bookings by status
      */
-    long countByStatus(Booking.BookingStatus status);
+    long countByStatus(BookingStatus status);
     
     /**
      * Find bookings by renter and status
      */
-    Page<Booking> findByRenterIdAndStatus(UUID renterId, Booking.BookingStatus status, Pageable pageable);
+    Page<Booking> findByRenterIdAndStatus(UUID renterId, BookingStatus status, Pageable pageable);
     
     /**
      * Find bookings by owner and status
      */
     @Query("SELECT b FROM Booking b WHERE b.listing.owner.id = :ownerId AND b.status = :status ORDER BY b.createdAt DESC")
-    Page<Booking> findByOwnerIdAndStatus(@Param("ownerId") UUID ownerId, @Param("status") Booking.BookingStatus status, Pageable pageable);
+    Page<Booking> findByOwnerIdAndStatus(@Param("ownerId") UUID ownerId, @Param("status") BookingStatus status, Pageable pageable);
     
     /**
      * Check if listing is available for given dates
      */
     @Query("SELECT COUNT(b) > 0 FROM Booking b WHERE b.listing.id = :listingId " +
-           "AND b.status IN ('CONFIRMED', 'ACTIVE') " +
+           "AND b.status IN ('CONFIRMED', 'IN_PROGRESS') " +
            "AND ((b.startDate <= :endDate AND b.endDate >= :startDate))")
     boolean isListingBooked(@Param("listingId") UUID listingId, 
                            @Param("startDate") LocalDate startDate, 
@@ -73,7 +74,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * Find conflicting bookings for a listing
      */
     @Query("SELECT b FROM Booking b WHERE b.listing.id = :listingId " +
-           "AND b.status IN ('CONFIRMED', 'ACTIVE') " +
+           "AND b.status IN ('CONFIRMED', 'IN_PROGRESS') " +
            "AND ((b.startDate <= :endDate AND b.endDate >= :startDate))")
     List<Booking> findConflictingBookings(@Param("listingId") UUID listingId,
                                          @Param("startDate") LocalDate startDate,
@@ -120,7 +121,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * Get upcoming bookings for a user (renter)
      */
     @Query("SELECT b FROM Booking b WHERE b.renter.id = :renterId " +
-           "AND b.status IN ('CONFIRMED', 'ACTIVE') " +
+           "AND b.status IN ('CONFIRMED', 'IN_PROGRESS') " +
            "AND b.startDate >= :currentDate ORDER BY b.startDate ASC")
     List<Booking> findUpcomingBookingsByRenter(@Param("renterId") UUID renterId,
                                                @Param("currentDate") LocalDate currentDate);
@@ -129,7 +130,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * Get upcoming bookings for an owner
      */
     @Query("SELECT b FROM Booking b WHERE b.listing.owner.id = :ownerId " +
-           "AND b.status IN ('CONFIRMED', 'ACTIVE') " +
+           "AND b.status IN ('CONFIRMED', 'IN_PROGRESS') " +
            "AND b.startDate >= :currentDate ORDER BY b.startDate ASC")
     List<Booking> findUpcomingBookingsByOwner(@Param("ownerId") UUID ownerId,
                                              @Param("currentDate") LocalDate currentDate);
@@ -152,7 +153,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * Get bookings by listing for availability calendar
      */
     @Query("SELECT b FROM Booking b WHERE b.listing.id = :listingId " +
-           "AND b.status IN ('CONFIRMED', 'ACTIVE') " +
+           "AND b.status IN ('CONFIRMED', 'IN_PROGRESS') " +
            "ORDER BY b.startDate ASC")
     List<Booking> findBookedDatesForListing(@Param("listingId") UUID listingId);
 }

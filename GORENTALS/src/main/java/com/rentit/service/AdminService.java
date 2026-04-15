@@ -66,8 +66,8 @@ public class AdminService {
                 long pendingListings = listingRepository.countByIsPublishedFalse();
 
                 long totalBookings = bookingRepository.count();
-                long activeBookings = bookingRepository.countByStatus(Booking.BookingStatus.CONFIRMED);
-                long completedBookings = bookingRepository.countByStatus(Booking.BookingStatus.COMPLETED);
+                long activeBookings = bookingRepository.countByStatus(BookingStatus.CONFIRMED);
+                long completedBookings = bookingRepository.countByStatus(BookingStatus.COMPLETED);
 
                 BigDecimal totalRevenue = paymentRepository.sumCompletedPayments();
                 if (totalRevenue == null) totalRevenue = BigDecimal.ZERO;
@@ -257,9 +257,9 @@ public class AdminService {
                                 .verifiedUsers(verifiedUsers).build();
 
                 long totalBookings     = bookingRepository.count();
-                long completedBookings = bookingRepository.countByStatus(Booking.BookingStatus.COMPLETED);
-                long cancelledBookings = bookingRepository.countByStatus(Booking.BookingStatus.CANCELLED);
-                long activeBookings    = bookingRepository.countByStatus(Booking.BookingStatus.CONFIRMED);
+                long completedBookings = bookingRepository.countByStatus(BookingStatus.COMPLETED);
+                long cancelledBookings = bookingRepository.countByStatus(BookingStatus.CANCELLED);
+                long activeBookings    = bookingRepository.countByStatus(BookingStatus.CONFIRMED);
                 Double avgBookingValue = bookingRepository.getAverageBookingValue();
                 Double avgRentalDays   = bookingRepository.getAverageRentalDays();
 

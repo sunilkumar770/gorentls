@@ -1,4 +1,0 @@
-﻿src/app/(protected)/checkout/[id]/page.tsx(9,10): error TS2724: '"@/services/listings"' has no exported member named 'getListingById'. Did you mean 'getListing'?
-src/app/(protected)/checkout/[id]/page.tsx(31,48): error TS7006: Parameter 'data' implicitly has an 'any' type.
-src/app/(protected)/checkout/[id]/page.tsx(34,16): error TS7006: Parameter 'err' implicitly has an 'any' type.
-src/app/(protected)/create-listing/page.tsx(130,63): error TS2322: Type 'string' is not assignable to type '"electronics"'.

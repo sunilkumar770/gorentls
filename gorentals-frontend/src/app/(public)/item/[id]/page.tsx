@@ -1,341 +1,291 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useListing } from '@/hooks/useListings';
-import { useAuth } from '@/hooks/useAuth';
-import { formatCurrency, formatDate } from '@/lib/utils';
-import { MapPin, Star, Shield, User, ChevronLeft, Share2, Calendar, Clock } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
+import api from '@/lib/axios';
+import { useAuth } from '@/hooks/useAuth';
+import { createBooking } from '@/services/bookings';
+import { todayISO, daysBetween } from '@/lib/utils';
+import { MapPin, Shield, Calendar, Loader2, ChevronLeft, Package } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import type { Listing } from '@/types';
 
-// ─── Skeleton ────────────────────────────────────────────────────────────────
-function ItemDetailSkeleton() {
-  return (
-    <div className="min-h-screen bg-[#f9fafb] pt-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8 animate-pulse">
-        <div className="lg:col-span-7 flex flex-col gap-4">
-          <div className="w-full aspect-[16/9] bg-gray-200 rounded-2xl" />
-          <div className="flex gap-2">
-            {[1,2,3,4].map(i => (
-              <div key={i} className="w-20 h-16 bg-gray-200 rounded-lg flex-shrink-0" />
-            ))}
-          </div>
-          <div className="h-6 w-1/3 bg-gray-200 rounded-full" />
-          <div className="h-10 w-2/3 bg-gray-200 rounded-lg" />
-          <div className="h-5 w-1/4 bg-gray-200 rounded-lg" />
-          <div className="h-24 bg-gray-200 rounded-lg" />
-        </div>
-        <div className="lg:col-span-5">
-          <div className="h-96 bg-gray-200 rounded-2xl" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Not Found ────────────────────────────────────────────────────────────────
-function ItemNotFound() {
-  return (
-    <div className="min-h-screen bg-[#f9fafb] flex flex-col items-center justify-center gap-6 px-4">
-      <div className="w-24 h-24 bg-[#f0fdf4] rounded-full flex items-center justify-center">
-        <span className="text-4xl">🔍</span>
-      </div>
-      <h1 className="text-3xl font-bold text-[#111827] text-center">Item not found</h1>
-      <p className="text-[#6b7280] text-center max-w-sm">
-        This listing may have been removed or is no longer available.
-      </p>
-      <Link
-        href="/search"
-        className="px-6 py-3 bg-[#16a34a] text-white font-semibold rounded-lg hover:bg-[#15803d] transition-colors"
-      >
-        Browse listings
-      </Link>
-    </div>
-  );
-}
-
-// ─── Page ────────────────────────────────────────────────────────────────────
-export default function ListingDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const id = params.id as string;
-  const { listing, loading } = useListing(id);
+export default function ItemDetailPage() {
+  const { id }   = useParams<{ id: string }>();
+  const router   = useRouter();
   const { user } = useAuth();
+  const isAuthenticated = !!user;
 
-  const [selectedImage, setSelectedImage] = useState(0);
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [listing,   setListing]   = useState<Listing | null>(null);
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState<string | null>(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate,   setEndDate]   = useState('');
+  const [booking,   setBooking]   = useState(false);
+  const [activeImg, setActiveImg] = useState(0);
 
-  if (loading) return <ItemDetailSkeleton />;
-  if (!listing) return <ItemNotFound />;
+  const TODAY      = todayISO();
+  const minEndDate = startDate
+    ? new Date(new Date(startDate).getTime() + 86_400_000).toISOString().split('T')[0]
+    : TODAY;
 
-  const images = listing.listing_images?.length
-    ? listing.listing_images
-    : [{ id: 'ph', listing_id: id, image_url: '/placeholder-item.jpg', is_primary: true, display_order: 0 }];
+  useEffect(() => {
+    api.get<Listing>(`/listings/${id}`)
+      .then(r  => { setListing(r.data); setLoading(false); })
+      .catch(() => { setError('This listing could not be found.'); setLoading(false); });
+  }, [id]);
 
-  const store = Array.isArray(listing.stores) ? listing.stores[0] : listing.stores;
+  // Production pricing formula: total = (days × pricePerDay) + securityDeposit
+  const days    = startDate && endDate ? daysBetween(new Date(startDate), new Date(endDate)) : 0;
+  const rental  = days * (listing?.price_per_day ?? listing?.pricePerDay ?? 0);
+  const deposit = listing?.security_deposit ?? listing?.securityDeposit ?? 0;
+  const total   = rental + deposit;
 
-  // ──── Booking math ────
-  const diffDays = fromDate && toDate
-    ? Math.max(1, Math.ceil((new Date(toDate).getTime() - new Date(fromDate).getTime()) / (1000 * 60 * 60 * 24)))
-    : 0;
-  const subtotal = diffDays * listing.price_per_day;
-  const platformFee = Math.round(subtotal * 0.05);
-  const total = subtotal + platformFee;
+  const isOwnListing = !!user && listing?.owner?.id === user.id;
+  const canBook      =
+    isAuthenticated && listing?.isAvailable && !isOwnListing && !!startDate && !!endDate && days >= 1;
 
-  const today = new Date().toISOString().split('T')[0];
+  async function handleBookNow() {
+    if (!canBook || !listing) return;
+    setBooking(true);
+    try {
+      const b = await createBooking({
+        listingId:       listing.id,
+        startDate, endDate,
+        totalDays:       days,
+        rentalAmount:    rental,
+        securityDeposit: deposit,
+        totalAmount:     total,
+      });
+      router.push(`/checkout/${b.id}`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Could not create booking. Please try again.');
+      setBooking(false);
+    }
+  }
 
-  const categoryEmoji: Record<string, string> = {
-    CAMERAS: '📸', cameras: '📸',
-    GAMING: '🎮', gaming: '🎮',
-    AUDIO: '🎵', audio: '🎵',
-    ELECTRONICS: '⚡', electronics: '⚡',
-    BIKES: '🚲', bikes: '🚲',
-    TOOLS: '🔧', tools: '🔧',
-    SPORTS: '🏋️', sports: '🏋️',
-    CAMPING: '⛺', camping: '⛺',
-  };
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="w-9 h-9 rounded-full border-4 border-[#16a34a]/20 border-t-[#16a34a] animate-spin" />
+    </div>
+  );
+
+  if (error || !listing) return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 px-4">
+      <div className="text-5xl">😕</div>
+      <p className="text-gray-700 font-semibold">{error ?? 'Listing not found.'}</p>
+      <Link href="/search" className="text-[#16a34a] text-sm font-medium hover:underline">← Back to search</Link>
+    </div>
+  );
+
+  const images = listing.listing_images ?? [];
 
   return (
-    <div className="min-h-screen bg-[#f9fafb]">
-      {/* ── Navbar ── */}
-      <nav className="sticky top-0 z-50 bg-white border-b border-[#e5e7eb]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl text-[#111827]">
-            <span className="w-8 h-8 bg-[#16a34a] rounded-lg flex items-center justify-center text-white text-sm font-black">G</span>
-            <span>GoRentals</span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.back()}
-              className="flex items-center gap-1 text-sm text-[#6b7280] hover:text-[#111827] transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" /> Back
-            </button>
-            <button className="p-2 rounded-lg hover:bg-[#f9fafb] transition-colors">
-              <Share2 className="w-4 h-4 text-[#6b7280]" />
-            </button>
-          </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Breadcrumb */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-2 text-sm text-gray-500">
+          <button onClick={() => router.back()}
+                  className="flex items-center gap-1 hover:text-gray-800 transition-colors">
+            <ChevronLeft className="w-4 h-4" /> Back
+          </button>
+          <span>/</span>
+          <Link href="/search" className="hover:text-gray-800">Search</Link>
+          <span>/</span>
+          <span className="text-gray-800 truncate max-w-[200px]">{listing.title}</span>
         </div>
-      </nav>
+      </div>
 
-      {/* ── Content ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-          {/* LEFT — Media + Info */}
-          <div className="lg:col-span-7 flex flex-col gap-6">
-
-            {/* Main image */}
-            <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden bg-[#e9f0e5] shadow-sm">
-              <Image
-                src={images[selectedImage]?.image_url || '/placeholder-item.jpg'}
-                alt={listing.title}
-                fill
-                className="object-cover"
-                sizes="(max-width:1024px) 100vw, 60vw"
-                priority
-              />
-              {listing.is_available ? (
-                <span className="absolute top-4 left-4 px-3 py-1 bg-[#f0fdf4] text-[#16a34a] text-xs font-semibold rounded-full ring-1 ring-[#16a34a]/20">
-                  🟢 Available
-                </span>
+          {/* Left */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="rounded-2xl overflow-hidden bg-gray-200 aspect-video">
+              {images.length > 0 ? (
+                <img src={images[activeImg]?.image_url} alt={listing.title}
+                     className="w-full h-full object-cover" />
               ) : (
-                <div className="absolute inset-0 bg-gray-900/50 flex items-center justify-center">
-                  <span className="px-4 py-2 bg-white text-[#dc2626] font-semibold rounded-lg text-sm">
-                    Currently unavailable
-                  </span>
+                <div className="w-full h-full flex items-center justify-center">
+                  <Package className="w-16 h-16 text-gray-300" />
                 </div>
               )}
             </div>
 
-            {/* Thumbnails */}
             {images.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {images.map((img, i) => (
-                  <button
-                    key={img.id}
-                    onClick={() => setSelectedImage(i)}
-                    className={`flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden ring-2 transition-all ${
-                      selectedImage === i ? 'ring-[#16a34a]' : 'ring-transparent hover:ring-[#e5e7eb]'
-                    }`}
-                  >
+                  <button key={img.id} onClick={() => setActiveImg(i)}
+                          className={`w-16 h-16 flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all
+                            ${i === activeImg ? 'border-[#16a34a]' : 'border-transparent opacity-60 hover:opacity-90'}`}>
                     <img src={img.image_url} alt="" className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
             )}
 
-            {/* Meta row */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 bg-[#f0fdf4] text-[#16a34a] text-sm font-medium rounded-full">
-                {categoryEmoji[listing.category] || '📦'} {listing.category}
-              </span>
-              {store?.store_city && (
-                <span className="flex items-center gap-1 text-sm text-[#6b7280]">
-                  <MapPin className="w-3.5 h-3.5" /> {store.store_city}
-                </span>
-              )}
-              {listing.total_reviews > 0 && (
-                <span className="flex items-center gap-1 text-sm text-[#6b7280]">
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  {listing.average_rating.toFixed(1)} ({listing.total_reviews} reviews)
-                </span>
-              )}
-            </div>
-
-            {/* Title + price */}
             <div>
-              <h1 className="text-3xl font-bold text-[#111827] leading-tight">{listing.title}</h1>
-              <p className="text-2xl font-semibold text-[#16a34a] mt-2">
-                {formatCurrency(listing.price_per_day)}<span className="text-base font-normal text-[#6b7280]">/day</span>
+              <div className="flex items-start justify-between gap-4 mb-2">
+                <h1 className="text-2xl font-bold text-gray-900">{listing.title}</h1>
+                {!listing.isAvailable && (
+                  <span className="px-3 py-1 bg-red-50 text-red-700 text-xs font-semibold rounded-full flex-shrink-0">
+                    Not Available
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mb-4">
+                {listing.city && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />
+                    {listing.city}{listing.state ? `, ${listing.state}` : ''}
+                  </span>
+                )}
+                {listing.category && (
+                  <span className="px-2.5 py-0.5 bg-gray-100 rounded-full text-xs font-medium">
+                    {listing.category}
+                  </span>
+                )}
+                {listing.condition && (
+                  <span className="px-2.5 py-0.5 bg-gray-100 rounded-full text-xs font-medium">
+                    {listing.condition}
+                  </span>
+                )}
+              </div>
+              <p className="text-gray-600 leading-relaxed whitespace-pre-line text-sm">
+                {listing.description}
               </p>
             </div>
 
-            {/* About */}
-            <section>
-              <h2 className="text-xl font-semibold text-[#111827] mb-3">About this item</h2>
-              <p className="text-[#6b7280] leading-relaxed">
-                {listing.description || 'No description provided for this listing.'}
-              </p>
-            </section>
-
-            {/* Specs */}
-            <section>
-              <h2 className="text-xl font-semibold text-[#111827] mb-3">Details</h2>
-              <div className="bg-white rounded-xl p-4 divide-y divide-[#f3f4f6]">
-                {[
-                  ['Category', listing.category],
-                  ['Condition', listing.condition?.replace('_', ' ')],
-                  ['Security Deposit', formatCurrency(listing.security_deposit)],
-                  ['Listed by', store?.store_name || 'Owner'],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between py-3 text-sm">
-                    <span className="text-[#6b7280]">{label}</span>
-                    <span className="font-medium text-[#111827] capitalize">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* Owner card */}
-            <section className="bg-white rounded-xl p-5 flex items-center gap-4">
-              <div className="w-12 h-12 bg-[#f0fdf4] rounded-full flex items-center justify-center flex-shrink-0">
-                <User className="w-6 h-6 text-[#16a34a]" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-[#111827]">{store?.store_name || 'Owner'}</p>
-                <div className="flex items-center gap-2 text-sm text-[#6b7280]">
-                  {store?.verification_status === 'verified' && (
-                    <span className="flex items-center gap-1 text-[#16a34a] text-xs">
-                      <Shield className="w-3.5 h-3.5" /> Verified
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Listed by</h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#16a34a]/10 rounded-full flex items-center justify-center">
+                    <span className="text-[#16a34a] font-bold text-sm">
+                      {(listing.owner?.fullName ?? 'U').charAt(0).toUpperCase()}
                     </span>
-                  )}
-                  {store?.store_city && <span>{store.store_city}</span>}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900 text-sm">{listing.owner?.fullName}</p>
+                    <p className="text-xs text-gray-400">{listing.owner?.email}</p>
+                  </div>
                 </div>
               </div>
-              <button className="px-4 py-2 border border-[#16a34a] text-[#16a34a] text-sm font-medium rounded-lg hover:bg-[#f0fdf4] transition-colors">
-                Contact
-              </button>
-            </section>
+              
+              {!isOwnListing && isAuthenticated && (
+                <button 
+                  onClick={async () => {
+                    import('@/services/messages').then(async ({ startConversation }) => {
+                      const toast = (await import('react-hot-toast')).toast;
+                      try {
+                        const conv = await startConversation(listing.id, "Hi, I'm interested in this item.");
+                        router.push(`/messages/${conv.id}`);
+                      } catch (err) {
+                        toast.error('Failed to start conversation. It might already exist.');
+                        router.push('/messages');
+                      }
+                    });
+                  }}
+                  className="px-4 py-2 mt-6 bg-[#f0fdf4] text-[#16a34a] text-sm font-semibold rounded-lg hover:bg-[#dcfce7] transition-colors border border-[#86efac]"
+                >
+                  Contact Owner
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* RIGHT — Booking card (sticky) */}
-          <div className="lg:col-span-5">
-            <div className="sticky top-24 bg-white rounded-2xl shadow-md p-6 flex flex-col gap-5">
-              {/* Price */}
-              <div>
-                <p className="text-3xl font-bold text-[#16a34a]">
-                  {formatCurrency(listing.price_per_day)}
-                  <span className="text-base font-normal text-[#6b7280]">/day</span>
+          {/* Right — booking card */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-6 bg-white rounded-2xl border border-gray-200 shadow-md p-6">
+              <div className="mb-5">
+                <p className="text-3xl font-bold text-gray-900">
+                  ₹{(listing.price_per_day ?? listing.pricePerDay ?? 0).toLocaleString('en-IN')}
+                  <span className="text-base font-normal text-gray-500">/day</span>
                 </p>
+                {deposit > 0 && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    + ₹{deposit.toLocaleString('en-IN')} refundable deposit
+                  </p>
+                )}
               </div>
 
-              {/* Date pickers */}
-              <div className="flex flex-col gap-3">
+              <div className="space-y-3 mb-5">
                 <div>
-                  <label className="block text-sm font-medium text-[#374151] mb-1">
-                    <Calendar className="inline w-3.5 h-3.5 mr-1" /> From
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                    <Calendar className="w-3.5 h-3.5 inline mr-1" />Start Date
                   </label>
-                  <input
-                    type="date"
-                    value={fromDate}
-                    min={today}
-                    onChange={e => setFromDate(e.target.value)}
-                    className="w-full h-11 px-3 border border-[#e5e7eb] rounded-lg text-sm text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#16a34a] focus:border-transparent"
-                  />
+                  <input type="date" min={TODAY} value={startDate}
+                         onChange={e => { setStartDate(e.target.value); if (endDate && e.target.value >= endDate) setEndDate(''); }}
+                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm
+                                    focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a]" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#374151] mb-1">
-                    <Calendar className="inline w-3.5 h-3.5 mr-1" /> To
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                    <Calendar className="w-3.5 h-3.5 inline mr-1" />End Date
                   </label>
-                  <input
-                    type="date"
-                    value={toDate}
-                    min={fromDate || today}
-                    onChange={e => setToDate(e.target.value)}
-                    className="w-full h-11 px-3 border border-[#e5e7eb] rounded-lg text-sm text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#16a34a] focus:border-transparent"
-                  />
+                  <input type="date" min={minEndDate} value={endDate} disabled={!startDate}
+                         onChange={e => setEndDate(e.target.value)}
+                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm
+                                    focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a]
+                                    disabled:bg-gray-50 disabled:cursor-not-allowed" />
                 </div>
               </div>
 
-              {/* Duration + breakdown */}
-              {diffDays > 0 && (
-                <div className="bg-[#f9fafb] rounded-lg p-4 flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-sm text-[#6b7280]">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span className="font-medium text-[#111827]">{diffDays} day{diffDays > 1 ? 's' : ''}</span>
+              {days > 0 && (
+                <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-2 text-sm">
+                  <div className="flex justify-between text-gray-600">
+                    <span>₹{(listing.price_per_day ?? listing.pricePerDay ?? 0).toLocaleString('en-IN')} × {days} day{days !== 1 ? 's' : ''}</span>
+                    <span className="font-semibold text-gray-900">₹{rental.toLocaleString('en-IN')}</span>
                   </div>
-                  <div className="border-t border-[#e5e7eb] pt-2 mt-1 flex flex-col gap-1.5 text-sm">
-                    <div className="flex justify-between text-[#6b7280]">
-                      <span>{formatCurrency(listing.price_per_day)} × {diffDays} day{diffDays > 1 ? 's' : ''}</span>
-                      <span>{formatCurrency(subtotal)}</span>
+                  {deposit > 0 && (
+                    <div className="flex justify-between text-gray-600">
+                      <span>Deposit <span className="text-xs text-gray-400">(refundable)</span></span>
+                      <span className="font-semibold text-gray-900">₹{deposit.toLocaleString('en-IN')}</span>
                     </div>
-                    <div className="flex justify-between text-[#6b7280]">
-                      <span>Platform fee (5%)</span>
-                      <span>{formatCurrency(platformFee)}</span>
-                    </div>
-                    <div className="flex justify-between font-semibold text-[#111827] pt-1 border-t border-[#e5e7eb]">
-                      <span>Total</span>
-                      <span>{formatCurrency(total)}</span>
-                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-2">
+                    <span>Total</span>
+                    <span className="text-[#16a34a]">₹{total.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
               )}
 
-              {/* CTA */}
-              {listing.is_available ? (
-                user ? (
-                  <Link
-                    href={fromDate && toDate ? `/checkout/${listing.id}?start=${fromDate}&end=${toDate}` : `/checkout/${listing.id}`}
-                    className="w-full h-12 bg-[#16a34a] text-white font-semibold rounded-lg flex items-center justify-center hover:bg-[#15803d] transition-colors text-sm"
-                  >
-                    Book Now
-                  </Link>
-                ) : (
-                  <Link
-                    href={`/login?redirect=/item/${listing.id}`}
-                    className="w-full h-12 bg-[#16a34a] text-white font-semibold rounded-lg flex items-center justify-center hover:bg-[#15803d] transition-colors text-sm"
-                  >
-                    Sign in to Book
-                  </Link>
-                )
-              ) : (
-                <button
-                  disabled
-                  className="w-full h-12 bg-[#e5e7eb] text-[#9ca3af] font-semibold rounded-lg cursor-not-allowed text-sm"
-                >
+              {/* 4 mutually exclusive CTA states */}
+              {!isAuthenticated ? (
+                <Link href={`/login?redirect=/item/${listing.id}`}
+                      className="block w-full h-12 bg-[#16a34a] text-white font-semibold rounded-xl
+                                 flex items-center justify-center text-sm hover:bg-[#15803d] transition-colors">
+                  Login to Book
+                </Link>
+              ) : isOwnListing ? (
+                <div className="w-full h-12 bg-gray-100 text-gray-400 rounded-xl
+                                flex items-center justify-center text-sm font-medium select-none">
+                  You own this listing
+                </div>
+              ) : !listing.isAvailable ? (
+                <div className="w-full h-12 bg-red-50 text-red-400 rounded-xl
+                                flex items-center justify-center text-sm font-medium select-none">
                   Currently Unavailable
+                </div>
+              ) : (
+                <button onClick={handleBookNow} disabled={!canBook || booking}
+                        className="w-full h-12 bg-[#16a34a] text-white font-semibold rounded-xl
+                                   flex items-center justify-center gap-2 hover:bg-[#15803d]
+                                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm">
+                  {booking && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {booking ? 'Processing…' : days > 0 ? `Book for ₹${total.toLocaleString('en-IN')}` : 'Select dates to continue'}
                 </button>
               )}
 
-              {/* Trust badge */}
-              <p className="text-xs text-[#9ca3af] text-center flex items-center justify-center gap-1">
-                <Shield className="w-3 h-3" /> Secure booking · Protected by GoRentals
-              </p>
+              {isAuthenticated && listing.isAvailable && !isOwnListing && (
+                <p className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-3">
+                  <Shield className="w-3.5 h-3.5" /> Secured by Razorpay
+                </p>
+              )}
             </div>
           </div>
+
         </div>
       </div>
     </div>

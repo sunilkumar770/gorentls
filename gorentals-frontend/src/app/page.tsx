@@ -1,4 +1,4 @@
-import { ListingGrid } from '@/components/listing/ListingGrid';
+import ListingGrid from '@/components/listing/ListingGrid';
 import { Search, Camera, Wrench, Tent, Music, Gamepad2, ArrowRight, ShieldCheck, Star, Zap } from 'lucide-react';
 import Link from 'next/link';
 

@@ -1,306 +1,250 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { toast } from 'react-hot-toast';
-import { Calendar, ShieldCheck, MapPin, Loader2, Info, ChevronLeft } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { getListing } from '@/services/listings';
-import { createBooking } from '@/services/bookings';
-import type { Listing } from '@/types';
-import { formatCurrency, calculateDays } from '@/lib/utils';
-import { SERVICE_FEE_PERCENTAGE } from '@/constants';
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { payments, loadRazorpayScript } from '@/services/payments';
-import Image from 'next/image';
-import { Suspense } from 'react';
+import api from '@/lib/axios';
+import { initiatePayment, verifyPayment } from '@/services/payments';
+import { Shield, MapPin, Calendar, Loader2, ChevronLeft, AlertCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { formatDate } from '@/lib/utils';
+import type { Booking } from '@/types';
 
-function CheckoutPageContent() {
-  const params = useParams();
-  const searchParams = useSearchParams();
+
+
+export default function CheckoutPage() {
+  const { id: bookingId } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user } = useAuth();
-  
-  const [listing, setListing] = useState<Listing | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
-  
-  const startDateStr = searchParams.get('start');
-  const endDateStr = searchParams.get('end');
 
+  const [booking,  setBooking]  = useState<Booking | null>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState<string | null>(null);
+  const [paying,   setPaying]   = useState(false);
+  const [sdkReady, setSdkReady] = useState(false);
+
+  // Load booking details
   useEffect(() => {
-    if (params.id) {
-      getListing(params.id as string).then((data: any) => {
-        setListing(data);
-        setLoading(false);
-      }).catch((err: any) => {
-        toast.error('Failed to load listing for checkout');
-        setLoading(false);
+    api.get<Booking>(`/bookings/${bookingId}`)
+      .then(r  => { setBooking(r.data); setLoading(false); })
+      .catch(() => { setError('Could not load booking details.'); setLoading(false); });
+  }, [bookingId]);
+
+  // Inject Razorpay SDK once
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.Razorpay) { setSdkReady(true); return; }
+    const existing = document.getElementById('rzp-sdk');
+    if (existing) { existing.addEventListener('load', () => setSdkReady(true)); return; }
+    const s    = document.createElement('script');
+    s.id       = 'rzp-sdk';
+    s.src      = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.async    = true;
+    s.onload   = () => setSdkReady(true);
+    s.onerror  = () => toast.error('Failed to load payment SDK. Please refresh.');
+    document.body.appendChild(s);
+  }, []);
+
+  async function handlePayNow() {
+    if (!booking || !sdkReady) return;
+    setPaying(true);
+    try {
+      // Step 1 — create Razorpay order on backend
+      const order = await initiatePayment(booking.id);
+
+      // Step 2 — open modal
+      const RzpCls: any = window.Razorpay;
+      const rzp = new RzpCls({
+        key:         order.keyId,
+        amount:      order.amount,
+        currency:    order.currency ?? 'INR',
+        name:        'GoRentals',
+        description: booking.listing?.title ?? 'Rental booking',
+        order_id:    order.orderId,
+        prefill: {
+          name:    booking.renter?.fullName ?? '',
+          email:   booking.renter?.email    ?? '',
+          contact: booking.renter?.phone    ?? '',
+        },
+        theme: { color: '#16a34a' },
+        modal: {
+          ondismiss: () => { setPaying(false); toast('Payment cancelled.', { icon: '⚠️' }); },
+        },
+        // Step 3 — verify after modal success
+        handler: async (response: any) => {
+          try {
+            await verifyPayment({
+              bookingId:           booking.id,
+              razorpayOrderId:     response.razorpay_order_id,
+              razorpayPaymentId:   response.razorpay_payment_id,
+              razorpaySignature:   response.razorpay_signature,
+            });
+            const p = new URLSearchParams({
+              bookingId: booking.id,
+              status:    'success',
+              title:     encodeURIComponent(booking.listing?.title ?? ''),
+              amount:    String(booking.totalAmount),
+              dates:     encodeURIComponent(
+                `${formatDate(booking.startDate)} – ${formatDate(booking.endDate)}`
+              ),
+            });
+            router.push(`/payment/success?${p.toString()}`);
+          } catch (err: any) {
+            toast.error(
+              `Payment received (ID: ${response.razorpay_payment_id.slice(0,14)}…) ` +
+              `but verification failed. Contact support@gorentals.com.`,
+              { duration: 10000 }
+            );
+            setPaying(false);
+          }
+        },
       });
+
+      rzp.on('payment.failed', (res: any) => {
+        toast.error(`Payment failed: ${res.error?.description ?? 'Please try again.'}`);
+        setPaying(false);
+        router.push('/payment/success?status=failed');
+      });
+
+      rzp.open();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Could not initiate payment. Please retry.');
+      setPaying(false);
     }
-  }, [params.id]);
+  }
 
   if (loading) return (
-    <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 rounded-full border-4 border-[#16a34a]/20 border-t-[#16a34a] animate-spin" />
-        <span className="text-sm font-semibold text-[#6b7280]">Loading checkout...</span>
-      </div>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="w-9 h-9 rounded-full border-4 border-[#16a34a]/20 border-t-[#16a34a] animate-spin" />
     </div>
   );
 
-  if (!listing) return (
-    <div className="min-h-screen bg-[#f9fafb] flex flex-col items-center justify-center gap-4">
-      <div className="w-20 h-20 bg-[#f3f4f6] rounded-full flex items-center justify-center text-3xl">⚠️</div>
-      <h2 className="text-2xl font-bold text-[#111827]">Item Unavailable</h2>
-      <button onClick={() => router.back()} className="text-[#16a34a] hover:underline">Go back</button>
-    </div>
-  );
-
-  if (!startDateStr || !endDateStr) return (
-    <div className="min-h-screen bg-[#f9fafb] flex flex-col items-center justify-center gap-4">
-      <div className="w-20 h-20 bg-[#f3f4f6] rounded-full flex items-center justify-center text-3xl">📅</div>
-      <h2 className="text-2xl font-bold text-[#111827]">Invalid dates specified</h2>
-      <Link href={`/item/${listing.id}`} className="px-5 py-2.5 bg-[#16a34a] text-white rounded-xl font-semibold">
-        Return to listing
+  if (error || !booking) return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 px-4">
+      <AlertCircle className="w-10 h-10 text-red-400" />
+      <p className="text-gray-700 font-semibold">{error ?? 'Booking not found.'}</p>
+      <Link href="/my-bookings" className="text-[#16a34a] text-sm font-medium hover:underline">
+        ← Back to bookings
       </Link>
     </div>
   );
 
-  const days = calculateDays(startDateStr, endDateStr);
-  if (days <= 0) return (
-    <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center p-12 text-center text-red-500 font-bold text-xl">
-      Invalid date range
+  // Guard: block double payment
+  if (booking.paymentStatus === 'COMPLETED' || booking.paymentStatus === 'PAID') return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 px-4">
+      <div className="text-6xl">✅</div>
+      <h2 className="text-xl font-bold text-gray-900">Already paid</h2>
+      <p className="text-gray-500 text-sm text-center max-w-xs">
+        This booking has been fully paid. No further action needed.
+      </p>
+      <Link href="/my-bookings"
+            className="px-6 py-2.5 bg-[#16a34a] text-white text-sm font-semibold rounded-xl
+                       hover:bg-[#15803d] transition-colors">
+        View My Bookings
+      </Link>
     </div>
   );
 
-  const rentalCost = days * listing.price_per_day;
-  const serviceFee = rentalCost * SERVICE_FEE_PERCENTAGE;
-  const securityDeposit = listing.security_deposit || 0;
-  const totalAmount = rentalCost + serviceFee + securityDeposit;
-
-  const handleConfirm = async () => {
-    if (!user) {
-      toast.error('You must be logged in to book');
-      return;
-    }
-    setProcessing(true);
-    try {
-      const booking = await createBooking({
-        listingId: listing.id,
-        startDate: startDateStr,
-        endDate: endDateStr
-      });
-      
-      const scriptLoaded = await loadRazorpayScript();
-      if (!scriptLoaded) {
-          toast.error('Payment gateway failed to load.');
-          return;
-      }
-
-      const { orderId, amount: paymentAmount, currency, razorpayKey } = await payments.initiate({
-        bookingId: booking.id,
-        amount: totalAmount,
-        currency: 'INR'
-      });
-
-      const options = {
-        key: razorpayKey || 'rzp_test_placeholder',
-        amount: paymentAmount,
-        currency: currency,
-        name: 'GoRentals',
-        description: `Booking: ${listing.title}`,
-        order_id: orderId,
-        handler: async (response: any) => {
-            try {
-                setProcessing(true);
-                await payments.verify({
-                    razorpayPaymentId: response.razorpay_payment_id,
-                    razorpayOrderId: response.razorpay_order_id,
-                    razorpaySignature: response.razorpay_signature
-                });
-                
-                router.push(`/payment/success?bookingId=${booking.id}&amount=${totalAmount}&title=${encodeURIComponent(listing.title)}&dates=${encodeURIComponent(`${new Date(startDateStr).toLocaleDateString()} - ${new Date(endDateStr).toLocaleDateString()}`)}`);
-            } catch (err: any) {
-                toast.error('Payment verification failed.');
-            } finally {
-                setProcessing(false);
-            }
-        },
-        prefill: {
-            name: user.fullName || '',
-            email: user.email || '',
-        },
-        theme: {
-            color: '#16a34a'
-        }
-      };
-
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
-      
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to process booking');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const image = listing.listing_images?.[0]?.image_url || '/placeholder-item.jpg';
+  const image      = booking.listing?.listing_images?.[0]?.image_url ?? null;
+  const startDate  = booking.startDate  ?? booking.checkInDate  ?? '';
+  const endDate    = booking.endDate    ?? booking.checkOutDate ?? '';
 
   return (
-    <div className="min-h-screen bg-[#f9fafb] pt-8 pb-24">
-      {/* Navbar for Checkout */}
-      <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-[#e5e7eb] flex items-center justify-between px-4 sm:px-8 z-50">
-        <Link href={`/item/${listing.id}`} className="flex items-center gap-1.5 text-sm font-semibold text-[#6b7280] hover:text-[#111827] transition-colors">
-          <ChevronLeft className="w-4 h-4" /> Back
-        </Link>
-        <span className="font-bold text-[#111827]">Secure Checkout</span>
-        <div className="w-16" /> {/* Spacer */}
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white border-b border-gray-100 sticky top-0 z-20">
+        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 font-bold text-lg text-gray-900">
+            <span className="w-7 h-7 bg-[#16a34a] rounded-lg flex items-center justify-center text-white text-xs font-black">G</span>
+            GoRentals
+          </Link>
+          <button onClick={() => router.back()}
+                  className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 transition-colors">
+            <ChevronLeft className="w-4 h-4" /> Back
+          </button>
+        </div>
+      </nav>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-8 pt-12">
-        <h1 className="text-3xl sm:text-4xl font-bold text-[#111827] mb-8">
-          Confirm and pay
-        </h1>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          
-          {/* Left column - Details */}
-          <div className="lg:col-span-7 space-y-6">
-            
-            {/* Booking Dates */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#e5e7eb]">
-              <h2 className="text-xl font-bold text-[#111827] mb-4">Your trip</h2>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-[#111827]">Dates</p>
-                  <p className="text-[#6b7280]">
-                    {new Date(startDateStr).toLocaleDateString()} – {new Date(endDateStr).toLocaleDateString()}
-                  </p>
-                </div>
-                <Link href={`/item/${listing.id}`} className="text-sm font-semibold text-[#16a34a] hover:underline">
-                  Edit
-                </Link>
-              </div>
+      <div className="max-w-2xl mx-auto px-4 py-10">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Confirm &amp; Pay</h1>
+
+        {/* Listing summary */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-4">
+          <div className="flex gap-4 p-5">
+            <div className="w-24 h-20 bg-gray-100 rounded-xl flex-shrink-0 overflow-hidden">
+              {image
+                ? <img src={image} alt={booking.listing?.title} className="w-full h-full object-cover" />
+                : <div className="w-full h-full flex items-center justify-center text-3xl">📦</div>}
             </div>
-
-            {/* Insurance/Protection Banner */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#e5e7eb]">
-              <div className="flex gap-4">
-                <div className="shrink-0 mt-1">
-                  <ShieldCheck className="w-8 h-8 text-[#16a34a]" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-[#111827] mb-1">GoRentals Protection Standard</h3>
-                  <p className="text-sm text-[#6b7280] leading-relaxed">
-                    Your rental is comprehensively protected. Security deposits are held securely in escrow and automatically refunded post-return verification.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Rules / Disclaimer */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#e5e7eb]">
-              <h3 className="font-bold text-[#111827] mb-3">Ground rules</h3>
-              <p className="text-sm text-[#6b7280] leading-relaxed mb-4">
-                We ask every user to remember a few simple things about what makes a great renter:
-              </p>
-              <ul className="text-sm text-[#6b7280] list-disc pl-5 space-y-2">
-                <li>Follow the owner's equipment rules.</li>
-                <li>Treat the equipment like your own.</li>
-                <li>Return the item on time and in the same condition.</li>
-              </ul>
-              <div className="mt-6 pt-6 border-t border-[#f3f4f6]">
-                <p className="text-xs text-[#9ca3af]">
-                  By clicking below, you agree to the GoRentals Terms of Service and authorize the initial escrow hold.
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900 truncate">{booking.listing?.title}</h3>
+              {booking.listing?.city && (
+                <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">
+                  <MapPin className="w-3 h-3" /> {booking.listing.city}
                 </p>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Right column - Summary Box */}
-          <div className="lg:col-span-5">
-            <div className="bg-white p-6 rounded-2xl shadow-md border border-[#e5e7eb] sticky top-24">
-              
-              {/* Item Mini Card */}
-              <div className="flex gap-4 pb-6 border-b border-[#f3f4f6] mb-6">
-                <div className="relative w-24 h-20 rounded-lg overflow-hidden bg-[#f3f4f6] shrink-0 border border-[#e5e7eb]">
-                  <Image src={image} fill alt="" className="object-cover" />
-                </div>
-                <div className="flex flex-col justify-center">
-                  <span className="text-xs font-semibold text-[#6b7280] uppercase tracking-wider mb-1">{listing.category}</span>
-                  <h3 className="font-bold text-[#111827] line-clamp-2">{listing.title}</h3>
-                </div>
-              </div>
-
-              <h2 className="text-lg font-bold text-[#111827] mb-4">Price details</h2>
-              
-              <div className="space-y-4 mb-6">
-                <div className="flex justify-between items-center text-[#374151]">
-                  <span>{formatCurrency(listing.price_per_day)} × {days} days</span>
-                  <span>{formatCurrency(rentalCost)}</span>
-                </div>
-                
-                <div className="flex justify-between items-center text-[#374151]">
-                  <span className="flex items-center gap-1">
-                    Platform fee
-                    <Info className="w-3 h-3 text-[#9ca3af]" />
+              )}
+              {startDate && endDate && (
+                <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                  <Calendar className="w-3 h-3" />
+                  {formatDate(startDate)} → {formatDate(endDate)}
+                  <span className="ml-1 text-gray-400">
+                    ({booking.totalDays} day{booking.totalDays !== 1 ? 's' : ''})
                   </span>
-                  <span>{formatCurrency(serviceFee)}</span>
-                </div>
-
-                <div className="pt-4 border-t border-[#f3f4f6] flex justify-between items-center">
-                  <span className="font-bold text-[#111827]">Total (INR)</span>
-                  <span className="font-bold text-[#111827]">{formatCurrency(rentalCost + serviceFee)}</span>
-                </div>
-              </div>
-
-              {/* Security Deposit Box */}
-              <div className="bg-[#f9fafb] p-4 rounded-xl border border-[#e5e7eb] mb-6">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="font-semibold text-[#111827]">Security Deposit</span>
-                  <span className="font-semibold text-[#111827]">{formatCurrency(securityDeposit)}</span>
-                </div>
-                <p className="text-xs text-[#6b7280]">Fully refunded upon safe return</p>
-              </div>
-
-              <div className="flex justify-between items-end mb-6">
-                <span className="font-bold text-[#111827] text-lg">Total payment</span>
-                <span className="font-bold text-[#16a34a] text-2xl">{formatCurrency(totalAmount)}</span>
-              </div>
-
-              <button 
-                 onClick={handleConfirm}
-                 disabled={processing}
-                 className="w-full h-14 bg-[#111827] hover:bg-[#374151] text-white text-base font-bold rounded-xl transition-all active:scale-95 flex justify-center items-center gap-2 disabled:opacity-70 disabled:hover:bg-[#111827] shadow-sm"
-              >
-                 {processing ? (
-                   <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>
-                 ) : (
-                   `Pay ${formatCurrency(totalAmount)}`
-                 )}
-              </button>
+                </p>
+              )}
             </div>
           </div>
         </div>
+
+        {/* Breakdown */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-4">
+          <h3 className="font-semibold text-gray-900 mb-4">Price Breakdown</h3>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">
+                ₹{(booking.listing?.pricePerDay ?? 0).toLocaleString('en-IN')} × {booking.totalDays} day{booking.totalDays !== 1 ? 's' : ''}
+              </span>
+              <span className="font-semibold text-gray-900">₹{booking.rentalAmount.toLocaleString('en-IN')}</span>
+            </div>
+            {booking.securityDeposit > 0 && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">
+                  Security deposit <span className="text-xs text-gray-400">(refundable)</span>
+                </span>
+                <span className="font-semibold text-gray-900">₹{booking.securityDeposit.toLocaleString('en-IN')}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-bold text-gray-900 border-t border-gray-100 pt-3 text-base">
+              <span>Total payable</span>
+              <span className="text-[#16a34a]">₹{booking.totalAmount.toLocaleString('en-IN')}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Meta */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6">
+          <div className="flex items-center justify-between text-sm">
+            <div>
+              <p className="text-xs text-gray-400 mb-0.5">Owner</p>
+              <p className="font-semibold text-gray-800">{booking.owner?.fullName}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-400 mb-0.5">Booking ref</p>
+              <p className="font-mono text-xs text-gray-500 uppercase">{booking.id.slice(0, 8)}</p>
+            </div>
+          </div>
+        </div>
+
+        <button onClick={handlePayNow} disabled={paying || !sdkReady}
+                className="w-full h-14 bg-[#16a34a] text-white font-bold text-base rounded-2xl
+                           flex items-center justify-center gap-2 hover:bg-[#15803d] shadow-sm
+                           disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
+          {paying && <Loader2 className="w-5 h-5 animate-spin" />}
+          {!sdkReady ? 'Loading…' : paying ? 'Opening Razorpay…' : `Pay ₹${booking.totalAmount.toLocaleString('en-IN')}`}
+        </button>
+
+        <p className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-4">
+          <Shield className="w-3.5 h-3.5" /> 256-bit SSL · Secured by Razorpay
+        </p>
       </div>
     </div>
-  );
-}
-
-export default function CheckoutPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-full border-4 border-[#16a34a]/20 border-t-[#16a34a] animate-spin" />
-          <span className="text-sm font-semibold text-[#6b7280]">Loading...</span>
-        </div>
-      </div>
-    }>
-      <CheckoutPageContent />
-    </Suspense>
   );
 }

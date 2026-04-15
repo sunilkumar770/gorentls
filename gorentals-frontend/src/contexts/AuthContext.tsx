@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { Profile } from '@/types';
+import Cookies from 'js-cookie';
 
 interface AuthContextType {
   user: Profile | null;
@@ -12,7 +13,7 @@ interface AuthContextType {
   updateUser: (newUser: Profile) => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null);
@@ -34,11 +35,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
+  useEffect(() => {
+    const handleWsAuthFailure = () => {
+      console.warn('[AuthContext] WS auth failure → auto logout');
+      localStorage.removeItem('gr_token');
+      localStorage.removeItem('gr_user');
+      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
+      setToken(null);
+      setUser(null);
+      window.location.href = '/login';
+    };
+    window.addEventListener('ws:auth-failure', handleWsAuthFailure);
+    return () => window.removeEventListener('ws:auth-failure', handleWsAuthFailure);
+  }, []);
+
   const login = (token: string, user: Profile) => {
     localStorage.setItem('gr_token', token);
     localStorage.setItem('gr_user', JSON.stringify(user));
-    // Also write cookie so middleware can read it server-side
+    
+    // Set cookie for middleware access
+    Cookies.set('accessToken', token, {
+      expires: 7,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    });
+    
+    // Legacy cookie name support if needed by any other part
     document.cookie = `token=${token}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`;
+    
     setToken(token);
     setUser(user);
   };
@@ -46,8 +70,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     localStorage.removeItem('gr_token');
     localStorage.removeItem('gr_user');
-    // Also clear the middleware cookie
+    
+    Cookies.remove('accessToken');
     document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
+    
     setToken(null);
     setUser(null);
   };

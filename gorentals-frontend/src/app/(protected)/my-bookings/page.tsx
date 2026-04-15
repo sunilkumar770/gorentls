@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Booking } from '@/types';
-import { getRenterBookings, cancelBooking } from '@/services/bookings';
+import { getMyBookings, cancelBooking } from '@/services/bookings';
 import { Calendar, MapPin, IndianRupee, Clock, XCircle, CheckCircle2, Package, Check, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -25,9 +25,9 @@ export default function MyBookingsPage() {
   const loadBookings = async () => {
     try {
       setLoading(true);
-      const data = await getRenterBookings();
+      const data = await getMyBookings();
       // Sort by creation date descending
-      setBookings(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      setBookings(data.sort((a: Booking, b: Booking) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch (error) {
       toast.error('Failed to load bookings');
     } finally {
@@ -54,6 +54,7 @@ export default function MyBookingsPage() {
     const config: Record<string, { color: string; icon: any; label: string; bg: string }> = {
       PENDING: { color: 'text-amber-600', bg: 'bg-amber-50', icon: Clock, label: 'Pending Approval' },
       ACCEPTED: { color: 'text-green-600', bg: 'bg-green-50', icon: CheckCircle2, label: 'Accepted' },
+      CONFIRMED: { color: 'text-green-600', bg: 'bg-green-50', icon: CheckCircle2, label: 'Confirmed' },
       REJECTED: { color: 'text-red-600', bg: 'bg-red-50', icon: XCircle, label: 'Rejected' },
       CANCELLED: { color: 'text-gray-500', bg: 'bg-gray-50', icon: XCircle, label: 'Cancelled' },
       IN_PROGRESS: { color: 'text-blue-600', bg: 'bg-blue-50', icon: Package, label: 'In Progress' },
@@ -143,12 +144,12 @@ export default function MyBookingsPage() {
                       <div>
                         <div className="flex justify-between items-start">
                           <div>
-                            <Link href={`/listing/${booking.listingId}`} className="text-xl font-bold text-[#111827] hover:text-[#16a34a] hover:underline line-clamp-1">
+                            <Link href={`/listing/${booking.listing?.id}`} className="text-xl font-bold text-[#111827] hover:text-[#16a34a] hover:underline line-clamp-1">
                               {item?.title || 'Unknown Item'}
                             </Link>
                             <div className="flex items-center mt-2 text-sm text-[#6b7280]">
                               <MapPin className="w-4 h-4 mr-1 text-[#9ca3af]" />
-                              {item?.stores?.store_city || 'Location unavailable'}
+                              {item?.city || 'Location unavailable'}
                             </div>
                           </div>
                           
@@ -164,7 +165,7 @@ export default function MyBookingsPage() {
                             <span className="text-[#6b7280] block text-xs mb-1">Duration</span>
                             <div className="font-medium text-[#111827] flex items-center">
                               <Calendar className="w-4 h-4 mr-1.5 text-[#16a34a]" />
-                              {format(new Date(booking.checkInDate), 'MMM d, yyyy')} - {format(new Date(booking.checkOutDate), 'MMM d, yyyy')}
+                              {format(new Date(booking.checkInDate || booking.createdAt), 'MMM d, yyyy')} - {format(new Date(booking.checkOutDate || booking.createdAt), 'MMM d, yyyy')}
                             </div>
                           </div>
                           <div className="bg-[#f9fafb] p-3 rounded-lg">
@@ -187,7 +188,7 @@ export default function MyBookingsPage() {
                   </div>
                   
                   <div className="flex gap-3">
-                    {booking.status === 'PENDING' && (
+                    {(booking.status === 'PENDING' || booking.status === 'ACCEPTED') && (
                       <button
                         onClick={() => handleCancelBooking(booking.id)}
                         disabled={cancellingId === booking.id}
@@ -203,7 +204,7 @@ export default function MyBookingsPage() {
                     )}
                     
                     <Link
-                      href={`/listing/${booking.listingId}`}
+                      href={`/listing/${booking.listing?.id}`}
                       className="inline-flex items-center justify-center px-4 py-2 font-medium rounded-lg text-sm text-[#16a34a] bg-[#f0fdf4] hover:bg-[#dcfce7] transition-colors"
                     >
                       View Listing

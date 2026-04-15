@@ -1,324 +1,202 @@
 package com.rentit.service;
 
-import com.razorpay.*;
-import com.rentit.dto.PaymentInitiateRequest;
-import com.rentit.dto.PaymentResponse;
-import com.rentit.dto.PaymentVerificationRequest;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rentit.dto.InitiatePaymentResponse;
+import com.rentit.dto.VerifyPaymentRequest;
 import com.rentit.model.Booking;
-import com.rentit.model.Payment;
+import com.rentit.model.BookingStatus;
 import com.rentit.repository.BookingRepository;
-import com.rentit.repository.PaymentRepository;
-import com.rentit.repository.UserRepository;
-import org.json.JSONObject;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.UUID;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class PaymentService {
 
-    @Value("${razorpay.key}")
-    private String razorpayKey;
+    private final BookingRepository bookingRepository;
+    private final ObjectMapper      objectMapper;
 
-    @Value("${razorpay.secret}")
-    private String razorpaySecret;
+    @Value("${razorpay.key.id}")
+    private String razorpayKeyId;
 
-    @Autowired
-    private BookingRepository bookingRepository;
+    @Value("${razorpay.key.secret}")
+    private String razorpayKeySecret;
 
-    @Autowired
-    private PaymentRepository paymentRepository;
+    @Value("${app.razorpay.webhook-secret:placeholder}")
+    private String webhookSecret;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    private RazorpayClient razorpayClient;
-
-    public PaymentService() throws RazorpayException {
-        // Initialize will be done after properties are injected
-    }
-
-    @jakarta.annotation.PostConstruct
-    public void init() throws RazorpayException {
-        this.razorpayClient = new RazorpayClient(razorpayKey, razorpaySecret);
-    }
+    private static final String RAZORPAY_ORDERS_API = "https://api.razorpay.com/v1/orders";
+    private static final String HMAC_ALGO           = "HmacSHA256";
 
     @Transactional
-    public PaymentResponse initiatePayment(PaymentInitiateRequest request, String userEmail) {
-        Booking booking = bookingRepository.findById(request.getBookingId())
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
-        
-        // Verify booking belongs to user
-        if (!booking.getRenter().getEmail().equals(userEmail)) {
-            throw new RuntimeException("Unauthorized");
+    public InitiatePaymentResponse initiatePayment(String bookingId) {
+        Booking booking = findOrThrow(bookingId);
+
+        String ps = booking.getPaymentStatus();
+        if (ps != null && !ps.equals("PENDING") && !ps.equals("INITIATED")) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Cannot initiate payment. Current payment status: " + ps);
         }
-        
+
+        long amountPaise = booking.getTotalAmount().multiply(new java.math.BigDecimal("100")).longValue();
+
+        Map<String, Object> notes = new HashMap<>();
+        notes.put("bookingId", bookingId);
+        if (booking.getListing() != null) {
+            notes.put("listingId", booking.getListing().getId());
+        }
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("amount",   amountPaise);
+        body.put("currency", "INR");
+        body.put("receipt",  "grb_" + bookingId.replace("-", "").substring(0, 16));
+        body.put("notes",    notes);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBasicAuth(razorpayKeyId, razorpayKeySecret);
+
         try {
-            // Create Razorpay order
-            JSONObject orderRequest = new JSONObject();
-            orderRequest.put("amount", booking.getTotalAmount().multiply(new BigDecimal(100)).intValue());
-            orderRequest.put("currency", "INR");
-            orderRequest.put("receipt", "booking_" + booking.getId().toString());
-            
-            Order order = razorpayClient.orders.create(orderRequest);
-            
-            // Save payment record
-            Payment payment = new Payment();
-            payment.setBooking(booking);
-            payment.setAmount(booking.getTotalAmount());
-            payment.setPaymentType("RENTAL");
-            payment.setRazorpayOrderId(order.get("id"));
-            payment.setStatus("CREATED");
-            payment.setCreatedAt(LocalDateTime.now());
-            
-            paymentRepository.save(payment);
-            
-            // Update booking with order ID
-            booking.setRazorpayOrderId(order.get("id"));
+            String       json     = objectMapper.writeValueAsString(body);
+            HttpEntity<String> entity = new HttpEntity<>(json, headers);
+
+            RestTemplate restTemplate = new RestTemplate();
+            ResponseEntity<String> resp = restTemplate.postForEntity(
+                    RAZORPAY_ORDERS_API, entity, String.class);
+
+            if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                        "Razorpay responded with: " + resp.getStatusCode());
+            }
+
+            JsonNode order         = objectMapper.readTree(resp.getBody());
+            String   razorpayOrderId = order.get("id").asText();
+
+            booking.setRazorpayOrderId(razorpayOrderId);
+            booking.setPaymentStatus("INITIATED");
             bookingRepository.save(booking);
-            
-            return PaymentResponse.builder()
-                    .orderId(order.get("id"))
-                    .amount(booking.getTotalAmount())
+
+            log.info("✅ Razorpay order created: {} → booking: {}", razorpayOrderId, bookingId);
+
+            return InitiatePaymentResponse.builder()
+                    .orderId(razorpayOrderId)
+                    .amount(amountPaise)
                     .currency("INR")
-                    .key(razorpayKey)
-                    .bookingId(booking.getId())
+                    .keyId(razorpayKeyId)
+                    .bookingId(bookingId)
                     .build();
-                    
-        } catch (RazorpayException e) {
-            throw new RuntimeException("Failed to create payment order: " + e.getMessage());
+
+        } catch (ResponseStatusException rse) {
+            throw rse;
+        } catch (Exception ex) {
+            log.error("Razorpay order creation failed for {}: {}", bookingId, ex.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Payment initiation failed — please retry.");
         }
     }
 
     @Transactional
-    public void verifyPayment(PaymentVerificationRequest request) {
+    public void verifyAndConfirmPayment(VerifyPaymentRequest req) {
+        String sigPayload = req.getRazorpayOrderId() + "|" + req.getRazorpayPaymentId();
+        String computed   = hmacSha256Hex(sigPayload, razorpayKeySecret);
+
+        if (!computed.equals(req.getRazorpaySignature())) {
+            log.warn("❌ Signature mismatch for booking {}", req.getBookingId());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Payment signature verification failed.");
+        }
+
+        Booking booking = findOrThrow(req.getBookingId());
+
+        if ("COMPLETED".equals(booking.getPaymentStatus()) ||
+            BookingStatus.CONFIRMED.equals(booking.getStatus())) {
+            log.info("ℹ️ Booking {} already confirmed — skipping", req.getBookingId());
+            return;
+        }
+
+        booking.setPaymentStatus("COMPLETED");
+        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setRazorpayPaymentId(req.getRazorpayPaymentId());
+        bookingRepository.save(booking);
+
+        log.info("✅ Booking CONFIRMED via verify: {}", req.getBookingId());
+    }
+
+    public void verifyWebhookSignature(String rawBody, String razorpaySignature) {
+        if (razorpaySignature == null || razorpaySignature.isBlank()) {
+            throw new SecurityException("Missing X-Razorpay-Signature header");
+        }
         try {
-            // Verify payment signature
-            String orderId = request.getOrderId();
-            String paymentId = request.getPaymentId();
-            String signature = request.getSignature();
-            
-            // Create verification object
-            JSONObject options = new JSONObject();
-            options.put("razorpay_order_id", orderId);
-            options.put("razorpay_payment_id", paymentId);
-            options.put("razorpay_signature", signature);
-            
-            boolean isValid = Utils.verifyPaymentSignature(options, razorpaySecret);
-            
-            if (!isValid) {
-                throw new RuntimeException("Invalid payment signature");
+            Mac mac = Mac.getInstance(HMAC_ALGO);
+            mac.init(new SecretKeySpec(
+                webhookSecret.getBytes(StandardCharsets.UTF_8),
+                HMAC_ALGO
+            ));
+            byte[] hash = mac.doFinal(rawBody.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) sb.append(String.format("%02x", b));
+            if (!sb.toString().equals(razorpaySignature)) {
+                throw new SecurityException("Signature mismatch - possible payment forgery");
             }
-            
-            // Update payment and booking status
-            Payment payment = paymentRepository.findByRazorpayOrderId(orderId)
-                    .orElseThrow(() -> new RuntimeException("Payment not found"));
-            
-            payment.setRazorpayPaymentId(paymentId);
-            payment.setStatus("COMPLETED");
-            payment.setUpdatedAt(LocalDateTime.now());
-            paymentRepository.save(payment);
-            
-            Booking booking = payment.getBooking();
+        } catch (SecurityException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new SecurityException("HMAC verification failed: " + e.getMessage());
+        }
+    }
+
+    @Transactional
+    public void handlePaymentCaptured(String bookingId, String razorpayPaymentId) {
+        Booking booking = bookingRepository
+            .findById(java.util.UUID.fromString(bookingId))
+            .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+        
+        if (!BookingStatus.CONFIRMED.equals(booking.getStatus())) {
+            booking.setStatus(BookingStatus.CONFIRMED);
             booking.setPaymentStatus("COMPLETED");
-            booking.setStatus(Booking.BookingStatus.CONFIRMED);
-            booking.setRazorpayPaymentId(paymentId);
-            booking.setUpdatedAt(LocalDateTime.now());
+            booking.setRazorpayPaymentId(razorpayPaymentId);
             bookingRepository.save(booking);
-            
-        } catch (Exception e) {
-            throw new RuntimeException("Payment verification failed: " + e.getMessage());
+            log.info("✅ Payment Captured Hook confirmed booking: {}", bookingId);
         }
     }
 
-    /**
-     * Get payment by booking ID with authorization check
-     */
-    @Transactional(readOnly = true)
-    public PaymentResponse getPaymentByBooking(UUID bookingId, String userEmail) {
-        // Find the booking
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
-        
-        // Check if user is authorized (renter or owner)
-        boolean isRenter = booking.getRenter().getEmail().equals(userEmail);
-        boolean isOwner = booking.getListing().getOwner().getEmail().equals(userEmail);
-        
-        if (!isRenter && !isOwner) {
-            throw new RuntimeException("You are not authorized to view this payment");
-        }
-        
-        // Find payment for this booking
-        Payment payment = paymentRepository.findByBookingId(bookingId)
-                .orElseThrow(() -> new RuntimeException("Payment not found for this booking"));
-        
-        // Return payment response
-        return PaymentResponse.builder()
-                .orderId(payment.getRazorpayOrderId())
-                .amount(payment.getAmount())
-                .currency("INR")
-                .key(razorpayKey)
-                .bookingId(booking.getId())
-                .build();
-    }
-
-    /**
-     * Get payment by order ID (for internal use)
-     */
-    @Transactional(readOnly = true)
-    public PaymentResponse getPaymentByOrderId(String orderId) {
-        Payment payment = paymentRepository.findByRazorpayOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("Payment not found for order: " + orderId));
-        
-        return PaymentResponse.builder()
-                .orderId(payment.getRazorpayOrderId())
-                .amount(payment.getAmount())
-                .currency("INR")
-                .key(razorpayKey)
-                .bookingId(payment.getBooking().getId())
-                .build();
-    }
-
-    /**
-     * Get payment status
-     */
-    @Transactional(readOnly = true)
-    public String getPaymentStatus(UUID bookingId, String userEmail) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
-        
-        boolean isRenter = booking.getRenter().getEmail().equals(userEmail);
-        boolean isOwner = booking.getListing().getOwner().getEmail().equals(userEmail);
-        
-        if (!isRenter && !isOwner) {
-            throw new RuntimeException("You are not authorized to view this payment status");
-        }
-        
-        Payment payment = paymentRepository.findByBookingId(bookingId)
-                .orElseThrow(() -> new RuntimeException("Payment not found"));
-        
-        return payment.getStatus();
-    }
-
-    /**
-     * Process refund for a payment
-     */
-    @Transactional
-    public void processRefund(UUID bookingId, String userEmail, BigDecimal amount, String reason) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
-        
-        boolean isOwner = booking.getListing().getOwner().getEmail().equals(userEmail);
-        boolean isAdmin = false; // Check if user is admin (you can add admin check logic)
-        
-        if (!isOwner && !isAdmin) {
-            throw new RuntimeException("You are not authorized to process refund");
-        }
-        
-        Payment payment = paymentRepository.findByBookingId(bookingId)
-                .orElseThrow(() -> new RuntimeException("Payment not found"));
-        
-        if (!"COMPLETED".equals(payment.getStatus())) {
-            throw new RuntimeException("Cannot refund payment that is not completed");
-        }
-        
+    private Booking findOrThrow(String bookingId) {
+        java.util.UUID bookingUuid;
         try {
-            // Create refund request
-            JSONObject refundRequest = new JSONObject();
-            refundRequest.put("amount", amount.multiply(new BigDecimal(100)).intValue());
-            refundRequest.put("speed", "normal");
-            refundRequest.put("receipt", "refund_booking_" + bookingId);
-            refundRequest.put("notes", new JSONObject().put("reason", reason));
-            
-            // Process refund with Razorpay
-            Refund refund = razorpayClient.payments.refund(payment.getRazorpayPaymentId(), refundRequest);
-            
-            // Create refund payment record
-            Payment refundPayment = new Payment();
-            refundPayment.setBooking(booking);
-            refundPayment.setAmount(amount.negate());
-            refundPayment.setPaymentType("REFUND");
-            refundPayment.setRazorpayOrderId(refund.get("id"));
-            refundPayment.setRazorpayPaymentId(payment.getRazorpayPaymentId());
-            refundPayment.setStatus("COMPLETED");
-            refundPayment.setCreatedAt(LocalDateTime.now());
-            
-            paymentRepository.save(refundPayment);
-            
-            // Update original payment status
-            payment.setStatus("REFUNDED");
-            payment.setUpdatedAt(LocalDateTime.now());
-            paymentRepository.save(payment);
-            
-        } catch (RazorpayException e) {
-            throw new RuntimeException("Failed to process refund: " + e.getMessage());
+            bookingUuid = java.util.UUID.fromString(bookingId);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid booking ID format");
         }
+        return bookingRepository.findById(bookingUuid)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Booking not found: " + bookingId));
     }
 
-    /**
-     * Check if payment is completed for a booking
-     */
-    @Transactional(readOnly = true)
-    public boolean isPaymentCompleted(UUID bookingId) {
-        return paymentRepository.findByBookingId(bookingId)
-                .map(payment -> "COMPLETED".equals(payment.getStatus()))
-                .orElse(false);
-    }
-
-    @Transactional
-    public void handleWebhook(String payload) {
-        // Implement webhook handling for payment status updates
-        // This would process Razorpay webhook events
+    private String hmacSha256Hex(String data, String secret) {
         try {
-            JSONObject webhookData = new JSONObject(payload);
-            String event = webhookData.getString("event");
-            
-            if ("payment.captured".equals(event)) {
-                // Handle successful payment
-                JSONObject payment = webhookData.getJSONObject("payload").getJSONObject("payment").getJSONObject("entity");
-                String orderId = payment.getString("order_id");
-                
-                Payment dbPayment = paymentRepository.findByRazorpayOrderId(orderId)
-                        .orElseThrow(() -> new RuntimeException("Payment not found"));
-                
-                if (!"COMPLETED".equals(dbPayment.getStatus())) {
-                    dbPayment.setRazorpayPaymentId(payment.getString("id"));
-                    dbPayment.setStatus("COMPLETED");
-                    dbPayment.setUpdatedAt(LocalDateTime.now());
-                    paymentRepository.save(dbPayment);
-                    
-                    Booking booking = dbPayment.getBooking();
-                    booking.setPaymentStatus("COMPLETED");
-                    booking.setStatus(Booking.BookingStatus.CONFIRMED);
-                    booking.setRazorpayPaymentId(payment.getString("id"));
-                    booking.setUpdatedAt(LocalDateTime.now());
-                    bookingRepository.save(booking);
-                }
-            } else if ("payment.failed".equals(event)) {
-                // Handle failed payment
-                JSONObject payment = webhookData.getJSONObject("payload").getJSONObject("payment").getJSONObject("entity");
-                String orderId = payment.getString("order_id");
-                
-                Payment dbPayment = paymentRepository.findByRazorpayOrderId(orderId)
-                        .orElseThrow(() -> new RuntimeException("Payment not found"));
-                
-                dbPayment.setStatus("FAILED");
-                dbPayment.setUpdatedAt(LocalDateTime.now());
-                paymentRepository.save(dbPayment);
-                
-                Booking booking = dbPayment.getBooking();
-                booking.setPaymentStatus("FAILED");
-                booking.setUpdatedAt(LocalDateTime.now());
-                bookingRepository.save(booking);
-            }
+            Mac mac = Mac.getInstance(HMAC_ALGO);
+            mac.init(new SecretKeySpec(
+                    secret.getBytes(StandardCharsets.UTF_8), HMAC_ALGO));
+            byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(hash.length * 2);
+            for (byte b : hash) sb.append(String.format("%02x", b));
+            return sb.toString();
         } catch (Exception e) {
-            // Log error but don't throw to prevent webhook failure
-            System.err.println("Webhook processing failed: " + e.getMessage());
+            throw new RuntimeException("HMAC-SHA256 computation failed", e);
         }
     }
 }

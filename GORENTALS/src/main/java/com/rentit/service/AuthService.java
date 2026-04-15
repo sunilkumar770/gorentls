@@ -158,22 +158,19 @@ public class AuthService {
     }
 
     public AuthResponse adminLogin(LoginRequest request) {
-        // Check if admin user exists in admin_users table
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Admin not found"));
-        
-        AdminUser adminUser = adminUserRepository.findByUser(user)
+
+        adminUserRepository.findByUser(user)
                 .orElseThrow(() -> new RuntimeException("Not an admin user"));
-        
-        // Verify password
+
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new RuntimeException("Invalid credentials");
         }
-        
-        // Generate tokens
+
         String accessToken = jwtUtil.generateToken(user.getEmail(), "ADMIN");
         String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
-        
+
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)

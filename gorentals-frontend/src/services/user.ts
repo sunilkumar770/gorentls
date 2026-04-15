@@ -1,57 +1,30 @@
-import api from '../lib/axios';
-import { Profile } from '../types';
+import api from '@/lib/axios';
+import type { Profile } from '@/types';
 
-export interface UpdateProfileData {
-  fullName?: string;
-  phone?: string;
-  city?: string;
-  address?: string;
-  state?: string;
-  pincode?: string;
-  dateOfBirth?: string;
-  profilePicture?: string;
+export async function getProfile(): Promise<Profile> {
+  const res = await api.get<Profile>('/users/profile');
+  return res.data;
 }
 
-export interface KYCSubmissionData {
-  documentType: 'aadhaar' | 'pan' | 'passport';
-  idNumber: string;
-  documentUrl: string;
+export async function updateProfile(
+  data: Partial<Omit<Profile, 'id' | 'createdAt' | 'updatedAt' | 'role'>>,
+): Promise<Profile> {
+  const res = await api.put<Profile>('/users/profile', data);
+  return res.data;
 }
 
-export interface ChangePasswordData {
-  currentPassword: string;
-  newPassword: string;
+export async function uploadAvatar(
+  file: File,
+): Promise<{ avatarUrl: string }> {
+  const fd = new FormData();
+  fd.append('avatar', file);
+  const res = await api.post<{ avatarUrl: string }>('/users/avatar', fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
 }
 
-export interface AuthResponse {
-  accessToken: string;
-  refreshToken?: string;
-  userType: string;
-  email: string;
-  fullName: string;
-  userId: string;
+export async function getUserById(userId: string): Promise<Profile> {
+  const res = await api.get<Profile>(`/users/${userId}`);
+  return res.data;
 }
-
-export const userService = {
-  getMe: async () => {
-    const response = await api.get<Profile>('/users/me');
-    return response.data;
-  },
-
-  updateProfile: async (data: UpdateProfileData) => {
-    const response = await api.patch<Profile>('/users/profile', data);
-    return response.data;
-  },
-
-  changePassword: async (data: ChangePasswordData) => {
-    const response = await api.post<{ message: string; success: boolean }>('/users/password', data);
-    return response.data;
-  },
-
-  submitKYC: async (data: KYCSubmissionData) => {
-    const response = await api.post<Profile>('/users/kyc', data);
-    return response.data;
-  },
-
-  // upgradeToOwner removed — /api/users/upgrade does not exist in backend
-};

@@ -1,20 +1,26 @@
 'use client';
 
-import { useAuth as useAuthContext } from '@/contexts/AuthContext';
+import { useContext } from 'react';
+import { AuthContext } from '@/contexts/AuthContext';
 
 export function useAuth() {
-  const { user: profile, isLoading: loading, login, logout, token } = useAuthContext();
-  
-  // To preserve compatibility with previous Supabase hook shape
-  // user maps to profile (since we use a unified object)
-  return { 
-    user: profile, 
-    profile, 
-    loading, 
-    isOwner: profile?.userType === 'OWNER',
-    isAdmin: profile?.userType === 'ADMIN',
-    login,
-    logout,
-    token
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
+
+  const raw = ctx.user?.userType ?? ctx.user?.role ?? '';
+  // Strip Spring's ROLE_ prefix if present (e.g. ROLE_ADMIN → ADMIN)
+  const userType = (typeof raw === 'string' ? raw : '').replace(/^ROLE_/, '').toUpperCase();
+
+  return {
+    ...ctx,
+    userType,
+    isAuthenticated: !!ctx.user,
+    isAdmin:  userType === 'ADMIN' || userType === 'SUPER_ADMIN',
+    isOwner:  userType === 'OWNER',
+    isRenter: userType === 'RENTER',
+    
+    // Backward compatibility aliases
+    profile: ctx.user,
+    loading: ctx.isLoading,
   };
 }

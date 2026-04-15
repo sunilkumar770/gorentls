@@ -14,19 +14,19 @@ export function ListingCard({ listing }: { listing: Listing }) {
       || '/placeholder-item.jpg')
     : '/placeholder-item.jpg';
 
-  const store = Array.isArray(listing.stores) ? listing.stores[0] : listing.stores;
-  const city = store?.store_city || null;
-  const rating = Number(listing.average_rating || 0);
-  const reviewCount = Number(listing.total_reviews || 0);
+  // "stores" is deprecated, city is directly on the Listing now.
+  const city = listing.city || null;
+  const rating = 0;
+  const reviewCount = 0;
 
   const categoryEmoji: Record<string, string> = {
     CAMERAS: '📸', cameras: '📸',
     GAMING: '🎮', gaming: '🎮',
-    AUDIO: '🎵', audio: '🎵',
-    ELECTRONICS: '⚡', electronics: '⚡',
+    AUDIO: '🎧', audio: '🎧',
+    ELECTRONICS: '💻', electronics: '💻',
     BIKES: '🚲', bikes: '🚲',
-    TOOLS: '🔧', tools: '🔧',
-    SPORTS: '🏋️', sports: '🏋️',
+    TOOLS: '🛠️', tools: '🛠️',
+    SPORTS: '⚽', sports: '⚽',
     CAMPING: '⛺', camping: '⛺',
   };
   const emoji = categoryEmoji[listing.category] || '📦';
@@ -54,9 +54,9 @@ export function ListingCard({ listing }: { listing: Listing }) {
           )}
 
           {/* Availability badge */}
-          {!listing.is_available && (
-            <div className="absolute inset-0 bg-gray-900/40 flex items-center justify-center">
-              <span className="px-3 py-1 bg-white text-[#374151] text-xs font-semibold rounded-full">
+          {listing.is_available === false && (
+            <div className="absolute inset-0 bg-gray-900/60 rounded-2xl flex items-center justify-center z-10 pointer-events-none">
+              <span className="text-white font-semibold text-xs uppercase tracking-wider bg-black/50 px-3 py-1.5 rounded-full backdrop-blur-sm">
                 Unavailable
               </span>
             </div>
@@ -89,7 +89,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
           <div className="flex items-center justify-between mt-1">
             <div className="flex items-baseline gap-0.5">
               <span className="text-base font-bold text-[#111827]">
-                {formatCurrency(listing.price_per_day)}
+                {formatCurrency(listing.price_per_day ?? listing.pricePerDay ?? 0)}
               </span>
               <span className="text-xs text-[#9ca3af] font-normal">/day</span>
             </div>

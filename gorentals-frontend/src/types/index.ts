@@ -1,132 +1,268 @@
-export type UserType = 'OWNER' | 'RENTER' | 'ADMIN';
+// ────────────────────────────────────────────────────────────
+// Canonical type definitions — single source of truth for
+// all frontend components. Sync with backend enums exactly.
+// ────────────────────────────────────────────────────────────
 
-export interface Profile {
-  id: string;
-  email: string;
-  fullName: string | null;
-  phone: string | null;
-  profilePicture: string | null;
-  userType: UserType | null;
-  isActive: boolean;
-  kycStatus: 'PENDING' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | null;
-  kycDocumentType: string | null;
-  kycDocumentId: string | null;
-  kycDocumentUrl: string | null;
-  city: string | null;
-  state: string | null;
-  address: string | null;
-  pincode: string | null;
-  createdAt: string;
-}
-
-export interface Store {
-  id: string;
-  owner_id: string;
-  store_name: string;
-  store_description: string | null;
-  store_logo_url: string | null;
-  store_rating: number;
-  store_city: string | null;
-  verification_status: 'pending' | 'verified' | 'suspended' | 'rejected';
-  is_active: boolean;
-}
-
-export interface ListingImage {
-  id: string;
-  listing_id: string;
-  image_url: string;
-  is_primary: boolean;
-  display_order: number;
-}
-
-export interface Listing {
-  id: string;
-  store_id: string;
-  owner_id: string;
-  title: string;
-  description: string | null;
-  category: string;
-  subcategory: string | null;
-  brand: string | null;
-  condition: 'like_new' | 'excellent' | 'good' | 'fair';
-  price_per_day: number;
-  price_per_week: number | null;
-  price_per_month: number | null;
-  security_deposit: number;
-  is_published: boolean;
-  is_available: boolean;
-  average_rating: number;
-  total_reviews: number;
-  total_views: number;
-  created_at: string;
-  listing_images?: ListingImage[];
-  stores?: Store;
-}
-
+// ── Enums (must match Spring Boot BookingStatus exactly) ─────
 export type BookingStatus =
   | 'PENDING'
+  | 'ACCEPTED'
   | 'CONFIRMED'
-  | 'ACTIVE'
+  | 'IN_PROGRESS'
   | 'COMPLETED'
+  | 'RETURNED'
   | 'CANCELLED'
   | 'REJECTED';
 
-export interface Booking {
-  id: string;
-  listingId: string;
-  storeId: string;
-  renterId: string;
-  ownerId: string;
-  checkInDate: string;
-  checkOutDate: string;
-  rentalCost: number;
-  serviceFee: number;
-  securityDeposit: number;
-  totalAmount: number;
-  status: BookingStatus;
-  paymentStatus: 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
-  razorpayOrderId: string | null;
-  razorpayPaymentId: string | null;
-  createdAt: string;
-  listing?: Listing;
+export type PaymentStatus =
+  | 'PENDING'
+  | 'INITIATED'
+  | 'COMPLETED'
+  | 'PAID'         // legacy alias — treat same as COMPLETED
+  | 'FAILED'
+  | 'REFUNDED';
+
+export type UserRole =
+  | 'RENTER'
+  | 'OWNER'
+  | 'ADMIN'
+  | 'SUPER_ADMIN';
+
+// ── Image ─────────────────────────────────────────────────────
+export interface ListingImage {
+  id:             string;
+  listing_id?:    string;
+  image_url:      string;
+  is_primary:     boolean;
+  display_order?: number;
 }
 
+// ── Store ─────────────────────────────────────────────────────
+export interface Store {
+  id:                  string;
+  owner_id:            string;
+  store_name:          string;
+  store_description:   string | null;
+  store_logo_url:      string | null;
+  store_rating:        number;
+  store_city:          string | null;
+  verification_status: 'verified' | 'pending' | 'rejected';
+  is_active:           boolean;
+}
+
+// ── User shapes ───────────────────────────────────────────────
+export interface UserSummary {
+  id:       string;
+  fullName: string;
+  email:    string;
+  phone?:   string;
+}
+
+export interface User extends UserSummary {
+  role:      UserRole;
+  createdAt: string;
+}
+
+// ── Listing ───────────────────────────────────────────────────
+export interface Listing {
+  // ── Identity
+  id:        string;
+  store_id:  string;
+  owner_id:  string;
+
+  // ── Content
+  title:        string;
+  description:  string | null;
+  category:     string;
+  subcategory?: string | null;
+  brand?:       string | null;
+  condition?:   string | null;
+  location?:    string;
+  address?:     string;
+  city?:        string;
+  state?:       string;
+  type?:        string;
+
+  // ── Pricing
+  price_per_day:    number;
+  price_per_week?:  number | null;
+  price_per_month?: number | null;
+  security_deposit: number;
+
+  // ── Status
+  is_published: boolean;
+  is_available: boolean;
+
+  // ── Stats
+  average_rating: number;
+  total_reviews:  number;
+  total_views:    number;
+
+  // ── Timestamps
+  created_at:  string;
+  updated_at?: string;
+
+  // ── Relations
+  listing_images?: ListingImage[];
+  stores?:         Store;
+
+  // ── Legacy compat (backend raw fields still used by some components)
+  images?:         string[] | null;
+  pricePerDay?:    number;
+  securityDeposit?: number | null;
+  isAvailable?:    boolean;
+  isPublished?:    boolean;
+  owner?:          UserSummary;
+  createdAt?:      string;
+  updatedAt?:      string;
+}
+
+// ── Search filters ────────────────────────────────────────────
 export interface SearchFilters {
-  query?: string;
-  category?: string;
-  city?: string;
+  category?:  string;
+  city?:      string;
   min_price?: number;
   max_price?: number;
-  start_date?: string;
-  end_date?: string;
-  sort?: 'newest' | 'price_asc' | 'price_desc' | 'rating';
+  sort?:      'price_asc' | 'price_desc' | 'newest' | 'rating';
+  page?:      number;
+  size?:      number;
 }
 
-// ─── Notifications ────────────────────────────────────────────────────────────
+// ── BookingListing — lean shape returned inside booking responses ────────────
+export interface BookingListing {
+  id:              string;
+  title:           string;
+  city?:           string;
+  state?:          string;
+  pricePerDay?:    number;
+  securityDeposit?: number | null;
+  images?:         string[] | null;
+  listing_images?: ListingImage[];
+  type?:           string;
+}
 
+/** @deprecated use Listing instead — keep for backward-compat with existing components */
+export type ListingSummary = BookingListing;
+
+// ── Booking ───────────────────────────────────────────────────
+// Backend may return startDate/endDate OR checkInDate/checkOutDate.
+// Always use getBookingStartDate() / getBookingEndDate() from utils.ts.
+export interface Booking {
+  id:              string;
+  listing:         BookingListing;
+  renter:          UserSummary;
+  owner:           UserSummary;
+  startDate:       string;          // primary field
+  endDate:         string;          // primary field
+  checkInDate?:    string;          // fallback alias
+  checkOutDate?:   string;          // fallback alias
+  totalDays:       number;
+  rentalAmount:    number;
+  securityDeposit: number;
+  totalAmount:     number;
+  status:          BookingStatus;
+  paymentStatus:   PaymentStatus;
+  message?:        string;
+  razorpayOrderId?:   string;
+  razorpayPaymentId?: string;
+  createdAt:       string;
+  updatedAt:       string;
+}
+
+// ── Spring Boot paged response ────────────────────────────────
+export interface PagedResponse<T> {
+  content:       T[];
+  totalPages:    number;
+  totalElements: number;
+  number:        number;  // 0-indexed current page
+  size:          number;
+  first:         boolean;
+  last:          boolean;
+}
+
+// ── Auth ──────────────────────────────────────────────────────
+export interface AuthTokens {
+  accessToken:  string;
+  refreshToken?: string;
+  userType:     UserRole;
+  userId:       string;
+  email:        string;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Additions: Profile · Notification · Conversation · Message
+// ─────────────────────────────────────────────────────────────
+
+// ── User profile ──────────────────────────────────────────────
+export interface Profile {
+  id:          string;
+  fullName:    string;
+  email:       string;
+  phone?:      string;
+  role:        UserRole;
+  userType:    UserRole; // Unified field for RBAC
+  bio?:        string;
+  avatarUrl?:  string;
+  profilePicture?: string;
+  kycDocumentType?: string;
+  kycDocumentId?: string;
+  kycDocumentUrl?: string;
+  address?: string;
+  pincode?: string;
+  city?:       string;
+  state?:      string;
+  kycStatus?:  'NOT_SUBMITTED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+  isActive?:   boolean;
+  createdAt:   string;
+  updatedAt:   string;
+}
+
+// ── Notifications ─────────────────────────────────────────────
 export type NotificationType =
-  | 'BOOKING_CONFIRMED'
-  | 'NEW_BOOKING'
-  | 'LISTING_APPROVED'
-  | 'LISTING_REJECTED'
-  | 'PAYMENT_CONFIRMED'
-  | 'PAYMENT_RECEIVED'
-  | 'PAYMENT_FAILED'
-  | string; // forward-compatible with future types
+  | 'BOOKING_UPDATE'
+  | 'PAYMENT'
+  | 'MESSAGE'
+  | 'KYC_UPDATE'
+  | 'SYSTEM';
 
 export interface Notification {
   id:        string;
+  userId:    string;
   title:     string;
   message:   string;
   type:      NotificationType;
   isRead:    boolean;
+  link?:     string;
   createdAt: string;
 }
 
 export interface NotificationPage {
-  content:        Notification[];
-  totalElements:  number;
-  totalPages:     number;
-  number:         number;
-  size:           number;
+  content:       Notification[];
+  totalPages:    number;
+  totalElements: number;
+  number:        number;
+  unreadCount:   number;
+}
+
+// ── Messaging ─────────────────────────────────────────────────
+export interface ChatMessage {
+  id:             string;
+  conversationId: string;
+  senderId:       string;
+  senderName:     string;
+  content:        string;
+  isRead:         boolean;
+  createdAt:      string;
+}
+
+export interface Conversation {
+  id:             string;
+  listingId?:     string;
+  listingTitle?:  string;
+  listingImage?:  string;
+  otherUser:      UserSummary;  // the person you're talking TO
+  lastMessage?:   string;
+  lastMessageAt?: string;
+  unreadCount:    number;
+  createdAt:      string;
 }

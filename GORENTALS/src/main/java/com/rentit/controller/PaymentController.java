@@ -1,50 +1,63 @@
 package com.rentit.controller;
 
-import com.rentit.dto.PaymentInitiateRequest;
-import com.rentit.dto.PaymentResponse;
-import com.rentit.dto.PaymentVerificationRequest;
+import com.rentit.dto.VerifyPaymentRequest;
 import com.rentit.service.PaymentService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import org.json.JSONObject;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/payments")
+@RequiredArgsConstructor
 public class PaymentController {
 
-    @Autowired
-    private PaymentService paymentService;
-
-    @PostMapping("/initiate")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<PaymentResponse> initiatePayment(
-            @RequestBody PaymentInitiateRequest request,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(paymentService.initiatePayment(request, userDetails.getUsername()));
-    }
+    private final PaymentService paymentService;
 
     @PostMapping("/verify")
-    public ResponseEntity<?> verifyPayment(@RequestBody PaymentVerificationRequest request) {
-        paymentService.verifyPayment(request);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Map<String, String>> verifyPayment(@RequestBody VerifyPaymentRequest request) {
+        paymentService.verifyAndConfirmPayment(request);
+        return ResponseEntity.ok(Map.of("status", "success", "message", "Payment verified and booking confirmed"));
     }
 
-    @GetMapping("/booking/{bookingId}")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<PaymentResponse> getPaymentByBooking(
-            @PathVariable UUID bookingId,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(paymentService.getPaymentByBooking(bookingId, userDetails.getUsername()));
-    }
+    @PostMapping("/webhook")
+    public ResponseEntity<Map<String, String>> handleWebhook(
+            @RequestBody String rawBody,
+            @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature) {
+        try {
+            // 1. Verify HMAC signature BEFORE any processing
+            paymentService.verifyWebhookSignature(rawBody, signature);
 
-    @PostMapping("/webhook/razorpay")
-    public ResponseEntity<?> razorpayWebhook(@RequestBody String payload) {
-        paymentService.handleWebhook(payload);
-        return ResponseEntity.ok().build();
+            // 2. Parse the event type
+            JSONObject event     = new JSONObject(rawBody);
+            String     eventType = event.optString("event", "");
+
+            if ("payment.captured".equals(eventType)) {
+                JSONObject entity = event.getJSONObject("payload")
+                                         .getJSONObject("payment")
+                                         .getJSONObject("entity");
+
+                String paymentId = entity.getString("id");
+                String bookingId = "";
+                
+                if (!entity.isNull("notes")) {
+                    bookingId = entity.getJSONObject("notes").optString("bookingId", "");
+                }
+                
+                if (bookingId != null && !bookingId.isBlank()) {
+                    paymentService.handlePaymentCaptured(bookingId, paymentId);
+                }
+            }
+            return ResponseEntity.ok(Map.of("status", "ok"));
+
+        } catch (SecurityException e) {
+            System.err.println("[WEBHOOK-REJECTED] " + e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid signature"));
+        } catch (Exception e) {
+            System.err.println("[WEBHOOK-ERROR] " + e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("error", "Processing failed"));
+        }
     }
 }

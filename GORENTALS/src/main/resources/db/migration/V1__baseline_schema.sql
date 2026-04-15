@@ -155,29 +155,6 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read);
 
--- ── conversations ─────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS conversations (
-    id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    listing_id   UUID REFERENCES listings(id),
-    owner_id     UUID NOT NULL REFERENCES users(id),
-    renter_id    UUID NOT NULL REFERENCES users(id),
-    booking_id   UUID REFERENCES bookings(id),
-    created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at   TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
--- ── messages ─────────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS messages (
-    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-    sender_id       UUID NOT NULL REFERENCES users(id),
-    content         TEXT,
-    is_read         BOOLEAN   NOT NULL DEFAULT FALSE,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, created_at);
-
 -- ── admin_audit_logs ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS admin_audit_logs (
     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

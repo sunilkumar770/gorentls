@@ -35,6 +35,10 @@ public class ListingRequest {
     private Object specifications;
     
     private List<String> images;
+    
+    private Boolean isAvailable;
+    
+    private Boolean isPublished;
 
 	public String getTitle() {
 		return title;
@@ -122,5 +126,21 @@ public class ListingRequest {
 
 	public void setImages(List<String> images) {
 		this.images = images;
+	}
+
+	public Boolean getIsAvailable() {
+		return isAvailable;
+	}
+
+	public void setIsAvailable(Boolean isAvailable) {
+		this.isAvailable = isAvailable;
+	}
+
+	public Boolean getIsPublished() {
+		return isPublished;
+	}
+
+	public void setIsPublished(Boolean isPublished) {
+		this.isPublished = isPublished;
 	}
 }

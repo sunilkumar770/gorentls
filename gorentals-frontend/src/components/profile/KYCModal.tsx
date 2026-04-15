@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { X, Shield, CheckCircle, AlertCircle, Upload, Loader2, CreditCard, User, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { userService } from '@/services/user';
+import { updateProfile } from '@/services/user';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 
@@ -32,10 +32,11 @@ export default function KYCModal({ isOpen, onClose }: KYCModalProps) {
     setIsSubmitting(true);
     try {
       // Simulate document upload by passing a placeholder URL
-      const updated = await userService.submitKYC({
-        documentType: docType,
-        idNumber,
-        documentUrl: `https://gorentals.cdn/kyc/${docType}-${Date.now()}.pdf`,
+      const updated = await updateProfile({
+        kycStatus: 'PENDING',
+        kycDocumentType: docType,
+        kycDocumentId: idNumber,
+        kycDocumentUrl: `https://gorentals.cdn/kyc/${docType}-${Date.now()}.pdf`,
       });
       updateUser(updated);
       setStep(2);

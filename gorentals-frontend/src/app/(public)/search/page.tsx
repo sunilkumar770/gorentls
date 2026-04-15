@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useListings } from '@/hooks/useListings';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { ListingGrid } from '@/components/listing/ListingGrid';
+import ListingGrid from '@/components/listing/ListingGrid';
 import { CATEGORIES } from '@/constants';
 import { Search as SearchIcon, SlidersHorizontal } from 'lucide-react';
 import * as Select from '@radix-ui/react-select';

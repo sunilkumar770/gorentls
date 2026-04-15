@@ -3,6 +3,7 @@ package com.rentit.controller;
 import com.rentit.dto.BookingRequest;
 import com.rentit.dto.BookingResponse;
 import com.rentit.service.BookingService;
+import com.rentit.model.BookingStatus;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -57,7 +58,7 @@ public class BookingController {
     public ResponseEntity<BookingResponse> cancelBooking(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(bookingService.cancelBooking(id, userDetails.getUsername()));
+        return ResponseEntity.ok(bookingService.updateStatus(id, BookingStatus.CANCELLED, userDetails.getUsername()));
     }
 
     @PatchMapping("/{id}/accept")
@@ -65,7 +66,7 @@ public class BookingController {
     public ResponseEntity<BookingResponse> acceptBooking(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(bookingService.acceptBooking(id, userDetails.getUsername()));
+        return ResponseEntity.ok(bookingService.updateStatus(id, BookingStatus.ACCEPTED, userDetails.getUsername()));
     }
 
     @PatchMapping("/{id}/reject")
@@ -73,7 +74,7 @@ public class BookingController {
     public ResponseEntity<BookingResponse> rejectBooking(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(bookingService.rejectBooking(id, userDetails.getUsername()));
+        return ResponseEntity.ok(bookingService.updateStatus(id, BookingStatus.REJECTED, userDetails.getUsername()));
     }
 
     @PatchMapping("/{id}/complete")
@@ -81,6 +82,6 @@ public class BookingController {
     public ResponseEntity<BookingResponse> completeBooking(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(bookingService.completeBooking(id, userDetails.getUsername()));
+        return ResponseEntity.ok(bookingService.updateStatus(id, BookingStatus.COMPLETED, userDetails.getUsername()));
     }
 }

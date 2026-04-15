@@ -27,35 +27,42 @@ function LoginPageContent() {
     setLoading(true);
 
     try {
-      const { data, error } = userType === 'ADMIN' 
-        ? await adminSignIn(email, password)
-        : await signIn(email, password);
-      
-      if (error || !data) {
-        throw new Error(error || 'Failed to login');
-      }
+      if (userType === 'ADMIN') {
+        const { data, error } = await adminSignIn(email, password);
+        if (error || !data) {
+          throw new Error(error || 'Admin identity verification failed');
+        }
+        
+        const profile = buildProfile(data);
+        login(data.accessToken, profile);
+        
+        toast.success(`Welcome back, ${profile.fullName}`);
+        router.replace('/admin/dashboard');
 
-      const profile = buildProfile(data);
-      login(data.accessToken, profile);
-
-      toast.success('Welcome back to the collection.');
-      
-      // Smart redirection logic
-      if (redirectTo) {
-        router.push(redirectTo);
-      } else if (data.userType === 'ADMIN') {
-        router.push('/admin');
-      } else if (data.userType === 'OWNER') {
-        router.push('/owner/dashboard');
       } else {
-        router.push('/dashboard');
+        const { data, error } = await signIn(email, password);
+        if (error || !data) {
+          throw new Error(error || 'Identity verification failed');
+        }
+
+        const profile = buildProfile(data);
+        login(data.accessToken, profile);
+
+        toast.success('Welcome back to the collection.');
+        
+        const role = profile.role.toUpperCase();
+        const dest = role === 'OWNER' 
+          ? '/owner/dashboard' 
+          : redirectTo ?? '/dashboard';
+          
+        router.replace(dest);
       }
       
       router.refresh();
       
     } catch (err: any) {
-      toast.error(err.message || 'Identity verification failed');
-      console.error(err);
+      toast.error(err.message || 'Verification failed');
+      console.error('[login] Error:', err);
     } finally {
       setLoading(false);
     }

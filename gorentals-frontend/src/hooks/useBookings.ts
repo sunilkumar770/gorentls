@@ -1,46 +1,68 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { getRenterBookings, getOwnerBookings } from '@/services/bookings';
-import type { Booking } from '@/types';
+import { useState, useEffect, useCallback } from 'react';
+import api from '@/lib/axios';
+import type { Booking, PagedResponse } from '@/types';
 
-export function useRenterBookings(renterId: string | undefined) {
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
+type BookingsApiResponse = Booking[] | PagedResponse<Booking>;
 
-  const fetch = useCallback(() => {
-    // If we don't have an ID yet, we might still be loading auth.
-    // In a protected route, we'll eventually get one.
-    // If we stay in 'loading' state, we avoid the "No rentals" flicker.
-    if (!renterId) return;
-
-    setLoading(true);
-    getRenterBookings().then(data => {
-      setBookings(data);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [renterId]);
-
-  useEffect(() => { fetch(); }, [fetch]);
-
-  return { bookings, loading, refetch: fetch };
+function normalise(data: BookingsApiResponse): Booking[] {
+  if (Array.isArray(data)) return data;
+  if (data && 'content' in data) return data.content;
+  return [];
 }
 
-export function useOwnerBookings(ownerId: string | undefined) {
+// ── Renter: /bookings/my-bookings ────────────────────────────
+export function useRenterBookings(userId?: string) {
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState<string | null>(null);
 
-  const fetch = useCallback(() => {
-    if (!ownerId) return;
-
-    setLoading(true);
-    getOwnerBookings().then(data => {
-      setBookings(data);
+  const refetch = useCallback(async () => {
+    // Wait until we know whether a user is logged in
+    if (userId === undefined) return;
+    if (!userId) {
+      setBookings([]);
       setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [ownerId]);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await api.get<BookingsApiResponse>('/bookings/my-bookings');
+      setBookings(normalise(res.data));
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? 'Failed to load bookings.');
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => { refetch(); }, [refetch]);
 
-  return { bookings, loading, refetch: fetch };
+  return { bookings, loading, error, refetch };
+}
+
+// ── Owner: /bookings/owner/bookings ──────────────────────────
+export function useOwnerBookings() {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState<string | null>(null);
+
+  const refetch = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await api.get<BookingsApiResponse>('/bookings/owner/bookings');
+      setBookings(normalise(res.data));
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? 'Failed to load bookings.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { bookings, loading, error, refetch };
 }

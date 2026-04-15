@@ -92,6 +92,17 @@ public class ListingController {
         return ResponseEntity.ok(listingService.publishListing(id, userDetails.getUsername()));
     }
 
+    @PatchMapping("/{id}/availability")
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<ListingResponse> updateAvailability(
+            @PathVariable UUID id,
+            @RequestParam Boolean isAvailable,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(
+            listingService.updateAvailability(id, isAvailable, userDetails.getUsername())
+        );
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<?> deleteListing(

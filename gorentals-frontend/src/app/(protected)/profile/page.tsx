@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { userService } from '@/services/user';
+import { updateProfile } from '@/services/user';
+import api from '@/lib/axios';
 import KYCModal from '@/components/profile/KYCModal';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
@@ -48,13 +49,14 @@ export default function ProfileSettingsPage() {
     OWNER: 'Verified Owner',
     RENTER: 'Renter',
     ADMIN: 'Administrator',
-  }[user?.userType || 'RENTER'];
+    SUPER_ADMIN: 'Super Administrator',
+  }[user?.role || 'RENTER'];
 
   // Handlers
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     try {
-      const updated = await userService.updateProfile({ fullName, phone });
+      const updated = await updateProfile({ fullName, phone });
       updateUser(updated);
       toast.success('Profile updated successfully.');
       setEditing(false);
@@ -77,7 +79,7 @@ export default function ProfileSettingsPage() {
     }
     setPwdLoading(true);
     try {
-      await userService.changePassword({
+      await api.patch('/users/profile/password', {
         currentPassword: currentPwd,
         newPassword: newPwd,
       });
@@ -113,7 +115,7 @@ export default function ProfileSettingsPage() {
                   {user?.email}
                 </span>
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                  user?.userType === 'OWNER' ? 'bg-[#f0fdf4] text-[#15803d]' : 'bg-[#f3f4f6] text-[#4b5563]'
+                  user?.role === 'OWNER' ? 'bg-[#f0fdf4] text-[#15803d]' : 'bg-[#f3f4f6] text-[#4b5563]'
                 }`}>
                   {userTypeLabel}
                 </span>
@@ -165,7 +167,7 @@ export default function ProfileSettingsPage() {
           {activeTab === 'profile' && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
               
-              {user?.userType === 'RENTER' && (
+              {user?.role === 'RENTER' && (
                 <div className="mb-6">
                   <UpgradeOwnerCard />
                 </div>
@@ -177,34 +179,34 @@ export default function ProfileSettingsPage() {
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                      kycStatus === 'APPROVED' ? 'bg-[#f0fdf4] text-[#16a34a]' : 
-                      kycStatus === 'SUBMITTED' ? 'bg-amber-50 text-amber-500' : 'bg-gray-100 text-gray-500'
+                      kycStatus === 'VERIFIED' ? 'bg-[#f0fdf4] text-[#16a34a]' : 
+                      kycStatus === 'PENDING' ? 'bg-amber-50 text-amber-500' : 'bg-gray-100 text-gray-500'
                     }`}>
-                      {kycStatus === 'APPROVED' ? <CheckCircle2 className="w-6 h-6" /> :
-                       kycStatus === 'SUBMITTED' ? <Clock className="w-6 h-6" /> :
+                      {kycStatus === 'VERIFIED' ? <CheckCircle2 className="w-6 h-6" /> :
+                       kycStatus === 'PENDING' ? <Clock className="w-6 h-6" /> :
                        <Shield className="w-6 h-6" />}
                     </div>
                     <div>
                       <h3 className="font-bold text-[#111827]">
-                        {kycStatus === 'APPROVED' ? 'Identity Verified' : 
-                         kycStatus === 'SUBMITTED' ? 'Verification Pending' : 'Action Required'}
+                        {kycStatus === 'VERIFIED' ? 'Identity Verified' : 
+                         kycStatus === 'PENDING' ? 'Verification Pending' : 'Action Required'}
                       </h3>
                       <p className="text-sm text-[#6b7280]">
-                        {kycStatus === 'APPROVED' 
+                        {kycStatus === 'VERIFIED' 
                           ? 'You can now rent and list items freely.'
-                          : kycStatus === 'SUBMITTED'
+                          : kycStatus === 'PENDING'
                           ? 'We are reviewing your documents.'
                           : 'Verify your ID to unlock renting.'}
                       </p>
                     </div>
                   </div>
-                  {kycStatus !== 'APPROVED' && (
+                  {kycStatus !== 'VERIFIED' && (
                     <button 
                       onClick={() => setRequestingKYC(true)}
                       className="px-5 py-2.5 rounded-xl font-semibold text-sm bg-[#16a34a] hover:bg-[#15803d] text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={kycStatus === 'SUBMITTED'}
+                      disabled={kycStatus === 'PENDING'}
                     >
-                      {kycStatus === 'SUBMITTED' ? 'Submitted' : 'Verify Now'}
+                      {kycStatus === 'PENDING' ? 'Submitted' : 'Verify Now'}
                     </button>
                   )}
                 </div>

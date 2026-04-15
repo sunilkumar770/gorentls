@@ -15,48 +15,50 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-
 @Component
 public class AuthChannelInterceptor implements ChannelInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(AuthChannelInterceptor.class);
 
-    @Autowired private JwtUtil jwtUtil;
+    @Autowired private JwtUtil                jwtUtil;
     @Autowired private UserDetailsServiceImpl userDetailsService;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor =
-                MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-
+            MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
         if (accessor == null) return message;
 
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-            List<String> headers = accessor.getNativeHeader("Authorization");
-            if (headers == null || headers.isEmpty()) {
-                throw new IllegalArgumentException("Missing Authorization header in STOMP CONNECT");
+            String header = accessor.getFirstNativeHeader("Authorization");
+            log.info("[WS-AUTH] CONNECT — token present: {}", header != null);
+
+            if (header != null && header.startsWith("Bearer ")) {
+                String token = header.substring(7);
+                try {
+                    String email = jwtUtil.extractUsername(token);
+                    if (email == null) throw new IllegalArgumentException("null email in token");
+
+                    if (jwtUtil.validateToken(token, email)) {
+                        UserDetails ud = userDetailsService.loadUserByUsername(email);
+                        // Sets principal.getName() = email in ChatWebSocketController
+                        accessor.setUser(new UsernamePasswordAuthenticationToken(
+                            ud, null, ud.getAuthorities()));
+                        log.info("[WS-AUTH] ✓ Authenticated: {}", email);
+                    } else {
+                        log.warn("[WS-AUTH] ✗ Token invalid for: {}", email);
+                        throw new IllegalArgumentException("WS token validation failed");
+                    }
+                } catch (IllegalArgumentException e) {
+                    throw e;
+                } catch (Exception e) {
+                    log.error("[WS-AUTH] ✗ Error: {}", e.getMessage());
+                    throw new IllegalArgumentException("WS auth error: " + e.getMessage());
+                }
+            } else {
+                log.warn("[WS-AUTH] ✗ No Bearer token — rejecting CONNECT");
+                throw new IllegalArgumentException("WebSocket requires Authorization header");
             }
-            String header = headers.get(0);
-            if (header == null || !header.startsWith("Bearer ")) {
-                throw new IllegalArgumentException("Authorization header must start with Bearer");
-            }
-            String jwt = header.substring(7);
-            String username;
-            try {
-                username = jwtUtil.extractUsername(jwt);
-            } catch (Exception e) {
-                log.warn("WS CONNECT rejected: invalid JWT - {}", e.getMessage());
-                throw new IllegalArgumentException("Invalid JWT token");
-            }
-            if (username == null || !jwtUtil.validateToken(jwt, username)) {
-                throw new IllegalArgumentException("JWT validation failed");
-            }
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-            accessor.setUser(auth);
-            log.debug("WS CONNECT authenticated: {}", username);
         }
         return message;
     }

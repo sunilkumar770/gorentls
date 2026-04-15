@@ -49,6 +49,7 @@ public class Booking {
     private BigDecimal totalAmount;
     
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
     private BookingStatus status = BookingStatus.PENDING;
     
     @Column(name = "payment_status")
@@ -68,14 +69,7 @@ public class Booking {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
-    public enum BookingStatus {
-        PENDING,     // Initial booking request
-        CONFIRMED,   // Payment completed and accepted by owner
-        ACTIVE,      // Rental period started
-        COMPLETED,   // Returned and closed
-        CANCELLED,   // Cancelled by user or owner
-        REJECTED     // Rejected by owner
-    }
+
 
 	public UUID getId() {
 		return id;
