@@ -382,7 +382,9 @@ public class BookingService {
      * Check if listing is available for dates
      */
     public boolean isListingAvailable(UUID listingId, LocalDate startDate, LocalDate endDate) {
-        return !bookingRepository.isListingBooked(listingId, startDate, endDate);
+        boolean isBooked = bookingRepository.isListingBooked(listingId, startDate, endDate);
+        boolean isBlocked = blockedDateRepository.isDateRangeBlocked(listingId, startDate, endDate);
+        return !isBooked && !isBlocked;
     }
 
     /**
