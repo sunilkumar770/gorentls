@@ -153,15 +153,27 @@ public class MessageService {
     @Transactional
     public void markConversationRead(UUID conversationId, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+            .orElseThrow(() -> new RuntimeException("User not found: " + userEmail));
+
         Conversation conv = conversationRepository.findById(conversationId)
-            .orElseThrow(() -> new RuntimeException("Conversation not found"));
-        if (conv.getOwner().getId().equals(user.getId()))
+            .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+
+        // SECURITY GATE: user MUST be owner or renter — no other path
+        boolean isOwner  = conv.getOwner().getId().equals(user.getId());
+        boolean isRenter = conv.getRenter().getId().equals(user.getId());
+
+        if (!isOwner && !isRenter) {
+            throw new AccessDeniedException(
+                "Access denied: user " + userEmail + " is not a participant in " + conversationId);
+        }
+
+        if (isOwner) {
             conv.setOwnerUnread(0);
-        else
+        } else {
             conv.setRenterUnread(0);
+        }
         conversationRepository.save(conv);
-        log.info("[MSG] Read cleared: conv={} user={}", conversationId, userEmail);
+        log.info("[MSG] Read cleared for {} in conv={}", userEmail, conversationId);
     }
 
     // ── Mappers ───────────────────────────────────────────────────────────────

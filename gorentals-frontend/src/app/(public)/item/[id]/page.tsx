@@ -38,13 +38,13 @@ export default function ItemDetailPage() {
 
   // Production pricing formula: total = (days × pricePerDay) + securityDeposit
   const days    = startDate && endDate ? daysBetween(new Date(startDate), new Date(endDate)) : 0;
-  const rental  = days * (listing?.price_per_day ?? listing?.pricePerDay ?? 0);
-  const deposit = listing?.security_deposit ?? listing?.securityDeposit ?? 0;
+  const rental  = days * (listing?.price_per_day ?? 0);
+  const deposit = listing?.security_deposit ?? 0;
   const total   = rental + deposit;
 
   const isOwnListing = !!user && listing?.owner?.id === user.id;
   const canBook      =
-    isAuthenticated && listing?.isAvailable && !isOwnListing && !!startDate && !!endDate && days >= 1;
+    isAuthenticated && listing?.is_available && !isOwnListing && !!startDate && !!endDate && days >= 1;
 
   async function handleBookNow() {
     if (!canBook || !listing) return;
@@ -128,7 +128,7 @@ export default function ItemDetailPage() {
             <div>
               <div className="flex items-start justify-between gap-4 mb-2">
                 <h1 className="text-2xl font-bold text-gray-900">{listing.title}</h1>
-                {!listing.isAvailable && (
+                {!listing.is_available && (
                   <span className="px-3 py-1 bg-red-50 text-red-700 text-xs font-semibold rounded-full flex-shrink-0">
                     Not Available
                   </span>
@@ -200,7 +200,7 @@ export default function ItemDetailPage() {
             <div className="sticky top-6 bg-white rounded-2xl border border-gray-200 shadow-md p-6">
               <div className="mb-5">
                 <p className="text-3xl font-bold text-gray-900">
-                  ₹{(listing.price_per_day ?? listing.pricePerDay ?? 0).toLocaleString('en-IN')}
+                  ₹{(listing.price_per_day ?? 0).toLocaleString('en-IN')}
                   <span className="text-base font-normal text-gray-500">/day</span>
                 </p>
                 {deposit > 0 && (
@@ -235,7 +235,7 @@ export default function ItemDetailPage() {
               {days > 0 && (
                 <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-2 text-sm">
                   <div className="flex justify-between text-gray-600">
-                    <span>₹{(listing.price_per_day ?? listing.pricePerDay ?? 0).toLocaleString('en-IN')} × {days} day{days !== 1 ? 's' : ''}</span>
+                    <span>₹{(listing.price_per_day ?? 0).toLocaleString('en-IN')} × {days} day{days !== 1 ? 's' : ''}</span>
                     <span className="font-semibold text-gray-900">₹{rental.toLocaleString('en-IN')}</span>
                   </div>
                   {deposit > 0 && (
@@ -263,7 +263,7 @@ export default function ItemDetailPage() {
                                 flex items-center justify-center text-sm font-medium select-none">
                   You own this listing
                 </div>
-              ) : !listing.isAvailable ? (
+              ) : !listing.is_available ? (
                 <div className="w-full h-12 bg-red-50 text-red-400 rounded-xl
                                 flex items-center justify-center text-sm font-medium select-none">
                   Currently Unavailable
@@ -278,7 +278,7 @@ export default function ItemDetailPage() {
                 </button>
               )}
 
-              {isAuthenticated && listing.isAvailable && !isOwnListing && (
+              {isAuthenticated && listing.is_available && !isOwnListing && (
                 <p className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-3">
                   <Shield className="w-3.5 h-3.5" /> Secured by Razorpay
                 </p>

@@ -2,6 +2,7 @@ package com.rentit.config;
 
 import com.rentit.security.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,6 +25,9 @@ import java.util.List;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    @Value("${cors.allowed-origins}")
+    private String[] allowedOrigins;
 
     @Autowired private UserDetailsServiceImpl  userDetailsService;
     @Autowired private JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -52,17 +56,13 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // Browsers treat localhost and 127.0.0.1 as DIFFERENT origins — both required
-        config.setAllowedOrigins(List.of(
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "https://gorentls.vercel.app"
-        ));
+        // Origins from environment — no hardcoded URLs in code
+        config.setAllowedOrigins(Arrays.asList(allowedOrigins));
         config.setAllowedMethods(Arrays.asList("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
+        config.setMaxAge(3600L);  // cache preflight for 1 hour
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;

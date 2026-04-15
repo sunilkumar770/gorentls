@@ -1,6 +1,6 @@
 spring:
   application:
-    name: rentit-platform
+    name: gorentals
 
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/gorentals}
@@ -8,44 +8,61 @@ spring:
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
 
+    hikari:
+      maximum-pool-size: 10          # safe for free-tier Neon/Render (max 20 on paid)
+      minimum-idle: 2
+      connection-timeout: 30000      # 30s — fail fast rather than hang under load
+      idle-timeout: 600000           # 10m — release unused connections
+      max-lifetime: 1800000          # 30m — rotate before DB kills them
+      pool-name: GoRentalsHikariPool
+
   jpa:
     hibernate:
-      ddl-auto: ${DDL_AUTO:update}
+      ddl-auto: ${DDL_AUTO:update}   # override to "validate" in production
+    show-sql: false                  # never true in prod — leaks schema + data
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        jdbc:
-          lob:
-            non_contextual_creation: true
-        format_sql: true
-    show-sql: false
-
-  flyway:
-    enabled: false
+        format_sql: false
 
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
 
-razorpay:
-  key:
-    id: ${RAZORPAY_KEY:rzp_test_xxx}
-    secret: ${RAZORPAY_SECRET:xxx}
+  flyway:
+    enabled: false
 
-app:
-  frontend-url: ${FRONTEND_URL:http://localhost:3000}
-  jwt:
-    secret: ${JWT_SECRET:your-secret-key-change-in-production-min-32-characters-long}
-    expiration: ${JWT_EXPIRATION:86400000}
-  admin:
-    email: ${APP_ADMIN_EMAIL:admin@gorentals.com}
-    password: ${APP_ADMIN_PASSWORD:Admin@GoRentals2025!}
-    name: ${APP_ADMIN_NAME:GoRentals Admin}
+# JWT — all values from environment, no fallback in prod
+jwt:
+  secret: ${JWT_SECRET}              # NO default — app refuses to start if missing
+  expiration: ${JWT_EXPIRATION:86400000}    # 24h in ms (override to 3600000 for 1h in prod)
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days
 
+# Cloudinary — image uploads
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME:demo}
+  api-key: ${CLOUDINARY_API_KEY:demo}
+  api-secret: ${CLOUDINARY_API_SECRET:demo}
+
+# CORS origins — comma-separated list from environment
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+
+# Logging — production levels
 logging:
   level:
-    com.rentit: INFO
-    org.springframework.security: INFO
-    org.hibernate.SQL: WARN
-    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    root: WARN
+    com.rentit: INFO                 # your own code stays INFO
+    org.springframework.web: WARN
+    org.springframework.messaging: WARN   # silences WS handshake noise
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN         # change to DEBUG only for local troubleshooting
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+server:
+  port: ${PORT:8080}
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/plain

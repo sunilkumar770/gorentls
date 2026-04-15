@@ -87,12 +87,10 @@ export function ListingCard({ listing }: { listing: Listing }) {
 
           {/* Price row + rating */}
           <div className="flex items-center justify-between mt-1">
-            <div className="flex items-baseline gap-0.5">
               <span className="text-base font-bold text-[#111827]">
-                {formatCurrency(listing.price_per_day ?? listing.pricePerDay ?? 0)}
+                {formatCurrency(listing.price_per_day ?? 0)}
               </span>
               <span className="text-xs text-[#9ca3af] font-normal">/day</span>
-            </div>
 
             {rating > 0 && (
               <div className="flex items-center gap-1">

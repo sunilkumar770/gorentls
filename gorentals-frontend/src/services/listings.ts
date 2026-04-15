@@ -64,6 +64,7 @@ function mapListingResponse(data: any): Listing {
           is_active:           true,
         }
       : undefined,
+    owner: data.owner,
   };
 }
 

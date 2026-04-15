@@ -97,7 +97,7 @@ export default function WishlistPage() {
                         </p>
                       )}
                       <p className="text-sm font-bold text-gray-900 mt-2">
-                        ₹{(listing.price_per_day ?? listing.pricePerDay ?? 0).toLocaleString('en-IN')}
+                        ₹{(listing.price_per_day ?? 0).toLocaleString('en-IN')}
                         <span className="text-xs font-normal text-gray-400">/day</span>
                       </p>
                     </div>

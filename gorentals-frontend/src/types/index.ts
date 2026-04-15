@@ -105,16 +105,7 @@ export interface Listing {
   // ── Relations
   listing_images?: ListingImage[];
   stores?:         Store;
-
-  // ── Legacy compat (backend raw fields still used by some components)
-  images?:         string[] | null;
-  pricePerDay?:    number;
-  securityDeposit?: number | null;
-  isAvailable?:    boolean;
-  isPublished?:    boolean;
   owner?:          UserSummary;
-  createdAt?:      string;
-  updatedAt?:      string;
 }
 
 // ── Search filters ────────────────────────────────────────────

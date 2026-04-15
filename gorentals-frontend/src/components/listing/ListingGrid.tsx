@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { MapPin, ChevronLeft, ChevronRight, Package } from 'lucide-react';
 import type { Listing, PagedResponse } from '@/types';
-import { WishlistButton } from '@/components/listing/WishlistButton';
+import { ListingCard } from '@/components/listing/ListingCard';
+import { useListings } from '@/hooks/useListings';
 
 type ListingsData = Listing[] | PagedResponse<Listing>;
 
@@ -15,77 +16,6 @@ interface ListingGridProps {
   emptyTitle?:   string;
   emptyBody?:    string;
   filters?:      any;
-}
-
-import { useListings } from '@/hooks/useListings';
-
-// ── Card ──────────────────────────────────────────────────────
-function ListingCard({ listing }: { listing: Listing }) {
-  const imageUrl =
-    listing.listing_images?.find(i => i.is_primary)?.image_url ??
-    listing.listing_images?.[0]?.image_url ??
-    null;
-
-  return (
-    <Link
-      href={`/item/${listing.id}`}
-      className="group bg-white rounded-2xl overflow-hidden border border-gray-100
-                 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
-    >
-      <div className="relative h-44 bg-gray-100 overflow-hidden">
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={listing.title}
-            loading="lazy"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Package className="w-12 h-12 text-gray-200" />
-          </div>
-        )}
-        {!listing.isAvailable && (
-          <span className="absolute top-2 left-2 px-2.5 py-1 bg-red-500 text-white
-                           text-xs font-semibold rounded-full z-10">
-            Unavailable
-          </span>
-        )}
-        {listing.category && listing.isAvailable && (
-          <span className="absolute top-3 left-3 px-2.5 py-1 bg-white/95 backdrop-blur-sm
-                           text-xs font-semibold text-gray-700 rounded-full shadow-sm z-10">
-            {listing.category}
-          </span>
-        )}
-        <div className="absolute top-2 right-2 z-10">
-          <WishlistButton listingId={listing.id} />
-        </div>
-      </div>
-
-      <div className="p-4">
-        <h3 className="font-semibold text-gray-900 truncate text-sm leading-snug mb-1">
-          {listing.title}
-        </h3>
-        {listing.city && (
-          <p className="flex items-center gap-1 text-xs text-gray-400 mb-3 truncate">
-            <MapPin className="w-3 h-3 flex-shrink-0" />
-            {listing.city}{listing.state ? `, ${listing.state}` : ''}
-          </p>
-        )}
-        <div className="flex items-baseline justify-between">
-          <p className="text-sm font-bold text-gray-900">
-            ₹{(listing.pricePerDay ?? 0).toLocaleString('en-IN')}
-            <span className="text-xs font-normal text-gray-400">/day</span>
-          </p>
-          {(listing.securityDeposit ?? 0) > 0 && (
-            <p className="text-xs text-gray-400">
-              +₹{(listing.securityDeposit ?? 0).toLocaleString('en-IN')} dep
-            </p>
-          )}
-        </div>
-      </div>
-    </Link>
-  );
 }
 
 // ── Skeleton ──────────────────────────────────────────────────

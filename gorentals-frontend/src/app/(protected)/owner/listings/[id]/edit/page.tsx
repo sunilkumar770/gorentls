@@ -54,13 +54,13 @@ export default function EditListingPage() {
           description:     l.description     ?? '',
           category:        l.category        ?? '',
           condition:       l.condition       ?? '',
-          pricePerDay:     String(l.pricePerDay     ?? ''),
-          securityDeposit: String(l.securityDeposit ?? ''),
+          pricePerDay:     String(l.price_per_day     ?? ''),
+          securityDeposit: String(l.security_deposit ?? ''),
           city:            l.city   ?? '',
           state:           l.state  ?? '',
           address:         l.address ?? '',
-          isAvailable:     l.isAvailable ?? true,
-          isPublished:     l.isPublished ?? true,
+          isAvailable:     l.is_available ?? true,
+          isPublished:     l.is_published ?? true,
         });
         // Compose address string for Maps picker
         setAddressVal(

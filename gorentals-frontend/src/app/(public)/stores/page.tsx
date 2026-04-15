@@ -128,7 +128,7 @@ export default function StoresPage() {
                     <Link key={l.id} href={`/item/${l.id}`}>
                       <div className="flex justify-between items-center py-3 px-4 bg-[#fff8f6] rounded-[0.75rem] hover:bg-[#ffeae0] transition-colors">
                         <span className="text-sm font-bold text-[#251913] truncate max-w-[60%]">{l.title}</span>
-                        <span className="text-sm font-black text-[#f97316]">{formatCurrency(l.price_per_day ?? l.pricePerDay ?? 0)}/d</span>
+                        <span className="text-sm font-black text-[#f97316]">{formatCurrency(l.price_per_day ?? 0)}/d</span>
                       </div>
                     </Link>
                   ))}
