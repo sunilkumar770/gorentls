@@ -37,7 +37,7 @@ function LoginPageContent() {
         login(data.accessToken, profile);
         
         toast.success(`Welcome back, ${profile.fullName}`);
-        router.replace('/admin/dashboard');
+        router.replace('/admin');
 
       } else {
         const { data, error } = await signIn(email, password);

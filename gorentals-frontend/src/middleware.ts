@@ -76,7 +76,7 @@ export async function middleware(request: NextRequest) {
 
   // ── Guard: redirect logged-in users away from /login ──────────────────────
   if (pathname === '/login' && isLoggedIn) {
-    const dest = isAdmin ? '/admin/dashboard' : isOwner ? '/owner/dashboard' : '/';
+    const dest = isAdmin ? '/admin' : isOwner ? '/owner/dashboard' : '/';
     return NextResponse.redirect(new URL(dest, request.url));
   }
 
