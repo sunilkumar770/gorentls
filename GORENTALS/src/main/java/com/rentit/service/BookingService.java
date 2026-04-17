@@ -12,6 +12,8 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -57,12 +59,18 @@ public class BookingService {
         
         // Check if listing is available
         if (!listing.getIsAvailable() || !listing.getIsPublished()) {
-            throw new RuntimeException("Listing is not available for booking");
+            throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "This item is currently unavailable for booking"
+            );
         }
         
         // Check if listing is owned by the same user
         if (listing.getOwner().getId().equals(renter.getId())) {
-            throw new RuntimeException("You cannot book your own listing");
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "You cannot book your own listing"
+            );
         }
         
         // Validate dates
@@ -78,12 +86,14 @@ public class BookingService {
         }
         
         // Check for conflicting bookings (both in bookings and blocked_dates table)
-        boolean isBooked = bookingRepository.isListingBooked(listing.getId(), startDate, endDate);
+        boolean hasOverlap = bookingRepository.existsOverlappingBooking(listing.getId(), startDate, endDate);
         boolean isBlocked = blockedDateRepository.isDateRangeBlocked(listing.getId(), startDate, endDate);
 
-        if (isBooked || isBlocked) {
-            // Blocker 4: Use 409 Conflict logic (handled by throwing exception here, controller/frontend must catch)
-            throw new IllegalStateException("These dates are not available");
+        if (hasOverlap || isBlocked) {
+            throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "This item is already booked for the selected dates"
+            );
         }
         
         // Calculate total days and amount

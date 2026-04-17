@@ -70,8 +70,7 @@ export default function WishlistPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {listings.map(listing => {
-              const img = listing.listing_images?.find(i => i.is_primary)?.image_url
-                        ?? listing.listing_images?.[0]?.image_url ?? null;
+              const img = listing.listing_images?.[0]?.image_url ?? null;
               return (
                 <div key={listing.id} className="relative group">
                   <Link href={`/item/${listing.id}`}
@@ -91,9 +90,9 @@ export default function WishlistPage() {
                     </div>
                     <div className="p-4">
                       <h3 className="font-semibold text-gray-900 truncate text-sm">{listing.title}</h3>
-                      {listing.city && (
+                      {listing.stores?.store_city && (
                         <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">
-                          <MapPin className="w-3 h-3" />{listing.city}
+                          <MapPin className="w-3 h-3" />{listing.stores.store_city}
                         </p>
                       )}
                       <p className="text-sm font-bold text-gray-900 mt-2">

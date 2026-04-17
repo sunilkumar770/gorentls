@@ -65,47 +65,25 @@ export interface User extends UserSummary {
 
 // ── Listing ───────────────────────────────────────────────────
 export interface Listing {
-  // ── Identity
-  id:        string;
-  store_id:  string;
-  owner_id:  string;
-
-  // ── Content
-  title:        string;
-  description:  string | null;
-  category:     string;
-  subcategory?: string | null;
-  brand?:       string | null;
-  condition?:   string | null;
-  location?:    string;
-  address?:     string;
-  city?:        string;
-  state?:       string;
-  type?:        string;
-
-  // ── Pricing
-  price_per_day:    number;
-  price_per_week?:  number | null;
-  price_per_month?: number | null;
+  id: string;
+  title: string;
+  description: string | null;
+  category: string;
+  subcategory: string | null;
+  price_per_day: number;
   security_deposit: number;
-
-  // ── Status
-  is_published: boolean;
   is_available: boolean;
-
-  // ── Stats
-  average_rating: number;
-  total_reviews:  number;
-  total_views:    number;
-
-  // ── Timestamps
-  created_at:  string;
+  is_published: boolean;
+  created_at: string;
   updated_at?: string;
-
-  // ── Relations
-  listing_images?: ListingImage[];
-  stores?:         Store;
-  owner?:          UserSummary;
+  owner_id?: string;
+  listing_images: { id: string; image_url: string }[];
+  stores?: {
+    id: string;
+    store_name: string;
+    store_city: string;
+    verification_status: string;
+  };
 }
 
 // ── Search filters ────────────────────────────────────────────

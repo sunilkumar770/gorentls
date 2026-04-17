@@ -54,18 +54,18 @@ export default function EditListingPage() {
           title:           l.title           ?? '',
           description:     l.description     ?? '',
           category:        l.category        ?? '',
-          condition:       l.condition       ?? '',
+          condition:       '',
           pricePerDay:     String(l.price_per_day     ?? ''),
           securityDeposit: String(l.security_deposit ?? ''),
-          city:            l.city   ?? '',
-          state:           l.state  ?? '',
-          address:         l.address ?? '',
+          city:            l.stores?.store_city ?? '',
+          state:           '',
+          address:         '',
           isAvailable:     l.is_available ?? true,
           isPublished:     l.is_published ?? true,
         });
         // Compose address string for Maps picker
         setAddressVal(
-          [l.address, l.city, l.state].filter(Boolean).join(', ')
+          [l.stores?.store_city].filter(Boolean).join(', ')
         );
         setLoading(false);
       })

@@ -12,31 +12,21 @@ function mapListingResponse(data: any): Listing {
   return {
     // Identity
     id:       String(data.id),
-    store_id: data.owner?.id ? String(data.owner.id) : '',
-    owner_id: data.owner?.id ? String(data.owner.id) : '',
+    owner_id: data.owner ? String(data.owner.id) : undefined,
 
     // Content
     title:       data.title       ?? '',
     description: data.description ?? null,
     category:    data.category    ?? '',
     subcategory: data.type        ?? null,
-    brand:       null,
-    condition:   'good' as const,   // valid: 'like_new'|'excellent'|'good'|'fair'
 
     // Pricing — backend sends BigDecimal → JSON number
     price_per_day:    Number(data.pricePerDay)     || 0,
-    price_per_week:   null,
-    price_per_month:  null,
     security_deposit: Number(data.securityDeposit) || 0,
 
     // Status — strict boolean coercion, not truthy/falsy
     is_published: data.isPublished === true,   // null → false (was draft)
     is_available: data.isAvailable !== false,  // null → true  (assume live)
-
-    // Stats
-    average_rating: avgRating,
-    total_reviews:  ratingCount,
-    total_views:    0,
 
     // Timestamp
     created_at: data.createdAt ?? new Date().toISOString(),
@@ -44,27 +34,18 @@ function mapListingResponse(data: any): Listing {
     // Images — backend sends String[], interface wants ListingImage[]
     listing_images: (data.images ?? []).map((url: string, idx: number) => ({
       id:            `${data.id}-img-${idx}`,
-      listing_id:    String(data.id),
       image_url:     url,
-      is_primary:    idx === 0,
-      display_order: idx,
     })),
 
     // Store — derived from owner object in response
     stores: data.owner
       ? {
           id:                  String(data.owner.id),
-          owner_id:            String(data.owner.id),
           store_name:          data.owner.fullName ?? 'GoRentals',
-          store_description:   null,
-          store_logo_url:      null,
-          store_rating:        avgRating || 5,
-          store_city:          data.city ?? null,
-          verification_status: 'verified' as const,
-          is_active:           true,
+          store_city:          data.city ?? 'Unknown',
+          verification_status: 'verified',
         }
       : undefined,
-    owner: data.owner,
   };
 }
 

@@ -28,11 +28,11 @@ export default function StoresPage() {
   // Group by store/owner
   const storeMap = new Map<string, { name: string; city: string; listings: Listing[] }>();
   filtered.forEach(l => {
-    const storeId = l.owner?.id || 'unknown';
+    const storeId = l.owner_id || 'unknown';
     if (!storeMap.has(storeId)) {
       storeMap.set(storeId, {
-        name: l.owner?.fullName || 'Independent Collector',
-        city: l.city || 'Unknown Location',
+        name: l.stores?.store_name || 'Independent Collector',
+        city: l.stores?.store_city || 'Unknown Location',
         listings: [],
       });
     }

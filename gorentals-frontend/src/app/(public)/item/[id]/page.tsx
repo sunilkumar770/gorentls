@@ -46,11 +46,11 @@ export default function ItemDetailPage() {
   const startDate = selectedRange?.from ? format(selectedRange.from, 'yyyy-MM-dd') : '';
   const endDate   = selectedRange?.to ? format(selectedRange.to, 'yyyy-MM-dd') : '';
   const days    = selectedRange?.from && selectedRange?.to ? daysBetween(selectedRange.from, selectedRange.to) : 0;
-  const rental  = days * (listing?.price_per_day ?? listing?.pricePerDay ?? 0);
-  const deposit = listing?.security_deposit ?? listing?.securityDeposit ?? 0;
+  const rental  = days * (listing?.price_per_day ?? 0);
+  const deposit = listing?.security_deposit ?? 0;
   const total   = rental + deposit;
 
-  const isOwnListing = !!user && listing?.owner?.id === user.id;
+  const isOwnListing = !!user && listing?.owner_id === user.id;
   const canBook      =
     isAuthenticated && listing?.is_available && !isOwnListing && !!startDate && !!endDate && days >= 1;
 
@@ -147,20 +147,15 @@ export default function ItemDetailPage() {
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mb-4">
-                {listing.city && (
+                {listing.stores?.store_city && (
                   <span className="flex items-center gap-1">
                     <MapPin className="w-4 h-4" />
-                    {listing.city}{listing.state ? `, ${listing.state}` : ''}
+                    {listing.stores.store_city}
                   </span>
                 )}
                 {listing.category && (
                   <span className="px-2.5 py-0.5 bg-gray-100 rounded-full text-xs font-medium">
                     {listing.category}
-                  </span>
-                )}
-                {listing.condition && (
-                  <span className="px-2.5 py-0.5 bg-gray-100 rounded-full text-xs font-medium">
-                    {listing.condition}
                   </span>
                 )}
               </div>
@@ -175,12 +170,11 @@ export default function ItemDetailPage() {
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-[#16a34a]/10 rounded-full flex items-center justify-center">
                     <span className="text-[#16a34a] font-bold text-sm">
-                      {(listing.owner?.fullName ?? 'U').charAt(0).toUpperCase()}
+                      {(listing.stores?.store_name ?? 'U').charAt(0).toUpperCase()}
                     </span>
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 text-sm">{listing.owner?.fullName}</p>
-                    <p className="text-xs text-gray-400">{listing.owner?.email}</p>
+                    <p className="font-semibold text-gray-900 text-sm">{listing.stores?.store_name}</p>
                   </div>
                 </div>
               </div>

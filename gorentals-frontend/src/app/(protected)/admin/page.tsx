@@ -403,7 +403,7 @@ function ListingsTab() {
     finally { setBusy(null); }
   };
 
-  const getStatus = (l: any) => l.approvalStatus || (l.isPublished ? 'LIVE' : 'PENDING');
+  const getStatus = (l: any) => l.approvalStatus || (l.is_published ? 'LIVE' : 'PENDING');
 
   return (
     <div className="space-y-4">
@@ -442,12 +442,12 @@ function ListingsTab() {
                   </Td>
                   <Td>
                     <span className="font-medium text-[#251913]">
-                      {formatCurrency(l.pricePerDay ?? l.rentalPricePerDay ?? 0)}
+                      {formatCurrency(l.price_per_day ?? l.rentalPricePerDay ?? 0)}
                     </span>
                   </Td>
                   <Td><StatusBadge status={getStatus(l)} /></Td>
                   <Td>
-                    {(!l.isPublished) && (
+                    {(!l.is_published) && (
                       <div className="flex gap-1.5">
                         <ActionBtn label="Approve" variant="success"
                           disabled={busy === l.id}

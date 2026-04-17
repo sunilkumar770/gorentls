@@ -15,5 +15,26 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
            "ORDER BY c.updatedAt DESC")
     List<Conversation> findAllByParticipant(@Param("user") User user);
 
+    @Query("""
+        SELECT c FROM Conversation c
+        LEFT JOIN FETCH c.messages m
+        LEFT JOIN FETCH c.owner
+        LEFT JOIN FETCH c.renter
+        LEFT JOIN FETCH c.listing
+        WHERE c.id = :id
+        """)
+    Optional<Conversation> findByIdWithMessages(@Param("id") UUID id);
+
+    @Query("""
+        SELECT DISTINCT c FROM Conversation c
+        LEFT JOIN FETCH c.messages m
+        LEFT JOIN FETCH c.owner
+        LEFT JOIN FETCH c.renter
+        LEFT JOIN FETCH c.listing
+        WHERE c.owner = :user OR c.renter = :user
+        ORDER BY c.updatedAt DESC
+        """)
+    List<Conversation> findAllByParticipantWithMessages(@Param("user") User user);
+
     Optional<Conversation> findByListingIdAndRenterId(UUID listingId, UUID renterId);
 }

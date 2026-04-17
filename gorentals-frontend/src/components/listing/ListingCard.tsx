@@ -9,13 +9,12 @@ export function ListingCard({ listing }: { listing: Listing }) {
   const [imgError, setImgError] = useState(false);
 
   const imgSrc = !imgError
-    ? (listing.listing_images?.find(img => img.is_primary)?.image_url
-      || listing.listing_images?.[0]?.image_url
+    ? (listing.listing_images?.[0]?.image_url
       || '/placeholder-item.jpg')
     : '/placeholder-item.jpg';
 
-  // "stores" is deprecated, city is directly on the Listing now.
-  const city = listing.city || null;
+  // "stores" is deprecated, city is directly on the Listing now. wait actually it is in stores now based on strict type.
+  const city = listing.stores?.store_city || null;
   const rating = 0;
   const reviewCount = 0;
 

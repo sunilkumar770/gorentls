@@ -90,17 +90,19 @@ public class MessageService {
     }
 
     // ── REST ─────────────────────────────────────────────────────────────────
+    @Transactional(readOnly = true)
     public List<ConversationResponse> getUserConversations(String userEmail) {
         User user = userRepository.findByEmail(userEmail)
             .orElseThrow(() -> new RuntimeException("User not found"));
-        return conversationRepository.findAllByParticipant(user)
+        return conversationRepository.findAllByParticipantWithMessages(user)
             .stream().map(this::mapToConversationResponse).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public ConversationResponse getConversation(UUID id, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
             .orElseThrow(() -> new RuntimeException("User not found"));
-        Conversation conv = conversationRepository.findById(id)
+        Conversation conv = conversationRepository.findByIdWithMessages(id)
             .orElseThrow(() -> new RuntimeException("Conversation not found"));
         if (!conv.getOwner().getId().equals(user.getId()) &&
             !conv.getRenter().getId().equals(user.getId()))
@@ -136,6 +138,7 @@ public class MessageService {
             });
     }
 
+    @Transactional(readOnly = true)
     public List<MessageResponse> getMessages(UUID conversationId, String userEmail,
                                               int page, int size) {
         User user = userRepository.findByEmail(userEmail)

@@ -8,14 +8,14 @@ import {
 } from '@/services/listings';
 import { ArrowLeft, Upload, Trash2, Star, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import type { Listing, ListingImage } from '@/types';
+import type { Listing } from '@/types';
 
 export default function ManageImagesPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
   const [listing,   setListing]   = useState<Listing | null>(null);
-  const [images,    setImages]    = useState<ListingImage[]>([]);
+  const [images,    setImages]    = useState<Array<{id: string; image_url: string; is_primary?: boolean}>>([]);
   const [loading,   setLoading]   = useState(true);
   const [uploading, setUploading] = useState(false);
   const [busy,      setBusy]      = useState<Set<string>>(new Set());

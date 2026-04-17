@@ -36,16 +36,28 @@ interface AdminUser {
   phone?:     string;
 }
 interface AdminListing {
-  id:          string;
-  title:       string;
-  pricePerDay: number;
-  isAvailable: boolean;
-  isPublished: boolean;
-  city?:       string;
-  category?:   string;
-  owner?:      { name?: string; fullName?: string; email?: string };
-  createdAt?:  string;
+  id:            string;
+  title:         string;
+  price_per_day: number;
+  is_available:  boolean;
+  is_published:  boolean;
+  city?:         string;
+  category?:     string;
+  owner?:        { name?: string; fullName?: string; email?: string };
+  createdAt?:    string;
 }
+
+const mapAdminListing = (l: any): AdminListing => ({
+  id:            l.id,
+  title:         l.title,
+  price_per_day: l.price_per_day ?? l.pricePerDay ?? 0,
+  is_available:  l.is_available  ?? l.isAvailable  ?? false,
+  is_published:  l.is_published  ?? l.isPublished  ?? false,
+  city:          l.city,
+  category:      l.category,
+  owner:         l.owner,
+  createdAt:     l.createdAt
+});
 interface AdminBooking {
   id:         string;
   status:     string;
@@ -93,26 +105,23 @@ export default function AdminDashboardPage() {
       switch (tab) {
         case 'overview': {
           const res = await api.get<DashboardStats>('/admin/dashboard/stats');
-          console.log('[admin] stats:', res.data);
           setStats(res.data);
           break;
         }
         case 'users':
         case 'owners': {
           const res = await api.get<{ content: AdminUser[] }>('/admin/users');
-          console.log('[admin] users:', res.data.content);
           setUsers(Array.isArray(res.data.content) ? res.data.content : []);
           break;
         }
         case 'listings': {
-          const res = await api.get<{ content: AdminListing[] }>('/admin/listings');
-          console.log('[admin] listings:', res.data.content);
-          setListings(Array.isArray(res.data.content) ? res.data.content : []);
+          const res = await api.get<{ content: any[] }>('/admin/listings');
+          const mapped = (res.data.content || []).map(mapAdminListing);
+          setListings(mapped);
           break;
         }
         case 'bookings': {
           const res = await api.get<{ content: AdminBooking[] }>('/admin/bookings');
-          console.log('[admin] bookings:', res.data.content);
           setBookings(Array.isArray(res.data.content) ? res.data.content : []);
           break;
         }
@@ -131,9 +140,9 @@ export default function AdminDashboardPage() {
   async function toggleListingActive(id: string, current: boolean) {
     setBusy(p => new Set(p).add(id));
     try {
-      await api.patch(`/admin/listings/${id}`, { isAvailable: !current, isPublished: !current });
+      await api.patch(`/admin/listings/${id}`, { is_available: !current, is_published: !current });
       setListings(p => p.map(l => l.id === id
-        ? { ...l, isAvailable: !current, isPublished: !current } : l));
+        ? { ...l, is_available: !current, is_published: !current } : l));
       toast.success(!current ? 'Listing activated.' : 'Listing deactivated.');
     } catch { toast.error('Failed to update listing.'); }
     finally { setBusy(p => { const s = new Set(p); s.delete(id); return s; }); }
@@ -167,21 +176,21 @@ export default function AdminDashboardPage() {
     if (activeTab === 'owners' && role !== 'OWNER') return false;
     if (!q) return true;
     return (u.name ?? u.fullName ?? '').toLowerCase().includes(q)
-        || u.email.toLowerCase().includes(q);
+        || (u.email ?? '').toLowerCase().includes(q);
   });
 
   const filteredListings = listings.filter(l => {
-    if (listingFilter === 'PENDING') return !l.isPublished;
-    if (listingFilter === 'ACTIVE')  return l.isPublished && l.isAvailable;
+    if (listingFilter === 'PENDING') return !l.is_published;
+    if (listingFilter === 'ACTIVE')  return l.is_published && l.is_available;
     return true;
   }).filter(l => !q
-    || l.title.toLowerCase().includes(q)
+    || (l.title ?? '').toLowerCase().includes(q)
     || (l.city  ?? '').toLowerCase().includes(q)
     || ((l.owner?.name ?? l.owner?.fullName ?? '').toLowerCase().includes(q)));
 
   const filteredBookings = bookings.filter(b =>
     !q
-    || b.status.toLowerCase().includes(q)
+    || (b.status ?? '').toLowerCase().includes(q)
     || (b.listing?.title  ?? '').toLowerCase().includes(q)
     || (b.renter?.name ?? b.renter?.fullName ?? '').toLowerCase().includes(q),
   );
@@ -228,7 +237,7 @@ export default function AdminDashboardPage() {
                 )}
                 {tab.id === 'listings' && (
                   <span className="text-xs bg-yellow-100 text-yellow-700 rounded-full px-2 py-0.5">
-                    {listings.filter(l => !l.isPublished).length || ''}
+                    {listings.filter(l => !l.is_published).length || ''}
                   </span>
                 )}
               </button>
@@ -277,7 +286,7 @@ export default function AdminDashboardPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {[
                         { label: 'Review KYC Applications', tab: 'users'    as TabId, count: stats.pendingKYC,    color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
-                        { label: 'Pending Listings',        tab: 'listings' as TabId, count: listings.filter(l => !l.isPublished).length, color: 'text-orange-600 bg-orange-50 border-orange-200' },
+                        { label: 'Pending Listings',        tab: 'listings' as TabId, count: listings.filter(l => !l.is_published).length, color: 'text-orange-600 bg-orange-50 border-orange-200' },
                         { label: 'View All Bookings',       tab: 'bookings' as TabId, count: stats.totalBookings,  color: 'text-blue-600 bg-blue-50 border-blue-200' },
                       ].map(a => (
                         <button key={a.tab}
@@ -403,9 +412,9 @@ export default function AdminDashboardPage() {
                                   ? 'bg-[#16a34a] text-white'
                                   : 'text-gray-500 hover:text-gray-700'}`}>
                         {f}
-                        {f === 'PENDING' && listings.filter(l => !l.isPublished).length > 0 && (
+                        {f === 'PENDING' && listings.filter(l => !l.is_published).length > 0 && (
                           <span className="ml-1.5 bg-white/20 rounded-full px-1.5">
-                            {listings.filter(l => !l.isPublished).length}
+                            {listings.filter(l => !l.is_published).length}
                           </span>
                         )}
                       </button>
@@ -440,26 +449,26 @@ export default function AdminDashboardPage() {
                             </td>
                             <td className="px-4 py-3 text-gray-500">{l.city ?? '—'}</td>
                             <td className="px-4 py-3 font-semibold text-gray-900 tabular-nums">
-                              ₹{(l.pricePerDay ?? 0).toLocaleString('en-IN')}
+                              ₹{(l.price_per_day ?? 0).toLocaleString('en-IN')}
                             </td>
                             <td className="px-4 py-3">
                               <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold
-                                ${l.isPublished && l.isAvailable ? 'bg-green-100 text-green-700' :
-                                  l.isPublished                  ? 'bg-yellow-100 text-yellow-700'
+                                ${l.is_published && l.is_available ? 'bg-green-100 text-green-700' :
+                                  l.is_published                  ? 'bg-yellow-100 text-yellow-700'
                                                                  : 'bg-red-100 text-red-700'}`}>
-                                {l.isPublished && l.isAvailable ? 'Active' :
-                                 l.isPublished                  ? 'Unavailable' : 'Unpublished'}
+                                {l.is_published && l.is_available ? 'Active' :
+                                 l.is_published                  ? 'Unavailable' : 'Unpublished'}
                               </span>
                             </td>
                             <td className="px-4 py-3">
                               <ActionBtn
-                                onClick={() => toggleListingActive(l.id, l.isPublished)}
+                                onClick={() => toggleListingActive(l.id, l.is_published)}
                                 loading={busy.has(l.id)}
-                                icon={l.isPublished
+                                icon={l.is_published
                                   ? <Ban         className="w-3.5 h-3.5" />
                                   : <CheckCircle2 className="w-3.5 h-3.5" />}
-                                label={l.isPublished ? 'Deactivate' : 'Activate'}
-                                variant={l.isPublished ? 'red' : 'green'} />
+                                label={l.is_published ? 'Deactivate' : 'Activate'}
+                                variant={l.is_published ? 'red' : 'green'} />
                             </td>
                           </tr>
                         ))}
