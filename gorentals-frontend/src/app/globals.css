@@ -1,63 +1,161 @@
+/* ── Fontshare Typefaces ── */
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@700,600,500,400&f[]=general-sans@600,500,400&display=swap');
+
 @import "tailwindcss";
 
+/* ── GoRentals Design System v3.0 — Deep Teal ── */
+:root {
+  /* Brand */
+  --primary:           #01696f;
+  --primary-hover:     #015a5f;
+  --primary-light:     #e6f4f4;
+  --primary-muted:     #014a4e;
+
+  /* Surfaces */
+  --bg:                #f7f6f2;
+  --bg-card:           #ffffff;
+  --bg-subtle:         #eeeee9;
+  --border:            rgba(1, 105, 111, 0.12);
+  --border-strong:     rgba(1, 105, 111, 0.25);
+
+  /* Text */
+  --text:              #1a1a18;
+  --text-muted:        #6b6b65;
+  --text-faint:        #9b9b93;
+
+  /* Radius */
+  --r-sm:              6px;
+  --r-md:              8px;
+  --r-lg:              12px;
+  --r-xl:              16px;
+  --r-2xl:             24px;
+  --r-pill:            9999px;
+
+  /* Shadows */
+  --shadow-card:       0 2px 8px rgba(1, 105, 111, 0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-hover:      0 8px 24px rgba(1, 105, 111, 0.12), 0 2px 6px rgba(0,0,0,0.06);
+  --shadow-nav:        0 1px 0 var(--border), 0 4px 16px rgba(0,0,0,0.04);
+}
+
+.dark {
+  --primary:           #02878e;
+  --primary-hover:     #029aa3;
+  --primary-light:     rgba(2, 135, 142, 0.15);
+  --primary-muted:     #01696f;
+
+  --bg:                #0f1115;
+  --bg-card:           #1a1d22;
+  --bg-subtle:         #22262d;
+  --border:            rgba(255,255,255,0.08);
+  --border-strong:     rgba(255,255,255,0.15);
+
+  --text:              #f0f0ed;
+  --text-muted:        #9b9b93;
+  --text-faint:        #6b6b65;
+
+  --shadow-card:       0 2px 8px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-hover:      0 8px 24px rgba(0,0,0,0.4);
+  --shadow-nav:        0 1px 0 rgba(255,255,255,0.06);
+}
+
 @theme {
-  /* ── GoRentals Design System ── */
-  --background: #f9fafb;
-  --foreground: #111827;
+  /* Map CSS vars into Tailwind theme */
+  --font-display: 'Satoshi', system-ui, sans-serif;
+  --font-sans:    'General Sans', system-ui, sans-serif;
 
-  --color-card: #ffffff;
-  --color-card-foreground: #111827;
-
-  --color-primary: #16a34a;
-  --color-primary-foreground: #ffffff;
-
-  --color-secondary: #15803d;
-  --color-secondary-foreground: #ffffff;
-
-  --color-muted: #f3f4f6;
-  --color-muted-foreground: #6b7280;
-
-  --color-accent: #16a34a;
-  --color-accent-foreground: #ffffff;
-
-  --color-border: #e5e7eb;
-  --color-input: #e5e7eb;
-  --color-ring: #16a34a;
-
-  --radius-xl: 1rem;
-
-  --font-display: "Inter", sans-serif;
-  --font-sans: "Inter", sans-serif;
+  --color-primary:       var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-light: var(--primary-light);
+  --color-bg:            var(--bg);
+  --color-card:          var(--bg-card);
+  --color-subtle:        var(--bg-subtle);
+  --color-text:          var(--text);
+  --color-muted:         var(--text-muted);
+  --color-faint:         var(--text-faint);
+  --color-border:        var(--border);
 }
 
 @layer base {
-  body {
-    @apply bg-[#f9fafb] text-[#111827] font-sans antialiased;
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
   }
 
-  h1, h2, h3, h4 {
-    @apply font-semibold tracking-tight text-[#111827];
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'General Sans', system-ui, sans-serif;
+    @apply antialiased;
+  }
+
+  h1, h2, h3, h4, h5 {
+    font-family: 'Satoshi', system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  ::selection {
+    background: rgba(1, 105, 111, 0.15);
+    color: var(--primary);
   }
 }
 
 @layer utilities {
-  /* Subtle card shadow */
-  .shadow-ambient {
-    box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.06);
+  /* ── Teal gradient CTA ── */
+  .gradient-teal {
+    background: linear-gradient(135deg, #01878e 0%, #01696f 100%);
   }
 
-  /* Green gradient for CTA buttons */
-  .gradient-signature {
-    @apply bg-gradient-to-br from-[#16a34a] to-[#15803d];
+  /* ── Frosted glass navbar ── */
+  .glass-nav {
+    background: rgba(247, 246, 242, 0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+  .dark .glass-nav {
+    background: rgba(15, 17, 21, 0.85);
   }
 
-  /* Glass panel (for modals/overlays) */
-  .glass-panel {
-    @apply bg-white/80 backdrop-blur-xl border border-white/30;
+  /* ── Card shadow ── */
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  .shadow-card-hover {
+    box-shadow: var(--shadow-hover);
   }
 
-  /* Green focus ring utility */
-  .focus-green {
-    @apply focus:outline-none focus:ring-2 focus:ring-[#16a34a] focus:ring-offset-2;
+  /* ── Shimmer skeleton ── */
+  .shimmer {
+    background: linear-gradient(90deg,
+      var(--bg-subtle) 25%,
+      var(--bg) 50%,
+      var(--bg-subtle) 75%
+    );
+    background-size: 400% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0%   { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
+
+  /* ── Teal underline (nav active) ── */
+  .nav-underline {
+    position: relative;
+  }
+  .nav-underline::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--primary);
+    border-radius: 999px;
+    transform: scaleX(1);
   }
 }

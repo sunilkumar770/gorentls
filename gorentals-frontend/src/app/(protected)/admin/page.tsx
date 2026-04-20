@@ -25,22 +25,22 @@ type Tab = 'overview' | 'users' | 'owners' | 'listings' | 'bookings' | 'audit';
 function StatusBadge({ status }: { status: string }) {
   const s = (status ?? '').toUpperCase();
   const map: Record<string, string> = {
-    ACTIVE: 'bg-green-100 text-green-700',
-    CONFIRMED: 'bg-blue-100 text-blue-700',
-    APPROVED: 'bg-green-100 text-green-700',
-    PENDING: 'bg-yellow-100 text-yellow-700',
-    COMPLETED: 'bg-gray-100 text-gray-600',
-    REJECTED: 'bg-red-100 text-red-600',
-    CANCELLED: 'bg-red-100 text-red-600',
-    SUSPENDED: 'bg-red-100 text-red-600',
-    PAID: 'bg-green-100 text-green-700',
-    UNPAID: 'bg-yellow-100 text-yellow-700',
-    RENTER: 'bg-sky-100 text-sky-700',
-    OWNER: 'bg-purple-100 text-purple-700',
-    ADMIN: 'bg-orange-100 text-orange-700',
+    ACTIVE: 'bg-[#f97316]/10 text-[#9d4300]',
+    CONFIRMED: 'bg-blue-100/50 text-blue-700',
+    APPROVED: 'bg-green-100/50 text-green-700',
+    PENDING: 'bg-amber-100/50 text-amber-700',
+    COMPLETED: 'bg-[#251913]/5 text-[#8c7164]',
+    REJECTED: 'bg-red-100/50 text-red-600',
+    CANCELLED: 'bg-red-100/50 text-red-600',
+    SUSPENDED: 'bg-red-100/50 text-red-600',
+    PAID: 'bg-green-100/50 text-green-700',
+    UNPAID: 'bg-amber-100/50 text-amber-700',
+    RENTER: 'bg-sky-100/50 text-sky-700',
+    OWNER: 'bg-purple-100/50 text-purple-700',
+    ADMIN: 'bg-[#f97316] text-white',
   };
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${map[s] ?? 'bg-gray-100 text-gray-600'}`}>
+    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${map[s] ?? 'bg-[#251913]/5 text-[#8c7164]'}`}>
       {status ?? '—'}
     </span>
   );
@@ -74,14 +74,14 @@ function StatCard({ label, value, icon, subtext, accent = false }: {
   icon: ReactNode; subtext: string; accent?: boolean;
 }) {
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#251913]/5">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${accent ? 'bg-[#f97316]/10 text-[#f97316]' : 'bg-[#251913]/5 text-[#251913]'
+    <div className="bg-white rounded-2xl p-6 shadow-ambient border border-[#e0c0b1]/20 hover:border-[#f97316]/30 transition-all group">
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${accent ? 'bg-[#f97316]/10 text-[#f97316]' : 'bg-[#251913]/5 text-[#251913]'
         }`}>
         {icon}
       </div>
-      <div className="font-display text-2xl font-bold text-[#251913]">{value}</div>
-      <div className="text-sm font-semibold text-[#251913] mt-0.5">{label}</div>
-      <div className="text-xs text-[#8c7164] mt-0.5">{subtext}</div>
+      <div className="font-display text-3xl font-bold text-[#251913] leading-none">{value}</div>
+      <div className="text-sm font-bold text-[#251913] mt-2 uppercase tracking-wide">{label}</div>
+      <div className="text-xs font-medium text-[#8c7164] mt-1">{subtext}</div>
     </div>
   );
 }
@@ -124,20 +124,20 @@ function SearchBar({
   placeholder?: string;
 }) {
   return (
-    <div className="relative max-w-sm">
-      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8c7164]" />
+    <div className="relative max-w-md">
+      <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8c7164]" />
       <input
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-8 pr-8 py-2 text-sm rounded-xl border border-[#251913]/10 bg-white
-                   focus:outline-none focus:ring-2 focus:ring-[#f97316]/30 placeholder:text-[#8c7164]/60"
+        className="w-full pl-10 pr-10 py-2.5 text-sm font-medium rounded-xl border border-[#e0c0b1]/30 bg-white
+                   focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 placeholder:text-[#8c7164]/50 shadow-sm"
       />
       {value && (
         <button onClick={() => onChange('')}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8c7164] hover:text-[#251913]">
-          <X size={14} />
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8c7164] hover:text-[#f97316] transition-colors">
+          <X size={16} />
         </button>
       )}
     </div>
@@ -628,7 +628,7 @@ function Loader({ label }: { label: string }) {
 
 function TableWrap({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-[#251913]/8 bg-white">
+    <div className="overflow-x-auto rounded-[1.5rem] border border-[#e0c0b1]/20 bg-white shadow-ambient">
       <table className="w-full text-sm">{children}</table>
     </div>
   );
@@ -666,30 +666,30 @@ export default function AdminDashboard() {
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-[#251913] rounded-xl flex items-center justify-center">
-            <Shield size={20} className="text-[#f97316]" />
+      <div className="flex items-center justify-between pt-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-[#251913] rounded-2xl flex items-center justify-center shadow-ambient">
+            <Shield size={24} className="text-[#f97316]" />
           </div>
           <div>
-            <h1 className="font-display text-2xl font-bold text-[#251913]">Control Center</h1>
-            <p className="text-sm text-[#8c7164]">System-wide oversight &amp; management</p>
+            <h1 className="font-display text-4xl font-bold text-[#251913] tracking-tight">Control Center</h1>
+            <p className="text-xs font-bold text-[#8c7164] uppercase tracking-widest mt-1">System-wide Authority</p>
           </div>
         </div>
         <button onClick={loadStats}
           title="Refresh all data"
-          className="p-2 rounded-xl border border-[#251913]/10 hover:bg-[#251913]/5 transition-colors">
-          <RefreshCw size={16} className="text-[#8c7164]" />
+          className="p-3 rounded-2xl glass-editorial shadow-ambient hover:scale-110 transition-all border border-[#e0c0b1]/30">
+          <RefreshCw size={18} className="text-[#f97316]" />
         </button>
       </div>
 
       {/* Tab Bar */}
-      <div className="flex gap-1 bg-[#251913]/5 p-1 rounded-2xl overflow-x-auto">
+      <div className="flex gap-2 glass-editorial p-2 rounded-[2rem] shadow-ambient overflow-x-auto">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${activeTab === t.id
-                ? 'bg-[#f97316] text-white shadow-sm'
-                : 'text-[#8c7164] hover:text-[#251913]'
+            className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${activeTab === t.id
+                ? 'gradient-sunset text-white shadow-ambient scale-[1.05]'
+                : 'text-[#8c7164] hover:text-[#251913] hover:bg-[#251913]/5'
               }`}>
             {t.icon} {t.label}
           </button>

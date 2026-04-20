@@ -33,8 +33,11 @@ public class BookingController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BookingResponse> getBooking(@PathVariable UUID id) {
-        return ResponseEntity.ok(bookingService.getBookingById(id));
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<BookingResponse> getBooking(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(bookingService.getBookingById(id, userDetails.getUsername()));
     }
 
     @GetMapping("/my-bookings")

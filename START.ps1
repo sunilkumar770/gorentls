@@ -1,4 +1,4 @@
-﻿# GoRentals One-Click Dev Launcher
+# GoRentals One-Click Dev Launcher
 # Run from repo root: .\START.ps1
 # Requires: Java 21, Maven, Node 18+
 
@@ -15,11 +15,21 @@ if (-not $env:JWT_SECRET) {
 
 Write-Host 'Starting GoRentals...' -ForegroundColor Cyan
 
+# Automated port cleanup
+$ports = @(8080, 3000)
+foreach ($port in $ports) {
+    $procId = (Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue).OwningProcess
+    if ($procId) {
+        Write-Host "  Port $port in use by PID $procId. Clearing..." -ForegroundColor Yellow
+        Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+    }
+}
+
 Write-Host 'Starting backend on :8080...' -ForegroundColor Green
 $backendJob = Start-Job -ScriptBlock {
     $env:JWT_SECRET = $args[0]
     Set-Location $using:PSScriptRoot\GORENTALS
-    mvn spring-boot:run -q
+    .\mvnw.cmd spring-boot:run -q
 } -ArgumentList $env:JWT_SECRET
 
 Start-Sleep -Seconds 3

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, ChevronLeft, ChevronRight, Package } from 'lucide-react';
+import { Package } from 'lucide-react';
 import type { Listing, PagedResponse } from '@/types';
 import { ListingCard } from '@/components/listing/ListingCard';
 import { useListings } from '@/hooks/useListings';
@@ -21,12 +21,12 @@ interface ListingGridProps {
 // ── Skeleton ──────────────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 animate-pulse">
-      <div className="h-44 bg-gray-200" />
-      <div className="p-4 space-y-2">
-        <div className="h-4 bg-gray-200 rounded w-3/4" />
-        <div className="h-3 bg-gray-200 rounded w-1/2" />
-        <div className="h-4 bg-gray-200 rounded w-1/3 mt-3" />
+    <div className="bg-white rounded-2xl overflow-hidden border border-[#01696f]/8 animate-pulse shadow-[0_2px_8px_rgba(1,105,111,0.04)]">
+      <div className="aspect-video bg-[#eeeee9]" />
+      <div className="p-4 space-y-2.5">
+        <div className="h-4 bg-[#eeeee9] rounded-lg w-3/4" />
+        <div className="h-3 bg-[#eeeee9] rounded-lg w-1/2" />
+        <div className="h-5 bg-[#eeeee9] rounded-lg w-1/3 mt-3" />
       </div>
     </div>
   );
@@ -50,8 +50,8 @@ export default function ListingGrid({
   emptyBody    = 'Try adjusting your filters or search in a different area.',
   filters,
 }: ListingGridProps) {
-  const { listings: fetchedListings, loading: fetchedLoading, error: fetchedError, setFilters } = useListings(filters || {});
-  
+  const { listings: fetchedListings, loading: fetchedLoading, error: fetchedError } = useListings(filters || {});
+
   const data = dataProp ?? fetchedListings;
   const currentLoading = dataProp ? loading : fetchedLoading;
   const currentError = dataProp ? error : fetchedError;
@@ -72,16 +72,18 @@ export default function ListingGrid({
   );
 
   if (currentError) return (
-    <div className="text-center py-14 bg-red-50 rounded-2xl">
+    <div className="text-center py-14 bg-red-50 rounded-2xl border border-red-100">
       <p className="text-red-500 font-medium text-sm">{currentError as string}</p>
     </div>
   );
 
   if (items.length === 0) return (
-    <div className="text-center py-20">
-      <div className="text-5xl mb-4">🔍</div>
-      <h3 className="text-lg font-semibold text-gray-800 mb-2">{emptyTitle}</h3>
-      <p className="text-gray-500 text-sm">{emptyBody}</p>
+    <div className="text-center py-20 bg-white rounded-2xl border border-[#01696f]/8">
+      <div className="w-16 h-16 bg-[#e6f4f4] rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <Package className="w-8 h-8 text-[#01696f]" strokeWidth={1.5} />
+      </div>
+      <h3 className="text-lg font-semibold text-[#1a1a18] mb-2">{emptyTitle}</h3>
+      <p className="text-[#6b6b65] text-sm max-w-xs mx-auto">{emptyBody}</p>
     </div>
   );
 
@@ -89,8 +91,10 @@ export default function ListingGrid({
 
   return (
     <div>
-      <p className="text-sm text-gray-500 mb-4">
-        {count.toLocaleString('en-IN')} listing{count !== 1 ? 's' : ''} found
+      {/* Listing count — no broken letter-spacing */}
+      <p className="text-sm font-medium text-[#6b6b65] mb-5">
+        <span className="font-bold text-[#1a1a18]">{count.toLocaleString('en-IN')}</span>
+        {' '}{count === 1 ? 'listing' : 'listings'} found
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -103,16 +107,16 @@ export default function ListingGrid({
           <button
             onClick={() => onPageChange(current - 1)}
             disabled={isFirst}
-            className="flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-xl
-                       border border-gray-200 text-gray-600 hover:bg-gray-50
+            className="flex items-center gap-1 px-4 py-2 text-sm font-semibold rounded-xl
+                       border border-[#01696f]/20 text-[#01696f] hover:bg-[#01696f]/5
                        disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            <ChevronLeft className="w-4 h-4" /> Prev
+            ← Prev
           </button>
 
           {pages.map((p, i) =>
             p === '…' ? (
-              <span key={`e${i}`} className="w-9 text-center text-gray-400 text-sm select-none">
+              <span key={`e${i}`} className="w-9 text-center text-[#9b9b93] text-sm select-none">
                 …
               </span>
             ) : (
@@ -120,10 +124,10 @@ export default function ListingGrid({
                 key={p}
                 onClick={() => onPageChange(p as number)}
                 aria-current={p === current ? 'page' : undefined}
-                className={`w-9 h-9 rounded-xl text-sm font-medium transition-colors
+                className={`w-9 h-9 rounded-xl text-sm font-semibold transition-colors
                   ${p === current
-                    ? 'bg-[#16a34a] text-white shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'bg-[#01696f] text-white shadow-sm'
+                    : 'text-[#6b6b65] hover:bg-[#01696f]/5 hover:text-[#01696f]'
                   }`}
               >
                 {(p as number) + 1}
@@ -134,11 +138,11 @@ export default function ListingGrid({
           <button
             onClick={() => onPageChange(current + 1)}
             disabled={isLast}
-            className="flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-xl
-                       border border-gray-200 text-gray-600 hover:bg-gray-50
+            className="flex items-center gap-1 px-4 py-2 text-sm font-semibold rounded-xl
+                       border border-[#01696f]/20 text-[#01696f] hover:bg-[#01696f]/5
                        disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            Next <ChevronRight className="w-4 h-4" />
+            Next →
           </button>
         </nav>
       )}

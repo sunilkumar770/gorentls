@@ -132,11 +132,23 @@ public class BookingService {
     }
 
     /**
-     * Get booking by ID
+     * Get booking by ID with ownership verification
      */
-    public BookingResponse getBookingById(UUID bookingId) {
+    public BookingResponse getBookingById(UUID bookingId, String callerEmail) {
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+        
+        User caller = userRepository.findByEmail(callerEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        boolean isRenter = booking.getRenter().getEmail().equals(callerEmail);
+        boolean isOwner  = booking.getListing().getOwner().getEmail().equals(callerEmail);
+        boolean isAdmin  = caller.getUserType() == User.UserType.ADMIN;
+
+        if (!isRenter && !isOwner && !isAdmin) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not authorized to view this booking");
+        }
+
         return mapToBookingResponse(booking);
     }
 
