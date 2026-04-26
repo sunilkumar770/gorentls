@@ -52,7 +52,12 @@ public class PaymentService {
                     "Cannot initiate payment. Current payment status: " + ps);
         }
 
-        long amountPaise = booking.getTotalAmount().multiply(new java.math.BigDecimal("100")).longValue();
+        // Convert to paise using HALF_UP — longValue() truncates, which would charge
+        // the wrong amount if totalAmount has sub-paise fractions from BigDecimal arithmetic.
+        long amountPaise = booking.getTotalAmount()
+                .multiply(new java.math.BigDecimal("100"))
+                .setScale(0, java.math.RoundingMode.HALF_UP)
+                .longValueExact();
 
         Map<String, Object> notes = new HashMap<>();
         notes.put("bookingId", bookingId);

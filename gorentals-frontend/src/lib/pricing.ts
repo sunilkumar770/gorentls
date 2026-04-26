@@ -53,9 +53,11 @@ export interface Phase2Quote {
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
-/** Round to 2dp HALF_UP — matches Java BigDecimal.setScale(2, HALF_UP) */
+/** Round to 2dp HALF_UP — matches Java BigDecimal.setScale(2, HALF_UP).
+ *  NOTE: do NOT use Number.EPSILON here — it can cause incorrect rounding
+ *  for values like 1.005. Plain multiplication is correct for currency inputs. */
 function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
+  return Math.round(n * 100) / 100;
 }
 
 /** Guard: NaN / Infinity / negative → 0 */

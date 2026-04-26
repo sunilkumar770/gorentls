@@ -47,9 +47,65 @@ export default function CheckoutPage() {
   }, []);
 
   async function handlePayNow() {
-    if (!booking) return;
-    toast("Payments coming soon — we'll notify you when it's live.", { icon: 'ℹ️' });
-    return;
+    if (!booking || paying) return;
+    setPaying(true);
+    try {
+      // Step 1 — create Razorpay order on backend
+      const order = await initiatePayment(booking.id);
+
+      // Step 2 — open Razorpay modal
+      const rzp = new (window as any).Razorpay({
+        key:         order.keyId,
+        amount:      order.amount,
+        currency:    order.currency,
+        order_id:    order.orderId,
+        name:        'GoRentals',
+        description: booking.listing?.title ?? 'Rental Booking',
+        prefill: {
+          name:  booking.renter?.fullName ?? '',
+          email: booking.renter?.email   ?? '',
+        },
+        theme: { color: '#16a34a' },
+
+        handler: async (response: {
+          razorpay_order_id:    string;
+          razorpay_payment_id:  string;
+          razorpay_signature:   string;
+        }) => {
+          try {
+            // Step 3 — verify payment signature on backend
+            await verifyPayment({
+              bookingId:          booking.id,
+              razorpayOrderId:    response.razorpay_order_id,
+              razorpayPaymentId:  response.razorpay_payment_id,
+              razorpaySignature:  response.razorpay_signature,
+            });
+            // Step 4 — redirect to success page
+            router.replace(`/payment/success?bookingId=${booking.id}`);
+          } catch {
+            toast.error('Payment verification failed. Contact support if amount was deducted.');
+            setPaying(false);
+          }
+        },
+
+        modal: {
+          ondismiss: () => {
+            toast('Payment cancelled.', { icon: '↩️' });
+            setPaying(false);
+          },
+        },
+      });
+
+      rzp.on('payment.failed', (resp: any) => {
+        toast.error(`Payment failed: ${resp.error?.description ?? 'Unknown error'}`);
+        setPaying(false);
+      });
+
+      rzp.open();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Could not initiate payment. Please try again.');
+      setPaying(false);
+    }
   }
 
   if (loading) return (
