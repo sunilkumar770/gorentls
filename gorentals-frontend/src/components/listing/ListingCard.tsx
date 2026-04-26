@@ -5,22 +5,28 @@ import Image from 'next/image';
 import type { Listing } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import { useState } from 'react';
-import { MapPin, Camera, Gamepad2, Wrench, Tent, Music, Package, ArrowRight } from 'lucide-react';
+import { MapPin, Camera, Gamepad2, Wrench, Tent, Music, Package, ArrowRight, Star, Bike, Laptop } from 'lucide-react';
 
-// ── Category icon map (SVG only, no emoji) ───────────────────────
-const CATEGORY_ICONS: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
-  CAMERAS:     { icon: Camera,   color: 'text-[#01696f]',  bg: 'bg-[#e6f4f4]' },
-  GAMING:      { icon: Gamepad2, color: 'text-purple-600', bg: 'bg-purple-50' },
-  TOOLS:       { icon: Wrench,   color: 'text-orange-600', bg: 'bg-orange-50' },
-  CAMPING:     { icon: Tent,     color: 'text-amber-600',  bg: 'bg-amber-50'  },
-  AUDIO:       { icon: Music,    color: 'text-blue-600',   bg: 'bg-blue-50'   },
-  ELECTRONICS: { icon: Camera,   color: 'text-slate-600',  bg: 'bg-slate-100' },
-  SPORTS:      { icon: Package,  color: 'text-green-600',  bg: 'bg-green-50'  },
+// ── Category icon map — teal palette only ─────────────────────
+const CATEGORY_ICONS: Record<string, React.ElementType> = {
+  CAMERAS:     Camera,
+  GAMING:      Gamepad2,
+  TOOLS:       Wrench,
+  CAMPING:     Tent,
+  AUDIO:       Music,
+  ELECTRONICS: Laptop,
+  SPORTS:      Bike,
+  LAPTOPS:     Laptop,
 };
 
-function getCategoryStyle(category?: string) {
-  if (!category) return CATEGORY_ICONS['CAMERAS'];
-  return CATEGORY_ICONS[category.toUpperCase()] ?? { icon: Package, color: 'text-[#6b6b65]', bg: 'bg-[#f7f6f2]' };
+function getCategoryIcon(category?: string): React.ElementType {
+  if (!category) return Package;
+  return CATEGORY_ICONS[category.toUpperCase()] ?? Package;
+}
+
+function getCategoryLabel(category?: string): string {
+  if (!category) return '';
+  return category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
 }
 
 export function ListingCard({ listing }: { listing: Listing }) {
@@ -31,11 +37,11 @@ export function ListingCard({ listing }: { listing: Listing }) {
     ? (listing.listing_images?.[0]?.image_url || null)
     : null;
 
-  const city = listing.stores?.store_city || null;
-  const { icon: CategoryIcon, color, bg } = getCategoryStyle(listing.category);
-  const categoryLabel = listing.category
-    ? listing.category.charAt(0).toUpperCase() + listing.category.slice(1).toLowerCase()
-    : '';
+  const city         = listing.stores?.store_city || null;
+  const ownerName    = listing.stores?.store_name || null;
+  const ownerInitial = ownerName ? ownerName.charAt(0).toUpperCase() : '?';
+  const CategoryIcon = getCategoryIcon(listing.category);
+  const categoryLabel = getCategoryLabel(listing.category);
 
   return (
     <Link
@@ -46,12 +52,12 @@ export function ListingCard({ listing }: { listing: Listing }) {
     >
       <div className={`bg-white rounded-2xl overflow-hidden transition-all duration-300 border border-[#01696f]/8 ${
         hovered
-          ? 'shadow-[0_8px_32px_rgba(1,105,111,0.12)] -translate-y-1'
+          ? 'shadow-[0_8px_32px_rgba(1,105,111,0.14)] -translate-y-1 border-[#01696f]/20'
           : 'shadow-[0_2px_8px_rgba(1,105,111,0.06)]'
       }`}>
 
         {/* Image — 16:9 ratio */}
-        <div className="relative aspect-video w-full bg-[#f7f6f2] overflow-hidden">
+        <div className="relative aspect-video w-full overflow-hidden bg-[#f7f6f2]">
           {imgSrc ? (
             <Image
               src={imgSrc}
@@ -63,10 +69,10 @@ export function ListingCard({ listing }: { listing: Listing }) {
               loading="lazy"
             />
           ) : (
-            /* Graceful placeholder — shimmer + icon */
+            /* Graceful placeholder */
             <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-[#f7f6f2]">
-              <div className={`w-14 h-14 ${bg} rounded-2xl flex items-center justify-center`}>
-                <CategoryIcon className={`w-7 h-7 ${color}`} strokeWidth={1.5} />
+              <div className="w-14 h-14 bg-[#e6f4f4] rounded-2xl flex items-center justify-center">
+                <CategoryIcon className="w-7 h-7 text-[#01696f]" strokeWidth={1.5} />
               </div>
               <span className="text-xs text-[#9b9b93] font-medium">No photo yet</span>
             </div>
@@ -81,9 +87,9 @@ export function ListingCard({ listing }: { listing: Listing }) {
             </div>
           )}
 
-          {/* Category pill — clean chip */}
+          {/* Category pill — with dark scrim for legibility on any image */}
           <div className="absolute top-3 left-3">
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold rounded-full border ${bg} ${color} border-current/20`}>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold rounded-full bg-black/40 text-white backdrop-blur-sm border border-white/10">
               <CategoryIcon className="w-3 h-3" strokeWidth={2} />
               {categoryLabel}
             </span>
@@ -115,6 +121,25 @@ export function ListingCard({ listing }: { listing: Listing }) {
               <span className="line-clamp-1">{city}</span>
             </div>
           )}
+
+          {/* Owner row */}
+          {ownerName && (
+            <div className="flex items-center gap-2">
+              {/* Initials avatar */}
+              <div className="w-5 h-5 rounded-full bg-[#01696f]/12 flex items-center justify-center flex-shrink-0">
+                <span className="text-[9px] font-bold text-[#01696f]">{ownerInitial}</span>
+              </div>
+              <span className="text-xs text-[#9b9b93] font-medium line-clamp-1">{ownerName}</span>
+            </div>
+          )}
+
+          {/* Rating row — "New listing" when no reviews */}
+          <div className="flex items-center gap-1">
+            <Star className="w-3 h-3 text-amber-400 fill-amber-400 flex-shrink-0" />
+            <span className="text-[11px] font-medium text-[#9b9b93]">
+              New listing
+            </span>
+          </div>
 
           {/* Price row */}
           <div className="flex items-baseline justify-between pt-2 border-t border-[#01696f]/8 mt-1">

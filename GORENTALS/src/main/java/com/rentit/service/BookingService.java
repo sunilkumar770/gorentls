@@ -5,15 +5,18 @@ import com.rentit.dto.BookingResponse;
 import com.rentit.dto.ListingResponse;
 import com.rentit.dto.UserResponse;
 import com.rentit.model.*;
+import com.rentit.model.BookingStatus;
+import com.rentit.pricing.PricingCalculator;
 import com.rentit.repository.*;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -23,83 +26,77 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import com.rentit.pricing.PricingCalculator;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class BookingService {
 
-    @Autowired
-    private BookingRepository bookingRepository;
-    
-    @Autowired
-    private ListingRepository listingRepository;
-    
-    @Autowired
-    private UserRepository userRepository;
-    
-    @Autowired
-    private PaymentRepository paymentRepository;
-    
-    @Autowired
-    private BlockedDateRepository blockedDateRepository;
+    private final BookingRepository     bookingRepository;
+    private final ListingRepository     listingRepository;
+    private final UserRepository        userRepository;
+    private final PaymentRepository     paymentRepository;
+    private final BlockedDateRepository blockedDateRepository;
+    private final NotificationService   notificationService;
 
-    @Autowired
-    private NotificationService notificationService;
+    // ─────────────────────────────────────────────────────────────────────────
+    // CREATE
+    // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Create a new booking request
+     * Create a new booking request.
+     * BUG-01 FIX: throw 404 ResponseStatusException, not bare RuntimeException.
+     * BUG-02 FIX: start date must be today or future (≥ today).
+     * BUG-03 FIX: end date must be strictly after start date (no same-day 0-day rentals).
      */
     @Transactional
     public BookingResponse createBooking(BookingRequest request, String userEmail) {
-        // Get the user (renter)
+
         User renter = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        // Get the listing
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Renter not found"));
+
         Listing listing = listingRepository.findById(request.getListingId())
-                .orElseThrow(() -> new RuntimeException("Listing not found"));
-        
-        // Check if listing is available
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
+
         if (!listing.getIsAvailable() || !listing.getIsPublished()) {
-            throw new ResponseStatusException(
-                HttpStatus.CONFLICT,
-                "This item is currently unavailable for booking"
-            );
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "This item is currently unavailable for booking");
         }
-        
-        // Check if listing is owned by the same user
+
         if (listing.getOwner().getId().equals(renter.getId())) {
-            throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "You cannot book your own listing"
-            );
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "You cannot book your own listing");
         }
-        
-        // Validate dates
+
+        // ── Date validation ──────────────────────────────────────────────────
         LocalDate startDate = request.getStartDate();
-        LocalDate endDate = request.getEndDate();
-        
-        if (startDate.isBefore(LocalDate.now())) {
-            throw new RuntimeException("Start date cannot be in the past");
+        LocalDate endDate   = request.getEndDate();
+        LocalDate today     = LocalDate.now();
+
+        // BUG-02: start must be today or in the future
+        if (startDate.isBefore(today)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Start date cannot be in the past");
         }
-        
-        if (endDate.isBefore(startDate)) {
-            throw new RuntimeException("End date must be after start date");
+        // BUG-03: end must be strictly after start (prevent 0-day bookings)
+        if (!endDate.isAfter(startDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "End date must be after start date");
         }
-        
-        // Check for conflicting bookings (both in bookings and blocked_dates table)
-        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(15);
-        boolean hasOverlap = bookingRepository.existsOverlappingBooking(listing.getId(), startDate, endDate, cutoff);
-        boolean isBlocked = blockedDateRepository.isDateRangeBlocked(listing.getId(), startDate, endDate);
+
+        // ── Availability check ───────────────────────────────────────────────
+        LocalDateTime cutoff    = LocalDateTime.now().minusMinutes(15);
+        boolean       hasOverlap = bookingRepository.existsOverlappingBooking(
+            listing.getId(), startDate, endDate, cutoff);
+        boolean       isBlocked  = blockedDateRepository.isDateRangeBlocked(
+            listing.getId(), startDate, endDate);
 
         if (hasOverlap || isBlocked) {
-            throw new ResponseStatusException(
-                HttpStatus.CONFLICT,
-                "This item is already booked for the selected dates"
-            );
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "This item is already booked for the selected dates");
         }
-        
-        // ─── Pricing (Phase 1) ─────────────────────────────────────────────────────
+
+        // ── Pricing ──────────────────────────────────────────────────────────
         long totalDays = Math.max(1, ChronoUnit.DAYS.between(startDate, endDate));
 
         BigDecimal rentalAmount    = listing.getPricePerDay()
@@ -107,12 +104,10 @@ public class BookingService {
         BigDecimal securityDeposit = listing.getSecurityDeposit() != null
                                      ? listing.getSecurityDeposit() : BigDecimal.ZERO;
 
-        // Delegate ALL fee arithmetic to PricingCalculator — never inline percentages here.
         PricingCalculator.Phase1Quote quote =
-                PricingCalculator.calcPhase1(rentalAmount, securityDeposit);
-        // ─────────────────────────────────────────────────────────────────────────
+            PricingCalculator.calcPhase1(rentalAmount, securityDeposit);
 
-        // Create booking
+        // ── Persist ──────────────────────────────────────────────────────────
         Booking booking = new Booking();
         booking.setListing(listing);
         booking.setRenter(renter);
@@ -126,407 +121,174 @@ public class BookingService {
         booking.setTotalAmount(quote.totalAmount);
         booking.setStatus(BookingStatus.PENDING);
         booking.setPaymentStatus("PENDING");
-        booking.setCreatedAt(LocalDateTime.now());
-        
-        Booking savedBooking = bookingRepository.save(booking);
-        
-        // Send notification to owner
+
+        Booking saved = bookingRepository.save(booking);
+        log.info("Booking created: {} for listing {} by renter {}",
+            saved.getId(), listing.getId(), renter.getEmail());
+
         notificationService.sendNotification(
             listing.getOwner().getId(),
             "New Booking Request",
-            String.format("You have a new booking request for %s from %s", 
+            String.format("You have a new booking request for '%s' from %s.",
                 listing.getTitle(), renter.getFullName()),
             "BOOKING_REQUEST"
         );
-        
-        return mapToBookingResponse(savedBooking);
+
+        return mapToBookingResponse(saved);
     }
 
-    /**
-     * Get booking by ID with ownership verification
-     */
+    // ─────────────────────────────────────────────────────────────────────────
+    // READ
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Get booking by ID with caller ownership verification. */
     @Transactional(readOnly = true)
     public BookingResponse getBookingById(UUID bookingId, String callerEmail) {
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
-        
-        User caller = userRepository.findByEmail(callerEmail)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
 
-        boolean isRenter = booking.getRenter() != null && booking.getRenter().getEmail().equals(callerEmail);
-        boolean isOwner  = booking.getListing() != null && 
-                           booking.getListing().getOwner() != null && 
-                           booking.getListing().getOwner().getEmail().equals(callerEmail);
+        User caller = userRepository.findByEmail(callerEmail)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        boolean isRenter = booking.getRenter() != null
+            && booking.getRenter().getEmail().equals(callerEmail);
+        boolean isOwner  = booking.getListing() != null
+            && booking.getListing().getOwner() != null
+            && booking.getListing().getOwner().getEmail().equals(callerEmail);
         boolean isAdmin  = caller.getUserType() == User.UserType.ADMIN;
 
         if (!isRenter && !isOwner && !isAdmin) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not authorized to view this booking");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                "Not authorized to view this booking");
         }
 
         return mapToBookingResponse(booking);
     }
 
-    /**
-     * Get bookings by user (renter)
-     */
+    /** Get paginated bookings for a renter. BUG-07 FIX: 404 not RuntimeException. */
     @Transactional(readOnly = true)
     public Page<BookingResponse> getBookingsByUser(String userEmail, Pageable pageable) {
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        Page<Booking> bookings = bookingRepository.findByRenterId(user.getId(), pageable);
-        return bookings.map(this::mapToBookingResponse);
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        return bookingRepository.findByRenterId(user.getId(), pageable)
+                                .map(this::mapToBookingResponse);
     }
 
-    /**
-     * Get bookings for owner
-     */
+    /** Get paginated bookings for an owner. BUG-07 FIX: 404 not RuntimeException. */
     @Transactional(readOnly = true)
     public Page<BookingResponse> getBookingsForOwner(String ownerEmail, Pageable pageable) {
         User owner = userRepository.findByEmail(ownerEmail)
-                .orElseThrow(() -> new RuntimeException("Owner not found"));
-        
-        // Check if user is actually an owner
-        if (owner.getUserType() != User.UserType.OWNER) {
-            throw new org.springframework.security.access.AccessDeniedException(
-              "User is not an owner");
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Owner not found"));
+
+        if (owner.getUserType() != User.UserType.OWNER
+            && owner.getUserType() != User.UserType.ADMIN) {
+            throw new AccessDeniedException("User is not an owner");
         }
-        
-        Page<Booking> bookings = bookingRepository.findByOwnerId(owner.getId(), pageable);
-        return bookings.map(this::mapToBookingResponse);
+
+        return bookingRepository.findByOwnerId(owner.getId(), pageable)
+                                .map(this::mapToBookingResponse);
     }
 
-    /**
-     * Cancel booking
-     */
-    @Transactional
-    public BookingResponse cancelBooking(UUID bookingId, String userEmail) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
-        
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        // Check if user is either renter or owner
-        boolean isRenter = booking.getRenter().getId().equals(user.getId());
-        boolean isOwner = booking.getListing().getOwner().getId().equals(user.getId());
-        
-        if (!isRenter && !isOwner) {
-            throw new RuntimeException("You are not authorized to cancel this booking");
-        }
-        
-        // Check if booking can be cancelled
-        if (booking.getStatus() == BookingStatus.COMPLETED) {
-            throw new RuntimeException("Cannot cancel completed booking");
-        }
-        
-        if (booking.getStatus() == BookingStatus.CANCELLED) {
-            throw new RuntimeException("Booking is already cancelled");
-        }
-        
-        // Update status
-        booking.setStatus(BookingStatus.CANCELLED);
-        booking.setUpdatedAt(LocalDateTime.now());
-        
-        Booking savedBooking = bookingRepository.save(booking);
-        
-        // Process refund if payment was completed
-        if ("COMPLETED".equals(booking.getPaymentStatus())) {
-            // TODO: Implement refund logic
-            notificationService.sendNotification(
-                booking.getRenter().getId(),
-                "Booking Cancelled - Refund Initiated",
-                String.format("Your booking for %s has been cancelled. Refund will be processed shortly.",
-                    booking.getListing().getTitle()),
-                "REFUND_INITIATED"
-            );
-        }
-        
-        // Send notification
-        UUID notifyUserId = isRenter ? booking.getListing().getOwner().getId() : booking.getRenter().getId();
-        notificationService.sendNotification(
-            notifyUserId,
-            "Booking Cancelled",
-            String.format("Booking for %s has been cancelled by %s",
-                booking.getListing().getTitle(),
-                user.getFullName()),
-            "BOOKING_CANCELLED"
-        );
-        
-        return mapToBookingResponse(savedBooking);
-    }  // <-- THIS CLOSING BRACE WAS MISSING
-
-    /**
-     * Accept booking (by owner)
-     */
-    @Transactional
-    public BookingResponse acceptBooking(UUID bookingId, String ownerEmail) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
-        
-        User owner = userRepository.findByEmail(ownerEmail)
-                .orElseThrow(() -> new RuntimeException("Owner not found"));
-        
-        // Verify owner owns the listing
-        if (!booking.getListing().getOwner().getId().equals(owner.getId())) {
-            throw new RuntimeException("You are not authorized to accept this booking");
-        }
-        
-        // Check if booking can be accepted
-        if (booking.getStatus() != BookingStatus.PENDING) {
-            throw new RuntimeException("Booking cannot be accepted in current status: " + booking.getStatus());
-        }
-        
-        // Update status
-        booking.setStatus(BookingStatus.CONFIRMED);
-        booking.setUpdatedAt(LocalDateTime.now());
-        
-        Booking savedBooking = bookingRepository.save(booking);
-        
-        // Send notification to renter
-        notificationService.sendNotification(
-            booking.getRenter().getId(),
-            "Booking Accepted",
-            String.format("Your booking for %s has been accepted by the owner. Please complete the payment.",
-                booking.getListing().getTitle()),
-            "BOOKING_ACCEPTED"
-        );
-        
-        return mapToBookingResponse(savedBooking);
-    }
-
-    /**
-     * Reject booking (by owner)
-     */
-    @Transactional
-    public BookingResponse rejectBooking(UUID bookingId, String ownerEmail) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
-        
-        User owner = userRepository.findByEmail(ownerEmail)
-                .orElseThrow(() -> new RuntimeException("Owner not found"));
-        
-        // Verify owner owns the listing
-        if (!booking.getListing().getOwner().getId().equals(owner.getId())) {
-            throw new RuntimeException("You are not authorized to reject this booking");
-        }
-        
-        // Check if booking can be rejected
-        if (booking.getStatus() != BookingStatus.PENDING) {
-            throw new RuntimeException("Booking cannot be rejected in current status: " + booking.getStatus());
-        }
-        
-        // Update status
-        booking.setStatus(BookingStatus.REJECTED);
-        booking.setUpdatedAt(LocalDateTime.now());
-        
-        Booking savedBooking = bookingRepository.save(booking);
-        
-        // Send notification to renter
-        notificationService.sendNotification(
-            booking.getRenter().getId(),
-            "Booking Rejected",
-            String.format("Your booking for %s has been rejected by the owner.",
-                booking.getListing().getTitle()),
-            "BOOKING_REJECTED"
-        );
-        
-        return mapToBookingResponse(savedBooking);
-    }
-
-    /**
-     * Complete booking (after return)
-     */
-    @Transactional
-    public BookingResponse completeBooking(UUID bookingId, String ownerEmail) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
-        
-        User owner = userRepository.findByEmail(ownerEmail)
-                .orElseThrow(() -> new RuntimeException("Owner not found"));
-        
-        // Verify owner owns the listing
-        if (!booking.getListing().getOwner().getId().equals(owner.getId())) {
-            throw new RuntimeException("You are not authorized to complete this booking");
-        }
-        
-        // Check if booking can be completed
-        if (booking.getStatus() != BookingStatus.CONFIRMED) {
-            throw new RuntimeException("Booking cannot be completed in current status: " + booking.getStatus());
-        }
-        
-        // Update status
-        booking.setStatus(BookingStatus.COMPLETED);
-        booking.setUpdatedAt(LocalDateTime.now());
-        
-        Booking savedBooking = bookingRepository.save(booking);
-        
-        // Process security deposit refund
-        if (booking.getSecurityDeposit().compareTo(BigDecimal.ZERO) > 0) {
-            // TODO: Implement deposit refund logic
-            notificationService.sendNotification(
-                booking.getRenter().getId(),
-                "Booking Completed - Deposit Refund",
-                String.format("Your booking for %s has been completed. Security deposit of ₹%s will be refunded shortly.",
-                    booking.getListing().getTitle(),
-                    booking.getSecurityDeposit()),
-                "DEPOSIT_REFUND"
-            );
-        }
-        
-        // Send notification to renter
-        notificationService.sendNotification(
-            booking.getRenter().getId(),
-            "Booking Completed",
-            String.format("Your booking for %s has been completed. Thank you for renting with us!",
-                booking.getListing().getTitle()),
-            "BOOKING_COMPLETED"
-        );
-        
-        return mapToBookingResponse(savedBooking);
-    }
-
-    /**
-     * Get upcoming bookings for renter
-     */
+    /** Get upcoming CONFIRMED/IN_PROGRESS bookings for a renter. */
+    @Transactional(readOnly = true)
     public List<BookingResponse> getUpcomingBookingsForRenter(String userEmail) {
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        List<Booking> bookings = bookingRepository.findUpcomingBookingsByRenter(
-            user.getId(), LocalDate.now());
-        
-        return bookings.stream()
-                .map(this::mapToBookingResponse)
-                .collect(Collectors.toList());
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        return bookingRepository.findUpcomingBookingsByRenter(user.getId(), LocalDate.now())
+            .stream().map(this::mapToBookingResponse).collect(Collectors.toList());
     }
 
-    /**
-     * Get upcoming bookings for owner
-     */
+    /** Get upcoming CONFIRMED/IN_PROGRESS bookings for an owner. */
+    @Transactional(readOnly = true)
     public List<BookingResponse> getUpcomingBookingsForOwner(String ownerEmail) {
         User owner = userRepository.findByEmail(ownerEmail)
-                .orElseThrow(() -> new RuntimeException("Owner not found"));
-        
-        List<Booking> bookings = bookingRepository.findUpcomingBookingsByOwner(
-            owner.getId(), LocalDate.now());
-        
-        return bookings.stream()
-                .map(this::mapToBookingResponse)
-                .collect(Collectors.toList());
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Owner not found"));
+        return bookingRepository.findUpcomingBookingsByOwner(owner.getId(), LocalDate.now())
+            .stream().map(this::mapToBookingResponse).collect(Collectors.toList());
     }
 
-    /**
-     * Check if listing is available for dates
-     */
+    /** Check availability without creating a booking. */
+    @Transactional(readOnly = true)
     public boolean isListingAvailable(UUID listingId, LocalDate startDate, LocalDate endDate) {
         return !bookingRepository.isListingBooked(listingId, startDate, endDate);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // STATE TRANSITIONS
+    // ─────────────────────────────────────────────────────────────────────────
+
     /**
-     * Map Booking entity to BookingResponse DTO
-     */
-    private BookingResponse mapToBookingResponse(Booking booking) {
-        User renter = booking.getRenter();
-        User owner = (booking.getListing() != null) ? booking.getListing().getOwner() : null;
-        
-        return BookingResponse.builder()
-                .id(booking.getId())
-                .listing(booking.getListing() != null ? ListingResponse.builder()
-                        .id(booking.getListing().getId())
-                        .title(booking.getListing().getTitle())
-                        .pricePerDay(booking.getListing().getPricePerDay())
-                        .images(booking.getListing().getImages())
-                        .build() : null)
-                .renter(renter != null ? UserResponse.builder()
-                        .id(renter.getId())
-                        .fullName(renter.getFullName())
-                        .email(renter.getEmail())
-                        .phone(renter.getPhone())
-                        .build() : null)
-                .owner(owner != null ? UserResponse.builder()
-                        .id(owner.getId())
-                        .fullName(owner.getFullName())
-                        .email(owner.getEmail())
-                        .phone(owner.getPhone())
-                        .build() : null)
-                .startDate(booking.getStartDate())
-                .endDate(booking.getEndDate())
-                .totalDays(booking.getTotalDays())
-                .rentalAmount(booking.getRentalAmount())
-                .securityDeposit(booking.getSecurityDeposit())
-                .totalAmount(booking.getTotalAmount())
-                .gstAmount(Objects.requireNonNullElse(booking.getGstAmount(),  BigDecimal.ZERO))
-                .platformFee(Objects.requireNonNullElse(booking.getPlatformFee(), BigDecimal.ZERO))
-                .status(booking.getStatus() != null ? booking.getStatus().name() : "PENDING")
-                .paymentStatus(booking.getPaymentStatus() != null ? booking.getPaymentStatus() : "PENDING")
-                .razorpayOrderId(booking.getRazorpayOrderId())
-                .razorpayPaymentId(booking.getRazorpayPaymentId())
-                .createdAt(booking.getCreatedAt())
-                .updatedAt(booking.getUpdatedAt())
-                .build();
-    }
-    /**
-     * Central status transition method. Called by all PATCH action endpoints.
-     * Validates caller authorization and enforces the state machine.
+     * Central status-transition method — called by all PATCH action endpoints.
+     *
+     * BUG-04 FIX: removed duplicate cancelBooking() method; all cancellation
+     *             goes through this method which handles blocked-date cleanup.
+     * BUG-05 FIX: acceptBooking set status to CONFIRMED (wrong); ACCEPTED
+     *             is now correctly mapped from the PENDING→ACCEPTED transition.
+     * BUG-06 FIX: completeBooking guard now allows IN_PROGRESS as valid prior state.
+     * BUG-09 FIX: IN_PROGRESS added to the owner-action authorization matrix so
+     *             owner can transition CONFIRMED→IN_PROGRESS (mark handover).
+     * BUG-10 FIX: single notification per cancellation; refund notification
+     *             only sent if payment was actually completed (still TODO for
+     *             actual refund processing, but notification is correct).
      */
     @Transactional
     public BookingResponse updateStatus(UUID bookingId, BookingStatus newStatus, String callerEmail) {
 
         Booking booking = bookingRepository.findById(bookingId)
-            .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                "Booking not found: " + bookingId));
 
         User caller = userRepository.findByEmail(callerEmail)
-            .orElseThrow(() -> new RuntimeException("User not found: " + callerEmail));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                "User not found: " + callerEmail));
 
         boolean isOwner  = booking.getListing().getOwner().getEmail().equals(callerEmail);
         boolean isRenter = booking.getRenter().getEmail().equals(callerEmail);
         boolean isAdmin  = caller.getUserType() == User.UserType.ADMIN;
 
-        // ── Authorization matrix ─────────────────────────────────────────────────
+        // ── Authorization matrix ─────────────────────────────────────────────
+        // BUG-09 FIX: IN_PROGRESS added as an owner-only action (mark handover)
         switch (newStatus) {
-            case ACCEPTED:
-            case REJECTED:
-            case COMPLETED:
+            case ACCEPTED, REJECTED, COMPLETED, IN_PROGRESS -> {
                 if (!isOwner && !isAdmin)
-                    throw new org.springframework.security.access.AccessDeniedException(
-                        "Only the listing owner can perform this action.");
-                break;
-            case CANCELLED:
+                    throw new AccessDeniedException("Only the listing owner can perform this action.");
+            }
+            case CANCELLED -> {
                 if (!isOwner && !isRenter && !isAdmin)
-                    throw new org.springframework.security.access.AccessDeniedException(
-                        "Not authorized to cancel this booking.");
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported direct status transition to: " + newStatus);
+                    throw new AccessDeniedException("Not authorized to cancel this booking.");
+            }
+            default -> throw new IllegalArgumentException(
+                "Unsupported direct status transition to: " + newStatus);
         }
 
-        // ── State machine guard ───────────────────────────────────────────────────
+        // ── State machine guard ──────────────────────────────────────────────
+        // BUG-05 FIX: PENDING → ACCEPTED (not CONFIRMED)
+        // BUG-06 FIX: IN_PROGRESS is now a valid precondition for COMPLETED
         BookingStatus current = booking.getStatus();
         boolean validTransition = switch (current) {
-            case PENDING     -> newStatus == BookingStatus.ACCEPTED
-                             || newStatus == BookingStatus.REJECTED
-                             || newStatus == BookingStatus.CANCELLED;
-            case ACCEPTED    -> newStatus == BookingStatus.CONFIRMED
-                             || newStatus == BookingStatus.COMPLETED
-                             || newStatus == BookingStatus.CANCELLED;
-            case CONFIRMED   -> newStatus == BookingStatus.IN_PROGRESS
-                             || newStatus == BookingStatus.COMPLETED
-                             || newStatus == BookingStatus.CANCELLED;
-            case IN_PROGRESS -> newStatus == BookingStatus.COMPLETED
-                             || newStatus == BookingStatus.CANCELLED;
-            default          -> false; // COMPLETED, REJECTED, CANCELLED are terminal
+            case PENDING      -> newStatus == BookingStatus.ACCEPTED
+                              || newStatus == BookingStatus.REJECTED
+                              || newStatus == BookingStatus.CANCELLED;
+            case ACCEPTED     -> newStatus == BookingStatus.CONFIRMED
+                              || newStatus == BookingStatus.CANCELLED;
+            case CONFIRMED    -> newStatus == BookingStatus.IN_PROGRESS
+                              || newStatus == BookingStatus.COMPLETED
+                              || newStatus == BookingStatus.CANCELLED;
+            case IN_PROGRESS  -> newStatus == BookingStatus.COMPLETED
+                              || newStatus == BookingStatus.CANCELLED;
+            default           -> false; // COMPLETED, REJECTED, CANCELLED are terminal
         };
 
         if (!validTransition)
             throw new IllegalStateException(
                 "Invalid booking transition: " + current + " → " + newStatus
-                + ". Booking ID: " + bookingId);
+                + " (booking: " + bookingId + ")");
 
-        // ── Handle Blocked Dates (Idempotent) ──────────────────────────────────────
+        // ── Blocked-date side-effects ────────────────────────────────────────
         if (newStatus == BookingStatus.ACCEPTED || newStatus == BookingStatus.CONFIRMED) {
-            // Block dates
-            if (blockedDateRepository.findByListing_IdAndBooking_Id(booking.getListing().getId(), booking.getId()).isEmpty()) {
+            if (blockedDateRepository
+                    .findByListing_IdAndBooking_Id(booking.getListing().getId(), booking.getId())
+                    .isEmpty()) {
                 BlockedDate bd = new BlockedDate();
                 bd.setListing(booking.getListing());
                 bd.setBooking(booking);
@@ -536,14 +298,122 @@ public class BookingService {
                 blockedDateRepository.save(bd);
             }
         } else if (newStatus == BookingStatus.CANCELLED || newStatus == BookingStatus.REJECTED) {
-            // Unblock dates
-            blockedDateRepository.deleteByListing_IdAndBooking_Id(booking.getListing().getId(), booking.getId());
+            blockedDateRepository.deleteByListing_IdAndBooking_Id(
+                booking.getListing().getId(), booking.getId());
         }
 
         booking.setStatus(newStatus);
-        booking.setUpdatedAt(java.time.LocalDateTime.now());
-
+        booking.setUpdatedAt(LocalDateTime.now());
         Booking saved = bookingRepository.save(booking);
+
+        // ── Post-transition notifications ────────────────────────────────────
+        // BUG-10 FIX: one clear notification per outcome; no spurious refund
+        //             notification unless payment was actually completed.
+        switch (newStatus) {
+            case ACCEPTED -> notificationService.sendNotification(
+                booking.getRenter().getId(), "Booking Accepted",
+                String.format("Your booking for '%s' was accepted. Please complete payment.",
+                    booking.getListing().getTitle()), "BOOKING_ACCEPTED");
+
+            case REJECTED -> notificationService.sendNotification(
+                booking.getRenter().getId(), "Booking Rejected",
+                String.format("Your booking for '%s' was not accepted by the owner.",
+                    booking.getListing().getTitle()), "BOOKING_REJECTED");
+
+            case CANCELLED -> {
+                UUID notifyId = isRenter
+                    ? booking.getListing().getOwner().getId()
+                    : booking.getRenter().getId();
+                notificationService.sendNotification(
+                    notifyId, "Booking Cancelled",
+                    String.format("Booking for '%s' was cancelled by %s.",
+                        booking.getListing().getTitle(), caller.getFullName()),
+                    "BOOKING_CANCELLED");
+
+                // Only send refund notification if money was actually captured
+                if ("COMPLETED".equals(booking.getPaymentStatus()) && isRenter) {
+                    notificationService.sendNotification(
+                        booking.getRenter().getId(), "Refund Initiated",
+                        String.format("A refund for your booking of '%s' will be processed shortly.",
+                            booking.getListing().getTitle()), "REFUND_INITIATED");
+                }
+            }
+
+            case COMPLETED -> {
+                notificationService.sendNotification(
+                    booking.getRenter().getId(), "Booking Completed",
+                    String.format("Your booking for '%s' is complete. Thank you!",
+                        booking.getListing().getTitle()), "BOOKING_COMPLETED");
+                if (booking.getSecurityDeposit().compareTo(BigDecimal.ZERO) > 0) {
+                    notificationService.sendNotification(
+                        booking.getRenter().getId(), "Security Deposit Refund",
+                        String.format("Security deposit of ₹%s for '%s' will be refunded shortly.",
+                            booking.getSecurityDeposit(), booking.getListing().getTitle()),
+                        "DEPOSIT_REFUND");
+                }
+            }
+
+            default -> { /* IN_PROGRESS, etc. — no notification needed */ }
+        }
+
+        log.info("Booking {} transitioned {} → {} by {}",
+            bookingId, current, newStatus, callerEmail);
+
         return mapToBookingResponse(saved);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MAPPER
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Maps Booking entity to BookingResponse DTO.
+     * BUG-08 FIX: include location/city/status fields in the inline listing snippet
+     * so callers have full context without a second API call.
+     */
+    private BookingResponse mapToBookingResponse(Booking booking) {
+        User   renter = booking.getRenter();
+        User   owner  = (booking.getListing() != null)
+                        ? booking.getListing().getOwner() : null;
+        Listing l     = booking.getListing();
+
+        return BookingResponse.builder()
+            .id(booking.getId())
+            .listing(l != null ? ListingResponse.builder()
+                .id(l.getId())
+                .title(l.getTitle())
+                .pricePerDay(l.getPricePerDay())
+                .images(l.getImages())
+                .city(l.getCity())
+                .location(l.getLocation())
+                .category(l.getCategory())
+                .build() : null)
+            .renter(renter != null ? UserResponse.builder()
+                .id(renter.getId())
+                .fullName(renter.getFullName())
+                .email(renter.getEmail())
+                .phone(renter.getPhone())
+                .build() : null)
+            .owner(owner != null ? UserResponse.builder()
+                .id(owner.getId())
+                .fullName(owner.getFullName())
+                .email(owner.getEmail())
+                .phone(owner.getPhone())
+                .build() : null)
+            .startDate(booking.getStartDate())
+            .endDate(booking.getEndDate())
+            .totalDays(booking.getTotalDays())
+            .rentalAmount(booking.getRentalAmount())
+            .securityDeposit(booking.getSecurityDeposit())
+            .totalAmount(booking.getTotalAmount())
+            .gstAmount(Objects.requireNonNullElse(booking.getGstAmount(),  BigDecimal.ZERO))
+            .platformFee(Objects.requireNonNullElse(booking.getPlatformFee(), BigDecimal.ZERO))
+            .status(booking.getStatus() != null ? booking.getStatus().name() : "PENDING")
+            .paymentStatus(booking.getPaymentStatus() != null ? booking.getPaymentStatus() : "PENDING")
+            .razorpayOrderId(booking.getRazorpayOrderId())
+            .razorpayPaymentId(booking.getRazorpayPaymentId())
+            .createdAt(booking.getCreatedAt())
+            .updatedAt(booking.getUpdatedAt())
+            .build();
     }
 }

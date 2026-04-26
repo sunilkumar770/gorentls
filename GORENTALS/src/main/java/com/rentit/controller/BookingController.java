@@ -29,7 +29,8 @@ public class BookingController {
     public ResponseEntity<BookingResponse> createBooking(
             @Valid @RequestBody BookingRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(bookingService.createBooking(request, userDetails.getUsername()));
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                             .body(bookingService.createBooking(request, userDetails.getUsername()));
     }
 
     @GetMapping("/{id}")

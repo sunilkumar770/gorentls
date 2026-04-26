@@ -68,12 +68,8 @@ public class ListingController {
             @Valid @RequestBody ListingRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         log.info("Creating listing for user {}: {}", userDetails.getUsername(), request.getTitle());
-        try {
-            return ResponseEntity.ok(listingService.createListing(request, userDetails.getUsername()));
-        } catch (Exception e) {
-            log.error("Failed to create listing: {}", e.getMessage(), e);
-            throw e;
-        }
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                             .body(listingService.createListing(request, userDetails.getUsername()));
     }
 
     @PutMapping("/{id}")

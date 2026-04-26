@@ -43,6 +43,8 @@ export default function ItemDetailPage() {
           setError('This item could not be found in the system.');
         } else {
           setListing(listingData);
+          // Dynamic page title
+          document.title = `${listingData.title} — ₹${listingData.price_per_day}/day | GoRentals`;
           setBlockedRanges(availRes.blockedRanges);
         }
         setLoading(false);
@@ -140,13 +142,16 @@ export default function ItemDetailPage() {
           <div className="lg:col-span-7 space-y-10">
             {/* Gallery */}
             <div className="space-y-4">
-              <div className="rounded-[var(--r-xl)] overflow-hidden bg-[var(--bg-subtle)] aspect-[4/3] shadow-card">
+              {/* Shimmer skeleton while loading or no images */}
+              <div className={`rounded-[var(--r-xl)] overflow-hidden bg-[var(--bg-subtle)] aspect-[4/3] shadow-card relative ${
+                images.length === 0 ? 'animate-pulse' : ''
+              }`}>
                 {images.length > 0 ? (
                   <img src={images[activeImg]?.image_url} alt={listing.title}
                        className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-[var(--text-faint)]">
-                    <Package className="w-12 h-12 mb-3 opacity-50" />
+                    <Package className="w-12 h-12 mb-3 opacity-30" />
                     <span className="text-sm font-medium">No imagery provided</span>
                   </div>
                 )}
@@ -351,8 +356,16 @@ export default function ItemDetailPage() {
               )}
 
               {isAuthenticated && listing.is_available && !isOwnListing && (
-                <div className="mt-5 flex items-center justify-center gap-2 text-xs text-[var(--text-faint)] font-medium">
-                  <ShieldCheck className="w-4 h-4" /> Transactions secured by Razorpay
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-faint)] font-medium">
+                    <ShieldCheck className="w-4 h-4" /> Transactions secured by Razorpay
+                  </div>
+                  {days > 0 && (
+                    <p className="text-center text-[11px] text-[var(--text-faint)] leading-relaxed">
+                      Only <span className="font-semibold text-[var(--primary)]">30% advance</span> charged at booking —
+                      remaining balance due on pickup.
+                    </p>
+                  )}
                 </div>
               )}
             </div>

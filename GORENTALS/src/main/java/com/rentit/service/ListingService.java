@@ -6,40 +6,59 @@ import com.rentit.dto.ListingResponse;
 import com.rentit.dto.PagedResponse;
 import com.rentit.dto.UserResponse;
 import com.rentit.model.BlockedDate;
+import com.rentit.model.BookingStatus;
 import com.rentit.model.Listing;
 import com.rentit.model.User;
 import com.rentit.model.UserProfile;
 import com.rentit.repository.BlockedDateRepository;
+import com.rentit.repository.BookingRepository;
 import com.rentit.repository.ListingRepository;
 import com.rentit.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
-import org.springframework.security.access.AccessDeniedException;
 import java.math.BigDecimal;
-import java.util.List;
 import java.time.LocalDateTime;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
+/**
+ * BUG-20 FIX: updateListing() enforces the KYC gate on isPublished — owner
+ *             cannot re-publish a listing if KYC is not APPROVED.
+ * BUG-21 FIX: deleteListing() refuses to delete if any ACTIVE booking exists
+ *             (PENDING, ACCEPTED, CONFIRMED, IN_PROGRESS).
+ * BUG-22 FIX: removed the duplicate updateAvailability(UUID, boolean, String)
+ *             overload that had inconsistent error types. One method remains.
+ */
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class ListingService {
 
-    @Autowired
-    private ListingRepository listingRepository;
-    
-    @Autowired
-    private UserRepository userRepository;
-    
-    @Autowired
-    private BlockedDateRepository blockedDateRepository;
+    /** Booking statuses that represent an active, in-flight rental. */
+    private static final Set<BookingStatus> ACTIVE_BOOKING_STATUSES = EnumSet.of(
+        BookingStatus.PENDING,
+        BookingStatus.ACCEPTED,
+        BookingStatus.CONFIRMED,
+        BookingStatus.IN_PROGRESS
+    );
 
-    @Autowired
-    private NotificationService notificationService;
+    private final ListingRepository     listingRepository;
+    private final UserRepository         userRepository;
+    private final BlockedDateRepository  blockedDateRepository;
+    private final BookingRepository      bookingRepository;
+    private final NotificationService    notificationService;
 
     public PagedResponse<ListingResponse> getAllListings(int page, int size, 
         String city, String category) {
@@ -79,7 +98,7 @@ public class ListingService {
      */
     public ListingResponse getListingById(UUID id) {
         Listing listing = listingRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Listing not found"));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
         return mapToListingResponse(listing);
     }
 
@@ -88,13 +107,12 @@ public class ListingService {
      */
     @Transactional
     public ListingResponse createListing(ListingRequest request, String userEmail) {
-        // Get the owner
         User owner = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        // Check if user is an owner
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
         if (owner.getUserType() != User.UserType.OWNER) {
-            throw new RuntimeException("Only business owners can create listings");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                "Only owners can create listings");
         }
         
         // Create new listing
@@ -136,22 +154,22 @@ public class ListingService {
     /**
      * Update an existing listing
      */
+    /**
+     * BUG-20 FIX: KYC gate enforced on update, not just on create.
+     * Owner can only set isPublished=true if their KYC is APPROVED.
+     */
     @Transactional
     public ListingResponse updateListing(UUID id, ListingRequest request, String userEmail) {
-        // Get the listing
         Listing listing = listingRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Listing not found"));
-        
-        // Get the user
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
+
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        // Verify ownership
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
         if (!listing.getOwner().getId().equals(user.getId())) {
-            throw new RuntimeException("You are not authorized to update this listing");
+            throw new AccessDeniedException("You are not authorized to update this listing");
         }
-        
-        // Update listing fields
+
         listing.setTitle(request.getTitle());
         listing.setDescription(request.getDescription());
         listing.setCategory(request.getCategory());
@@ -164,12 +182,22 @@ public class ListingService {
         listing.setSpecifications(request.getSpecifications());
         listing.setImages(request.getImages());
         if (request.getIsAvailable() != null) listing.setIsAvailable(request.getIsAvailable());
-        if (request.getIsPublished() != null) listing.setIsPublished(request.getIsPublished());
+
+        // BUG-20 FIX: re-apply KYC gate when caller tries to publish
+        if (request.getIsPublished() != null) {
+            if (Boolean.TRUE.equals(request.getIsPublished())) {
+                boolean kycApproved = user.getProfile() != null
+                    && user.getProfile().getKycStatus() == UserProfile.KYCStatus.APPROVED;
+                if (!kycApproved) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "KYC verification must be approved before publishing a listing");
+                }
+            }
+            listing.setIsPublished(request.getIsPublished());
+        }
+
         listing.setUpdatedAt(LocalDateTime.now());
-        
-        Listing updatedListing = listingRepository.save(listing);
-        
-        return mapToListingResponse(updatedListing);
+        return mapToListingResponse(listingRepository.save(listing));
     }
 
     @Transactional
@@ -204,13 +232,22 @@ public class ListingService {
         return mapToListingResponse(publishedListing);
     }
 
+    /**
+     * BUG-22 FIX: only ONE updateAvailability method (Boolean parameter).
+     * The duplicate primitive-boolean overload with inconsistent error types removed.
+     */
     @Transactional
     public ListingResponse updateAvailability(UUID id, Boolean isAvailable, String ownerEmail) {
+        if (isAvailable == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "isAvailable must be true or false");
+        }
         Listing listing = listingRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Listing not found: " + id));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                "Listing not found: " + id));
 
         if (!listing.getOwner().getEmail().equals(ownerEmail)) {
-            throw new AccessDeniedException("Forbidden: You do not own listing " + id);
+            throw new AccessDeniedException("You do not own listing " + id);
         }
 
         listing.setIsAvailable(isAvailable);
@@ -221,38 +258,49 @@ public class ListingService {
     /**
      * Delete a listing
      */
+    /**
+     * BUG-21 FIX: refuse deletion if any active bookings exist for the listing.
+     * Active = PENDING, ACCEPTED, CONFIRMED, or IN_PROGRESS.
+     */
     @Transactional
     public void deleteListing(UUID id, String userEmail) {
-        // Get the listing
         Listing listing = listingRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Listing not found"));
-        
-        // Get the user
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
+
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        // Verify ownership
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
         if (!listing.getOwner().getId().equals(user.getId())) {
-            throw new RuntimeException("You are not authorized to delete this listing");
+            throw new AccessDeniedException("You are not authorized to delete this listing");
         }
-        
-        // Delete the listing
+
+        // BUG-21 FIX: block deletion if active bookings exist
+        long activeCount = bookingRepository.findByListingId(id, Pageable.unpaged())
+            .stream()
+            .filter(b -> ACTIVE_BOOKING_STATUSES.contains(b.getStatus()))
+            .count();
+        if (activeCount > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "Cannot delete listing with " + activeCount + " active booking(s). "
+                + "Cancel all bookings first.");
+        }
+
         listingRepository.delete(listing);
+        log.info("Listing {} deleted by {}", id, userEmail);
     }
 
     /**
      * Get listings by owner
      */
     public PagedResponse<ListingResponse> getListingsByOwner(String userEmail, Pageable pageable) {
-        // Get the user
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        // Check if user is an owner
-        if (user.getUserType() != User.UserType.OWNER) {
-            throw new RuntimeException("User is not an owner");
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (user.getUserType() != User.UserType.OWNER
+            && user.getUserType() != User.UserType.ADMIN) {
+            throw new AccessDeniedException("User is not an owner");
         }
-        
+
         Page<Listing> listings = listingRepository.findByOwnerId(user.getId(), pageable);
         return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
     }
@@ -279,28 +327,9 @@ public class ListingService {
         return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
     }
 
-    /**
-     * Update listing availability
-     */
-    @Transactional
-    public ListingResponse updateAvailability(UUID id, boolean isAvailable, String userEmail) {
-        Listing listing = listingRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Listing not found"));
-        
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        if (!listing.getOwner().getId().equals(user.getId())) {
-            throw new RuntimeException("You are not authorized to update this listing");
-        }
-        
-        listing.setIsAvailable(isAvailable);
-        listing.setUpdatedAt(LocalDateTime.now());
-        
-        Listing updatedListing = listingRepository.save(listing);
-        
-        return mapToListingResponse(updatedListing);
-    }
+    // BUG-22 FIX: duplicate primitive-boolean overload removed.
+    // Use updateAvailability(UUID, Boolean, String) above.
+
 
     /**
      * Get listings by category

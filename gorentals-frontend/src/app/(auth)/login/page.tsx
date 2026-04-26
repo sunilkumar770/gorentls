@@ -8,7 +8,8 @@ import { signIn, buildProfile } from '@/services/auth';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Eye, EyeOff, Lock, Mail, Tent } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { LogoMark } from '@/components/ui/Logo';
 import Image from 'next/image';
 
 export default function LoginPage() {
@@ -80,10 +81,8 @@ export default function LoginPage() {
       <div className="w-full lg:w-[520px] flex flex-col justify-center px-8 sm:px-16 bg-[var(--bg-card)] shadow-card z-10 relative">
 
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 mb-12 group">
-          <div className="w-9 h-9 rounded-xl gradient-teal flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-            <Tent className="w-5 h-5 text-white" />
-          </div>
+        <Link href="/" className="flex items-center gap-2.5 mb-12 group focus:outline-none">
+          <LogoMark size={36} className="group-hover:scale-105 transition-transform" />
           <span className="text-2xl font-display font-bold text-[var(--text)] tracking-tight">GoRentals</span>
         </Link>
 

@@ -10,23 +10,13 @@ import {
 import { useRouter, usePathname } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { notificationService } from '@/services/notifications';
+import { LogoMark } from '@/components/ui/Logo';
 
 // ── GoRentals SVG Wordmark ────────────────────────────────────────
 function GoRentalsLogo() {
   return (
     <Link href="/" className="flex items-center gap-2.5 group focus:outline-none">
-      <svg
-        width="32" height="32" viewBox="0 0 32 32" fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="flex-shrink-0 group-hover:scale-105 transition-transform"
-        aria-hidden="true"
-      >
-        <rect width="32" height="32" rx="9" fill="#01696f"/>
-        <path
-          d="M10 16.5C10 13.46 12.46 11 15.5 11C17.36 11 19.02 11.94 20 13.38L17.5 14.9C17.06 14.34 16.32 14 15.5 14C14.12 14 13 15.12 13 16.5C13 17.88 14.12 19 15.5 19H17V17.5H15.5V15.5H19.5V19C19.5 20.66 17.88 22 15.5 22C12.46 22 10 19.54 10 16.5Z"
-          fill="white"
-        />
-      </svg>
+      <LogoMark size={32} className="group-hover:scale-105 transition-transform" />
       <span
         className="font-display text-xl font-bold text-[#1a1a18] tracking-tight"
         style={{ fontFamily: 'Satoshi, system-ui, sans-serif' }}

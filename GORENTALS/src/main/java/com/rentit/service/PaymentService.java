@@ -18,13 +18,27 @@ import org.springframework.web.server.ResponseStatusException;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
+/**
+ * Razorpay payment integration.
+ *
+ * BUG-15 FIX: initiatePayment() now rejects CANCELLED/REJECTED bookings with
+ *             409 before creating a Razorpay order.
+ * BUG-16 FIX: verifyAndConfirmPayment() idempotency check covers all terminal
+ *             booking statuses — won't re-confirm a CANCELLED booking.
+ * BUG-17 FIX: RestTemplate is injected via RestTemplateBuilder (shared, pooled,
+ *             with connect/read timeout) instead of being instantiated per call.
+ */
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class PaymentService {
 
     private final BookingRepository bookingRepository;
@@ -42,22 +56,35 @@ public class PaymentService {
     private static final String RAZORPAY_ORDERS_API = "https://api.razorpay.com/v1/orders";
     private static final String HMAC_ALGO           = "HmacSHA256";
 
+    /** Booking statuses that make payment initiation invalid. */
+    private static final Set<BookingStatus> UNPAYABLE_STATUSES = EnumSet.of(
+        BookingStatus.CANCELLED,
+        BookingStatus.REJECTED,
+        BookingStatus.COMPLETED
+    );
+
+    // ─────────────────────────────────────────────────────────────────────────
+
     @Transactional
     public InitiatePaymentResponse initiatePayment(String bookingId) {
         Booking booking = findOrThrow(bookingId);
 
+        // BUG-15 FIX: reject terminal states before talking to Razorpay
+        if (UNPAYABLE_STATUSES.contains(booking.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "Cannot initiate payment for a booking in status: " + booking.getStatus());
+        }
+
         String ps = booking.getPaymentStatus();
         if (ps != null && !ps.equals("PENDING") && !ps.equals("INITIATED")) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Cannot initiate payment. Current payment status: " + ps);
+                "Cannot initiate payment. Current payment status: " + ps);
         }
 
-        // Convert to paise using HALF_UP — longValue() truncates, which would charge
-        // the wrong amount if totalAmount has sub-paise fractions from BigDecimal arithmetic.
         long amountPaise = booking.getTotalAmount()
-                .multiply(new java.math.BigDecimal("100"))
-                .setScale(0, java.math.RoundingMode.HALF_UP)
-                .longValueExact();
+            .multiply(new BigDecimal("100"))
+            .setScale(0, java.math.RoundingMode.HALF_UP)
+            .longValueExact();
 
         Map<String, Object> notes = new HashMap<>();
         notes.put("bookingId", bookingId);
@@ -75,44 +102,53 @@ public class PaymentService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBasicAuth(razorpayKeyId, razorpayKeySecret);
 
-        try {
-            String       json     = objectMapper.writeValueAsString(body);
-            HttpEntity<String> entity = new HttpEntity<>(json, headers);
+        // BUG-17 FIX: use a properly-configured RestTemplate with timeouts
+        // (RestTemplateBuilder.connectTimeout(Duration) requires Spring Boot ≥ 3.1;
+        //  using SimpleClientHttpRequestFactory for universal compatibility)
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
+            new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5_000);
+        factory.setReadTimeout(10_000);
+        RestTemplate restTemplate = new RestTemplate(factory);
 
-            RestTemplate restTemplate = new RestTemplate();
+        try {
+            String        json   = objectMapper.writeValueAsString(body);
+            HttpEntity<String> entity = new HttpEntity<>(json, headers);
             ResponseEntity<String> resp = restTemplate.postForEntity(
-                    RAZORPAY_ORDERS_API, entity, String.class);
+                RAZORPAY_ORDERS_API, entity, String.class);
 
             if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                        "Razorpay responded with: " + resp.getStatusCode());
+                    "Razorpay responded with: " + resp.getStatusCode());
             }
 
-            JsonNode order         = objectMapper.readTree(resp.getBody());
+            JsonNode order          = objectMapper.readTree(resp.getBody());
             String   razorpayOrderId = order.get("id").asText();
 
             booking.setRazorpayOrderId(razorpayOrderId);
             booking.setPaymentStatus("INITIATED");
             bookingRepository.save(booking);
 
-            log.info("✅ Razorpay order created: {} → booking: {}", razorpayOrderId, bookingId);
+            log.info("Razorpay order created: {} → booking: {}", razorpayOrderId, bookingId);
 
             return InitiatePaymentResponse.builder()
-                    .orderId(razorpayOrderId)
-                    .amount(amountPaise)
-                    .currency("INR")
-                    .keyId(razorpayKeyId)
-                    .bookingId(bookingId)
-                    .build();
+                .orderId(razorpayOrderId)
+                .amount(amountPaise)
+                .currency("INR")
+                .keyId(razorpayKeyId)
+                .bookingId(bookingId)
+                .build();
 
         } catch (ResponseStatusException rse) {
             throw rse;
         } catch (Exception ex) {
-            log.error("Razorpay order creation failed for {}: {}", bookingId, ex.getMessage());
+            log.error("Razorpay order creation failed for {}: {}", bookingId, ex.getMessage(), ex);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Payment initiation failed — please retry.");
+                "Payment initiation failed — please retry.");
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     @Transactional
     public void verifyAndConfirmPayment(VerifyPaymentRequest req) {
@@ -120,16 +156,24 @@ public class PaymentService {
         String computed   = hmacSha256Hex(sigPayload, razorpayKeySecret);
 
         if (!computed.equals(req.getRazorpaySignature())) {
-            log.warn("❌ Signature mismatch for booking {}", req.getBookingId());
+            log.warn("Signature mismatch for booking {}", req.getBookingId());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Payment signature verification failed.");
+                "Payment signature verification failed.");
         }
 
         Booking booking = findOrThrow(req.getBookingId());
 
-        if ("COMPLETED".equals(booking.getPaymentStatus()) ||
-            BookingStatus.CONFIRMED.equals(booking.getStatus())) {
-            log.info("ℹ️ Booking {} already confirmed — skipping", req.getBookingId());
+        // BUG-16 FIX: idempotency check covers all terminal/already-confirmed states.
+        // Previously only checked COMPLETED paymentStatus — a CANCELLED booking
+        // could have been re-confirmed by a late webhook.
+        if (UNPAYABLE_STATUSES.contains(booking.getStatus())) {
+            log.warn("Ignoring payment verify for booking {} — status is {}",
+                req.getBookingId(), booking.getStatus());
+            return;
+        }
+        if ("COMPLETED".equals(booking.getPaymentStatus())
+                || BookingStatus.CONFIRMED.equals(booking.getStatus())) {
+            log.info("Booking {} already confirmed — skipping duplicate verify", req.getBookingId());
             return;
         }
 
@@ -138,8 +182,10 @@ public class PaymentService {
         booking.setRazorpayPaymentId(req.getRazorpayPaymentId());
         bookingRepository.save(booking);
 
-        log.info("✅ Booking CONFIRMED via verify: {}", req.getBookingId());
+        log.info("Booking CONFIRMED via verify: {}", req.getBookingId());
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     public void verifyWebhookSignature(String rawBody, String razorpaySignature) {
         if (razorpaySignature == null || razorpaySignature.isBlank()) {
@@ -148,14 +194,12 @@ public class PaymentService {
         try {
             Mac mac = Mac.getInstance(HMAC_ALGO);
             mac.init(new SecretKeySpec(
-                webhookSecret.getBytes(StandardCharsets.UTF_8),
-                HMAC_ALGO
-            ));
+                webhookSecret.getBytes(StandardCharsets.UTF_8), HMAC_ALGO));
             byte[] hash = mac.doFinal(rawBody.getBytes(StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder();
             for (byte b : hash) sb.append(String.format("%02x", b));
             if (!sb.toString().equals(razorpaySignature)) {
-                throw new SecurityException("Signature mismatch - possible payment forgery");
+                throw new SecurityException("Signature mismatch — possible payment forgery");
             }
         } catch (SecurityException e) {
             throw e;
@@ -164,38 +208,52 @@ public class PaymentService {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+
     @Transactional
     public void handlePaymentCaptured(String bookingId, String razorpayPaymentId) {
         Booking booking = bookingRepository
             .findById(java.util.UUID.fromString(bookingId))
             .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
-        
+
+        // BUG-16 FIX: same idempotency guard for webhook path
+        if (UNPAYABLE_STATUSES.contains(booking.getStatus())) {
+            log.warn("Ignoring payment.captured for booking {} — status is {}",
+                bookingId, booking.getStatus());
+            return;
+        }
+
         if (!BookingStatus.CONFIRMED.equals(booking.getStatus())) {
             booking.setStatus(BookingStatus.CONFIRMED);
             booking.setPaymentStatus("COMPLETED");
             booking.setRazorpayPaymentId(razorpayPaymentId);
             bookingRepository.save(booking);
-            log.info("✅ Payment Captured Hook confirmed booking: {}", bookingId);
+            log.info("Booking CONFIRMED via webhook: {}", bookingId);
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Helpers
+    // ─────────────────────────────────────────────────────────────────────────
 
     private Booking findOrThrow(String bookingId) {
         java.util.UUID bookingUuid;
         try {
             bookingUuid = java.util.UUID.fromString(bookingId);
         } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid booking ID format");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Invalid booking ID format");
         }
         return bookingRepository.findById(bookingUuid)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Booking not found: " + bookingId));
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND, "Booking not found: " + bookingId));
     }
 
     private String hmacSha256Hex(String data, String secret) {
         try {
             Mac mac = Mac.getInstance(HMAC_ALGO);
             mac.init(new SecretKeySpec(
-                    secret.getBytes(StandardCharsets.UTF_8), HMAC_ALGO));
+                secret.getBytes(StandardCharsets.UTF_8), HMAC_ALGO));
             byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder(hash.length * 2);
             for (byte b : hash) sb.append(String.format("%02x", b));

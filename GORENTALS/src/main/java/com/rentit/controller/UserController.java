@@ -27,14 +27,9 @@ public class UserController {
      * Returns the full profile of the currently authenticated user.
      */
     @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser() {
-        try {
-            String email = getAuthenticatedEmail();
-            UserProfileResponse profile = userService.getProfile(email);
-            return ResponseEntity.ok(profile);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
-        }
+    public ResponseEntity<UserProfileResponse> getCurrentUser() {
+        String email = getAuthenticatedEmail();
+        return ResponseEntity.ok(userService.getProfile(email));
     }
 
     /**
@@ -42,14 +37,9 @@ public class UserController {
      * Updates the authenticated user's name, phone, and location details.
      */
     @PatchMapping("/profile")
-    public ResponseEntity<?> updateProfile(@RequestBody UpdateProfileRequest request) {
-        try {
-            String email = getAuthenticatedEmail();
-            UserProfileResponse updated = userService.updateProfile(email, request);
-            return ResponseEntity.ok(updated);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
-        }
+    public ResponseEntity<UserProfileResponse> updateProfile(@RequestBody UpdateProfileRequest request) {
+        String email = getAuthenticatedEmail();
+        return ResponseEntity.ok(userService.updateProfile(email, request));
     }
 
     /**
@@ -57,14 +47,9 @@ public class UserController {
      * Updates notification and account-level settings for the authenticated user.
      */
     @PatchMapping("/settings")
-    public ResponseEntity<?> updateSettings(@RequestBody UpdateSettingsRequest request) {
-        try {
-            String email = getAuthenticatedEmail();
-            UserProfileResponse updated = userService.updateSettings(email, request);
-            return ResponseEntity.ok(updated);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
-        }
+    public ResponseEntity<UserProfileResponse> updateSettings(@RequestBody UpdateSettingsRequest request) {
+        String email = getAuthenticatedEmail();
+        return ResponseEntity.ok(userService.updateSettings(email, request));
     }
 
     /**
@@ -72,14 +57,10 @@ public class UserController {
      * Changes the current user's password.
      */
     @PostMapping("/password")
-    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
-        try {
-            String email = getAuthenticatedEmail();
-            userService.changePassword(email, request);
-            return ResponseEntity.ok(new SuccessResponse("Password changed successfully", true));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
-        }
+    public ResponseEntity<SuccessResponse> changePassword(@RequestBody ChangePasswordRequest request) {
+        String email = getAuthenticatedEmail();
+        userService.changePassword(email, request);
+        return ResponseEntity.ok(new SuccessResponse("Password changed successfully", true));
     }
 
     /**
@@ -87,14 +68,9 @@ public class UserController {
      * Submits KYC verification details.
      */
     @PostMapping("/kyc")
-    public ResponseEntity<?> submitKYC(@RequestBody KYCSubmissionRequest request) {
-        try {
-            String email = getAuthenticatedEmail();
-            UserProfileResponse updated = userService.submitKYC(email, request);
-            return ResponseEntity.ok(updated);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
-        }
+    public ResponseEntity<UserProfileResponse> submitKYC(@RequestBody KYCSubmissionRequest request) {
+        String email = getAuthenticatedEmail();
+        return ResponseEntity.ok(userService.submitKYC(email, request));
     }
 
     /**
