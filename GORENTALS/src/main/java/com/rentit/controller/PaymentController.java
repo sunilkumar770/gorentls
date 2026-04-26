@@ -1,5 +1,6 @@
 package com.rentit.controller;
 
+import com.rentit.dto.InitiatePaymentResponse;
 import com.rentit.dto.VerifyPaymentRequest;
 import com.rentit.service.PaymentService;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,12 @@ import java.util.Map;
 public class PaymentController {
 
     private final PaymentService paymentService;
+
+    @PostMapping("/initiate")
+    public ResponseEntity<InitiatePaymentResponse> initiatePayment(@RequestBody Map<String, String> request) {
+        String bookingId = request.get("bookingId");
+        return ResponseEntity.ok(paymentService.initiatePayment(bookingId));
+    }
 
     @PostMapping("/verify")
     public ResponseEntity<Map<String, String>> verifyPayment(@RequestBody VerifyPaymentRequest request) {

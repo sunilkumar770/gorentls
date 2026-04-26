@@ -442,12 +442,12 @@ function ListingsTab() {
                   </Td>
                   <Td>
                     <span className="font-medium text-[#251913]">
-                      {formatCurrency(l.price_per_day ?? l.rentalPricePerDay ?? 0)}
+                      {formatCurrency(l.pricePerDay ?? l.price_per_day ?? l.rentalPricePerDay ?? 0)}
                     </span>
                   </Td>
                   <Td><StatusBadge status={getStatus(l)} /></Td>
                   <Td>
-                    {(!l.is_published) && (
+                    {(l.isPublished === false || l.is_published === false) && (
                       <div className="flex gap-1.5">
                         <ActionBtn label="Approve" variant="success"
                           disabled={busy === l.id}
