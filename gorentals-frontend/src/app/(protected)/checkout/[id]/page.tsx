@@ -137,9 +137,14 @@ export default function CheckoutPage() {
         {/* Breakdown — smart: uses backend gstAmount/platformFee if present (new bookings),
             falls back to Phase 1 recomputed values for legacy bookings without fee columns. */}
         {(() => {
+          // Use backend-computed breakdown when both fee fields are present (non-null).
+          // typeof null === 'object' — that's why we use != null, NOT typeof === 'number'.
+          // Backend returns 0.00 (not null) for new bookings; null only for legacy rows
+          // before column was added. So gstAmount=0 with platformFee=0 is valid and
+          // will render "GST: ₹0.00" — the calcQuotePhase1 fallback covers that case too.
           const hasServerBreakdown =
-            typeof booking.gstAmount   === 'number' &&
-            typeof booking.platformFee === 'number';
+            booking.gstAmount   != null &&
+            booking.platformFee != null;
 
           const lines = hasServerBreakdown
             ? [

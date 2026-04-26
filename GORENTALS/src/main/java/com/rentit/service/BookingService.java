@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import com.rentit.pricing.PricingCalculator;
@@ -449,8 +450,8 @@ public class BookingService {
                 .rentalAmount(booking.getRentalAmount())
                 .securityDeposit(booking.getSecurityDeposit())
                 .totalAmount(booking.getTotalAmount())
-                .gstAmount(booking.getGstAmount())
-                .platformFee(booking.getPlatformFee())
+                .gstAmount(Objects.requireNonNullElse(booking.getGstAmount(),  BigDecimal.ZERO))
+                .platformFee(Objects.requireNonNullElse(booking.getPlatformFee(), BigDecimal.ZERO))
                 .status(booking.getStatus().name())
                 .paymentStatus(booking.getPaymentStatus())
                 .razorpayOrderId(booking.getRazorpayOrderId())

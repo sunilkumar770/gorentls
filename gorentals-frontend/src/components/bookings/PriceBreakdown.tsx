@@ -28,37 +28,54 @@ export function PriceBreakdown({
   showNotice = true,
   className = '',
 }: Props) {
+  // Separate regular lines from the final "total" line (last item with isBold).
+  // This makes the separator placement explicit and avoids index-as-key anti-pattern.
+  const bodyLines = lines.slice(0, -1);
+  const totalLine = lines[lines.length - 1];
+
   return (
     <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-5 ${className}`}>
 
       <h3 className="font-semibold text-gray-900 mb-4 text-[15px]">{title}</h3>
 
       <div className="space-y-2.5 text-sm">
-        {lines.map((line, idx) => {
-          const isLast = idx === lines.length - 1;
-          return (
-            <div key={idx}>
-              {isLast && <div className="border-t border-gray-100 my-3" />}
-              <div className="flex items-center justify-between gap-4">
-                <span className={line.isBold ? 'font-bold text-gray-900' : 'text-gray-500'}>
-                  {line.label}
-                  {line.isNote && (
-                    <span className="ml-1 text-xs text-gray-400">{line.isNote}</span>
-                  )}
-                </span>
-                <span
-                  className={[
-                    'font-semibold tabular-nums',
-                    line.isGreen ? 'text-[#16a34a]' : 'text-gray-900',
-                    line.isBold  ? 'text-base'      : '',
-                  ].join(' ')}
-                >
-                  {formatINR(line.amount)}
-                </span>
-              </div>
+        {/* Sub-total lines */}
+        {bodyLines.map((line) => (
+          <div key={line.label} className="flex items-center justify-between gap-4">
+            <span className="text-gray-500">
+              {line.label}
+              {line.isNote && (
+                <span className="ml-1 text-xs text-gray-400">{line.isNote}</span>
+              )}
+            </span>
+            <span className="font-semibold tabular-nums text-gray-900">
+              {formatINR(line.amount)}
+            </span>
+          </div>
+        ))}
+
+        {/* Divider before total */}
+        {totalLine && (
+          <>
+            <div className="border-t border-gray-100 !mt-3 !mb-0" />
+            <div className="flex items-center justify-between gap-4 !mt-3">
+              <span className="font-bold text-gray-900">
+                {totalLine.label}
+                {totalLine.isNote && (
+                  <span className="ml-1 text-xs text-gray-400">{totalLine.isNote}</span>
+                )}
+              </span>
+              <span
+                className={[
+                  'font-bold tabular-nums text-base',
+                  totalLine.isGreen ? 'text-[#16a34a]' : 'text-gray-900',
+                ].join(' ')}
+              >
+                {formatINR(totalLine.amount)}
+              </span>
             </div>
-          );
-        })}
+          </>
+        )}
       </div>
 
       {showNotice && (
