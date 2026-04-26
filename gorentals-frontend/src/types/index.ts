@@ -129,6 +129,8 @@ export interface Booking {
   rentalAmount:    number;
   securityDeposit: number;
   totalAmount:     number;
+  gstAmount?:      number;      // ← Phase 1: 18% GST on rentalAmount
+  platformFee?:    number;      // ← Phase 1: 5% platform fee
   status:          BookingStatus;
   paymentStatus:   PaymentStatus;
   message?:        string;

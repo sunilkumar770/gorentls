@@ -16,6 +16,8 @@ import type { Listing, BlockedRange } from '@/types';
 import { getAvailability } from '@/services/availability';
 import { DayPicker, DateRange } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
+import { calcRentalQuote, formatINR } from '@/lib/pricing';
+import { PriceBreakdown } from '@/components/bookings/PriceBreakdown';
 
 export default function ItemDetailPage() {
   const { id }   = useParams<{ id: string }>();
@@ -54,9 +56,10 @@ export default function ItemDetailPage() {
   const startDate = selectedRange?.from ? format(selectedRange.from, 'yyyy-MM-dd') : '';
   const endDate   = selectedRange?.to ? format(selectedRange.to, 'yyyy-MM-dd') : '';
   const days    = selectedRange?.from && selectedRange?.to ? daysBetween(selectedRange.from, selectedRange.to) : 0;
-  const rental  = days * (listing?.price_per_day ?? 0);
   const deposit = listing?.security_deposit ?? 0;
-  const total   = rental + deposit;
+
+  // Phase 1 live quote — for UI preview only; backend is authoritative
+  const quote = calcRentalQuote(listing?.price_per_day ?? 0, days, deposit);
 
   const isOwnListing = !!user && listing?.owner_id === user.id;
   const canBook      =
@@ -70,9 +73,9 @@ export default function ItemDetailPage() {
         listingId:       listing.id,
         startDate, endDate,
         totalDays:       days,
-        rentalAmount:    rental,
-        securityDeposit: deposit,
-        totalAmount:     total,
+        rentalAmount:    quote.base,
+        securityDeposit: quote.deposit,
+        totalAmount:     quote.total,   // backend will recompute — this is informational
       });
       router.push(`/checkout/${b.id}`);
     } catch (err: any) {
@@ -301,23 +304,10 @@ export default function ItemDetailPage() {
                 )}
               </div>
 
-              {/* Live Quotation */}
+              {/* Live Quotation — Phase 1 pricing breakdown */}
               {days > 0 && (
-                <div className="bg-[var(--bg-subtle)] rounded-[var(--r-md)] p-5 mb-6 space-y-3">
-                  <div className="flex justify-between text-[var(--text-muted)] text-sm">
-                    <span>₹{(listing.price_per_day ?? 0).toLocaleString('en-IN')} × {days} day{days !== 1 ? 's' : ''}</span>
-                    <span className="font-semibold text-[var(--text)]">₹{rental.toLocaleString('en-IN')}</span>
-                  </div>
-                  {deposit > 0 && (
-                    <div className="flex justify-between text-[var(--text-muted)] text-sm">
-                      <span>Deposit <span className="text-[10px] opacity-70 uppercase tracking-wider">(refundable)</span></span>
-                      <span className="font-semibold text-[var(--text)]">₹{deposit.toLocaleString('en-IN')}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center font-display font-bold text-lg pt-3 border-t border-[var(--border-strong)]">
-                    <span className="text-[var(--text)]">Total</span>
-                    <span className="text-[var(--primary)]">₹{total.toLocaleString('en-IN')}</span>
-                  </div>
+                <div className="mb-6">
+                  <PriceBreakdown lines={quote.breakdown} showNotice />
                 </div>
               )}
 
@@ -352,7 +342,7 @@ export default function ItemDetailPage() {
                   disabled={!canBook || booking}
                   loading={booking}
                 >
-                  {days > 0 ? `Reserve for ₹${total.toLocaleString('en-IN')}` : 'Choose Dates'}
+                  {days > 0 ? `Reserve for ${formatINR(quote.total)}` : 'Choose Dates'}
                 </Button>
               )}
 

@@ -47,7 +47,13 @@ public class Booking {
     
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
-    
+
+    @Column(name = "gst_amount", nullable = false)
+    private BigDecimal gstAmount = BigDecimal.ZERO;
+
+    @Column(name = "platform_fee", nullable = false)
+    private BigDecimal platformFee = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private BookingStatus status = BookingStatus.PENDING;
@@ -141,6 +147,22 @@ public class Booking {
 
 	public void setTotalAmount(BigDecimal totalAmount) {
 		this.totalAmount = totalAmount;
+	}
+
+	public BigDecimal getGstAmount() {
+		return gstAmount;
+	}
+
+	public void setGstAmount(BigDecimal gstAmount) {
+		this.gstAmount = gstAmount;
+	}
+
+	public BigDecimal getPlatformFee() {
+		return platformFee;
+	}
+
+	public void setPlatformFee(BigDecimal platformFee) {
+		this.platformFee = platformFee;
 	}
 
 	public BookingStatus getStatus() {

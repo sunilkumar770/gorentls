@@ -22,6 +22,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import com.rentit.pricing.PricingCalculator;
 
 @Service
 public class BookingService {
@@ -96,13 +97,19 @@ public class BookingService {
             );
         }
         
-        // Calculate total days and amount
+        // ─── Pricing (Phase 1) ─────────────────────────────────────────────────────
         long totalDays = ChronoUnit.DAYS.between(startDate, endDate);
-        BigDecimal rentalAmount = listing.getPricePerDay().multiply(BigDecimal.valueOf(totalDays));
-        BigDecimal securityDeposit = listing.getSecurityDeposit() != null ? 
-                listing.getSecurityDeposit() : BigDecimal.ZERO;
-        BigDecimal totalAmount = rentalAmount.add(securityDeposit);
-        
+
+        BigDecimal rentalAmount    = listing.getPricePerDay()
+                                            .multiply(BigDecimal.valueOf(totalDays));
+        BigDecimal securityDeposit = listing.getSecurityDeposit() != null
+                                     ? listing.getSecurityDeposit() : BigDecimal.ZERO;
+
+        // Delegate ALL fee arithmetic to PricingCalculator — never inline percentages here.
+        PricingCalculator.Phase1Quote quote =
+                PricingCalculator.calcPhase1(rentalAmount, securityDeposit);
+        // ─────────────────────────────────────────────────────────────────────────
+
         // Create booking
         Booking booking = new Booking();
         booking.setListing(listing);
@@ -110,9 +117,11 @@ public class BookingService {
         booking.setStartDate(startDate);
         booking.setEndDate(endDate);
         booking.setTotalDays((int) totalDays);
-        booking.setRentalAmount(rentalAmount);
-        booking.setSecurityDeposit(securityDeposit);
-        booking.setTotalAmount(totalAmount);
+        booking.setRentalAmount(quote.base);
+        booking.setSecurityDeposit(quote.deposit);
+        booking.setGstAmount(quote.gstAmount);
+        booking.setPlatformFee(quote.platformFee);
+        booking.setTotalAmount(quote.totalAmount);
         booking.setStatus(BookingStatus.PENDING);
         booking.setPaymentStatus("PENDING");
         booking.setCreatedAt(LocalDateTime.now());
@@ -440,6 +449,8 @@ public class BookingService {
                 .rentalAmount(booking.getRentalAmount())
                 .securityDeposit(booking.getSecurityDeposit())
                 .totalAmount(booking.getTotalAmount())
+                .gstAmount(booking.getGstAmount())
+                .platformFee(booking.getPlatformFee())
                 .status(booking.getStatus().name())
                 .paymentStatus(booking.getPaymentStatus())
                 .razorpayOrderId(booking.getRazorpayOrderId())

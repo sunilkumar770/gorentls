@@ -9,6 +9,8 @@ import { Shield, MapPin, Calendar, Loader2, ChevronLeft, AlertCircle } from 'luc
 import { toast } from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
 import type { Booking } from '@/types';
+import { calcQuotePhase1 } from '@/lib/pricing';
+import { PriceBreakdown } from '@/components/bookings/PriceBreakdown';
 
 
 
@@ -132,30 +134,27 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {/* Breakdown */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-4">
-          <h3 className="font-semibold text-gray-900 mb-4">Price Breakdown</h3>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600">
-                ₹{(booking.listing?.pricePerDay ?? 0).toLocaleString('en-IN')} × {booking.totalDays} day{booking.totalDays !== 1 ? 's' : ''}
-              </span>
-              <span className="font-semibold text-gray-900">₹{booking.rentalAmount.toLocaleString('en-IN')}</span>
-            </div>
-            {booking.securityDeposit > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">
-                  Security deposit <span className="text-xs text-gray-400">(refundable)</span>
-                </span>
-                <span className="font-semibold text-gray-900">₹{booking.securityDeposit.toLocaleString('en-IN')}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-bold text-gray-900 border-t border-gray-100 pt-3 text-base">
-              <span>Total payable</span>
-              <span className="text-[#16a34a]">₹{booking.totalAmount.toLocaleString('en-IN')}</span>
-            </div>
-          </div>
-        </div>
+        {/* Breakdown — smart: uses backend gstAmount/platformFee if present (new bookings),
+            falls back to Phase 1 recomputed values for legacy bookings without fee columns. */}
+        {(() => {
+          const hasServerBreakdown =
+            typeof booking.gstAmount   === 'number' &&
+            typeof booking.platformFee === 'number';
+
+          const lines = hasServerBreakdown
+            ? [
+                { label: 'Rental amount',     amount: booking.rentalAmount },
+                { label: 'GST (18%)',         amount: booking.gstAmount! },
+                { label: 'Platform fee (5%)', amount: booking.platformFee! },
+                ...(booking.securityDeposit > 0
+                  ? [{ label: 'Security deposit', amount: booking.securityDeposit, isNote: '(refundable)' }]
+                  : []),
+                { label: 'Total payable', amount: booking.totalAmount, isBold: true, isGreen: true },
+              ]
+            : calcQuotePhase1(booking.rentalAmount, booking.securityDeposit).breakdown;
+
+          return <PriceBreakdown lines={lines} showNotice className="mb-4" />;
+        })()}
 
         {/* Meta */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6">

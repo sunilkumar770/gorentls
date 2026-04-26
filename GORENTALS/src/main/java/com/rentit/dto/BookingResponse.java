@@ -16,6 +16,8 @@ public class BookingResponse {
     private BigDecimal rentalAmount;
     private BigDecimal securityDeposit;
     private BigDecimal totalAmount;
+    private BigDecimal gstAmount;
+    private BigDecimal platformFee;
     private String status;
     private String paymentStatus;
     private String razorpayOrderId;
@@ -34,6 +36,8 @@ public class BookingResponse {
         this.rentalAmount = builder.rentalAmount;
         this.securityDeposit = builder.securityDeposit;
         this.totalAmount = builder.totalAmount;
+        this.gstAmount = builder.gstAmount;
+        this.platformFee = builder.platformFee;
         this.status = builder.status;
         this.paymentStatus = builder.paymentStatus;
         this.razorpayOrderId = builder.razorpayOrderId;
@@ -57,6 +61,8 @@ public class BookingResponse {
         private BigDecimal rentalAmount;
         private BigDecimal securityDeposit;
         private BigDecimal totalAmount;
+        private BigDecimal gstAmount;
+        private BigDecimal platformFee;
         private String status;
         private String paymentStatus;
         private String razorpayOrderId;
@@ -74,6 +80,8 @@ public class BookingResponse {
         public Builder rentalAmount(BigDecimal rentalAmount) { this.rentalAmount = rentalAmount; return this; }
         public Builder securityDeposit(BigDecimal securityDeposit) { this.securityDeposit = securityDeposit; return this; }
         public Builder totalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; return this; }
+        public Builder gstAmount(BigDecimal gstAmount) { this.gstAmount = gstAmount; return this; }
+        public Builder platformFee(BigDecimal platformFee) { this.platformFee = platformFee; return this; }
         public Builder status(String status) { this.status = status; return this; }
         public Builder paymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; return this; }
         public Builder razorpayOrderId(String razorpayOrderId) { this.razorpayOrderId = razorpayOrderId; return this; }
@@ -97,6 +105,8 @@ public class BookingResponse {
     public BigDecimal getRentalAmount() { return rentalAmount; }
     public BigDecimal getSecurityDeposit() { return securityDeposit; }
     public BigDecimal getTotalAmount() { return totalAmount; }
+    public BigDecimal getGstAmount() { return gstAmount; }
+    public BigDecimal getPlatformFee() { return platformFee; }
     public String getStatus() { return status; }
     public String getPaymentStatus() { return paymentStatus; }
     public String getRazorpayOrderId() { return razorpayOrderId; }
