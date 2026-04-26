@@ -9,6 +9,7 @@ import { Shield, MapPin, Calendar, Loader2, ChevronLeft, AlertCircle } from 'luc
 import { toast } from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
 import type { Booking } from '@/types';
+import type { RazorpayPaymentFailedResponse } from '@/types/razorpay';
 import { calcQuotePhase1 } from '@/lib/pricing';
 import { PriceBreakdown } from '@/components/bookings/PriceBreakdown';
 
@@ -53,8 +54,8 @@ export default function CheckoutPage() {
       // Step 1 — create Razorpay order on backend
       const order = await initiatePayment(booking.id);
 
-      // Step 2 — open Razorpay modal
-      const rzp = new (window as any).Razorpay({
+      // Step 2 — open Razorpay modal (window.Razorpay typed via razorpay.d.ts)
+      const rzp = new window.Razorpay({
         key:         order.keyId,
         amount:      order.amount,
         currency:    order.currency,
@@ -96,7 +97,7 @@ export default function CheckoutPage() {
         },
       });
 
-      rzp.on('payment.failed', (resp: any) => {
+      rzp.on('payment.failed', (resp: RazorpayPaymentFailedResponse) => {
         toast.error(`Payment failed: ${resp.error?.description ?? 'Unknown error'}`);
         setPaying(false);
       });
