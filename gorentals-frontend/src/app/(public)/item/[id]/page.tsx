@@ -77,7 +77,11 @@ export default function ItemDetailPage() {
         securityDeposit: quote.deposit,
         totalAmount:     quote.total,   // backend will recompute — this is informational
       });
-      router.push(`/checkout/${b.id}`);
+      if (b && b.id) {
+        router.push(`/checkout/${b.id}`);
+      } else {
+        throw new Error('Booking created but ID is missing');
+      }
     } catch (err: any) {
       if (err.response?.status === 409) {
         toast.error('Selected dates are no longer available.');

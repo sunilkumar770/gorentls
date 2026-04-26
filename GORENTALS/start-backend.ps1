@@ -28,7 +28,9 @@ Get-Content $envFile | ForEach-Object {
 Write-Host ""
 Write-Host "Starting GoRentals Backend..." -ForegroundColor Green
 Write-Host "Razorpay Key: $($env:RAZORPAY_KEY)" -ForegroundColor Cyan
-Write-Host "API URL: http://localhost:$($env:PORT ?? '8080')/api" -ForegroundColor Cyan
+$port = $env:PORT
+if (-not $port) { $port = "8080" }
+Write-Host "API URL: http://localhost:$port/api" -ForegroundColor Cyan
 Write-Host ""
 
 & .\mvnw.cmd spring-boot:run

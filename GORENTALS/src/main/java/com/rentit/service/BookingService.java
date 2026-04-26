@@ -88,7 +88,8 @@ public class BookingService {
         }
         
         // Check for conflicting bookings (both in bookings and blocked_dates table)
-        boolean hasOverlap = bookingRepository.existsOverlappingBooking(listing.getId(), startDate, endDate);
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(15);
+        boolean hasOverlap = bookingRepository.existsOverlappingBooking(listing.getId(), startDate, endDate, cutoff);
         boolean isBlocked = blockedDateRepository.isDateRangeBlocked(listing.getId(), startDate, endDate);
 
         if (hasOverlap || isBlocked) {
@@ -99,7 +100,7 @@ public class BookingService {
         }
         
         // ─── Pricing (Phase 1) ─────────────────────────────────────────────────────
-        long totalDays = ChronoUnit.DAYS.between(startDate, endDate);
+        long totalDays = Math.max(1, ChronoUnit.DAYS.between(startDate, endDate));
 
         BigDecimal rentalAmount    = listing.getPricePerDay()
                                             .multiply(BigDecimal.valueOf(totalDays));
@@ -144,6 +145,7 @@ public class BookingService {
     /**
      * Get booking by ID with ownership verification
      */
+    @Transactional(readOnly = true)
     public BookingResponse getBookingById(UUID bookingId, String callerEmail) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
@@ -151,8 +153,10 @@ public class BookingService {
         User caller = userRepository.findByEmail(callerEmail)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        boolean isRenter = booking.getRenter().getEmail().equals(callerEmail);
-        boolean isOwner  = booking.getListing().getOwner().getEmail().equals(callerEmail);
+        boolean isRenter = booking.getRenter() != null && booking.getRenter().getEmail().equals(callerEmail);
+        boolean isOwner  = booking.getListing() != null && 
+                           booking.getListing().getOwner() != null && 
+                           booking.getListing().getOwner().getEmail().equals(callerEmail);
         boolean isAdmin  = caller.getUserType() == User.UserType.ADMIN;
 
         if (!isRenter && !isOwner && !isAdmin) {
@@ -165,6 +169,7 @@ public class BookingService {
     /**
      * Get bookings by user (renter)
      */
+    @Transactional(readOnly = true)
     public Page<BookingResponse> getBookingsByUser(String userEmail, Pageable pageable) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -176,6 +181,7 @@ public class BookingService {
     /**
      * Get bookings for owner
      */
+    @Transactional(readOnly = true)
     public Page<BookingResponse> getBookingsForOwner(String ownerEmail, Pageable pageable) {
         User owner = userRepository.findByEmail(ownerEmail)
                 .orElseThrow(() -> new RuntimeException("Owner not found"));
@@ -422,28 +428,28 @@ public class BookingService {
      */
     private BookingResponse mapToBookingResponse(Booking booking) {
         User renter = booking.getRenter();
-        User owner = booking.getListing().getOwner();
+        User owner = (booking.getListing() != null) ? booking.getListing().getOwner() : null;
         
         return BookingResponse.builder()
                 .id(booking.getId())
-                .listing(ListingResponse.builder()
+                .listing(booking.getListing() != null ? ListingResponse.builder()
                         .id(booking.getListing().getId())
                         .title(booking.getListing().getTitle())
                         .pricePerDay(booking.getListing().getPricePerDay())
                         .images(booking.getListing().getImages())
-                        .build())
-                .renter(UserResponse.builder()
+                        .build() : null)
+                .renter(renter != null ? UserResponse.builder()
                         .id(renter.getId())
                         .fullName(renter.getFullName())
                         .email(renter.getEmail())
                         .phone(renter.getPhone())
-                        .build())
-                .owner(UserResponse.builder()
+                        .build() : null)
+                .owner(owner != null ? UserResponse.builder()
                         .id(owner.getId())
                         .fullName(owner.getFullName())
                         .email(owner.getEmail())
                         .phone(owner.getPhone())
-                        .build())
+                        .build() : null)
                 .startDate(booking.getStartDate())
                 .endDate(booking.getEndDate())
                 .totalDays(booking.getTotalDays())
@@ -452,8 +458,8 @@ public class BookingService {
                 .totalAmount(booking.getTotalAmount())
                 .gstAmount(Objects.requireNonNullElse(booking.getGstAmount(),  BigDecimal.ZERO))
                 .platformFee(Objects.requireNonNullElse(booking.getPlatformFee(), BigDecimal.ZERO))
-                .status(booking.getStatus().name())
-                .paymentStatus(booking.getPaymentStatus())
+                .status(booking.getStatus() != null ? booking.getStatus().name() : "PENDING")
+                .paymentStatus(booking.getPaymentStatus() != null ? booking.getPaymentStatus() : "PENDING")
                 .razorpayOrderId(booking.getRazorpayOrderId())
                 .razorpayPaymentId(booking.getRazorpayPaymentId())
                 .createdAt(booking.getCreatedAt())

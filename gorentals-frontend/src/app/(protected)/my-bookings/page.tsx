@@ -203,11 +203,20 @@ export default function MyBookingsPage() {
                       </button>
                     )}
                     
+                    {booking.status === 'ACCEPTED' && (
+                      <Link
+                        href={`/checkout/${booking.id}`}
+                        className="inline-flex items-center justify-center px-4 py-2 font-bold rounded-lg text-sm text-white bg-[#16a34a] hover:bg-[#15803d] transition-colors shadow-sm"
+                      >
+                        Pay Now
+                      </Link>
+                    )}
+
                     <Link
                       href={`/listing/${booking.listing?.id}`}
                       className="inline-flex items-center justify-center px-4 py-2 font-medium rounded-lg text-sm text-[#16a34a] bg-[#f0fdf4] hover:bg-[#dcfce7] transition-colors"
                     >
-                      View Listing
+                      View Item
                     </Link>
                   </div>
                 </div>

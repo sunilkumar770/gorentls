@@ -48,10 +48,10 @@ public class Booking {
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 
-    @Column(name = "gst_amount", nullable = false)
+    @Column(name = "gst_amount", nullable = true)
     private BigDecimal gstAmount = BigDecimal.ZERO;
 
-    @Column(name = "platform_fee", nullable = false)
+    @Column(name = "platform_fee", nullable = true)
     private BigDecimal platformFee = BigDecimal.ZERO;
 
     @Enumerated(EnumType.STRING)

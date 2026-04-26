@@ -141,7 +141,7 @@ export default function CheckoutPage() {
     </div>
   );
 
-  const image      = booking.listing?.listing_images?.[0]?.image_url ?? null;
+  const image      = (booking.listing?.images?.[0] || booking.listing?.listing_images?.[0]?.image_url) ?? null;
   const startDate  = booking.startDate  ?? booking.checkInDate  ?? '';
   const endDate    = booking.endDate    ?? booking.checkOutDate ?? '';
 

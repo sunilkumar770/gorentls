@@ -26,14 +26,18 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     @Query("""
         SELECT COUNT(b) > 0 FROM Booking b
         WHERE b.listing.id = :listingId
-        AND b.status NOT IN ('CANCELLED', 'REJECTED')
+        AND (
+            b.status IN ('CONFIRMED', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED')
+            OR (b.status = 'PENDING' AND b.createdAt > :cutoff)
+        )
         AND b.startDate < :endDate
         AND b.endDate > :startDate
         """)
     boolean existsOverlappingBooking(
-        @Param("listingId")  UUID      listingId,
-        @Param("startDate")  LocalDate startDate,
-        @Param("endDate")    LocalDate endDate
+        @Param("listingId")  UUID          listingId,
+        @Param("startDate")  LocalDate     startDate,
+        @Param("endDate")    LocalDate     endDate,
+        @Param("cutoff")     LocalDateTime cutoff
     );
     
     /**
