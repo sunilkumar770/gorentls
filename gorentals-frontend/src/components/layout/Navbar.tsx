@@ -5,10 +5,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/contexts/ChatContext';
 import {
   Search, Plus, LayoutDashboard, LogOut, User, ChevronDown,
-  Calendar, ClipboardList, Shield, MessageCircle,
+  Calendar, ClipboardList, Shield, MessageCircle, Bell,
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
+import { notificationService } from '@/services/notifications';
 
 // ── GoRentals SVG Wordmark ────────────────────────────────────────
 function GoRentalsLogo() {
@@ -44,6 +45,7 @@ export function Navbar() {
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,6 +54,27 @@ export function Navbar() {
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  // Poll for unread notifications every 30s
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+
+    const fetchCount = async () => {
+      try {
+        const count = await notificationService.getUnreadCount();
+        setUnreadCount(count);
+      } catch (err) {
+        console.error('Failed to fetch unread notification count:', err);
+      }
+    };
+
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -131,14 +154,22 @@ export function Navbar() {
               <Search className="w-5 h-5" />
             </Link>
 
-            {/* Mobile messages icon */}
+            {/* Mobile messages/notifications icon */}
             {user && (
-              <Link href="/messages" className="relative p-2 rounded-lg text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5 transition-colors md:hidden">
-                <MessageCircle className="w-5 h-5" />
-                {totalUnread > 0 && (
-                  <span className={badgeClass}>{totalUnread > 9 ? '9+' : totalUnread}</span>
-                )}
-              </Link>
+              <>
+                <Link href="/notifications" className="relative p-2 rounded-lg text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5 transition-colors md:hidden">
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && (
+                    <span className={badgeClass}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+                  )}
+                </Link>
+                <Link href="/messages" className="relative p-2 rounded-lg text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5 transition-colors md:hidden">
+                  <MessageCircle className="w-5 h-5" />
+                  {totalUnread > 0 && (
+                    <span className={badgeClass}>{totalUnread > 9 ? '9+' : totalUnread}</span>
+                  )}
+                </Link>
+              </>
             )}
 
             {!loading && (
@@ -180,6 +211,17 @@ export function Navbar() {
                               <Icon className="w-4 h-4 text-[#6b6b65]" /> {label}
                             </Link>
                           ))}
+
+                          <Link href="/notifications" onClick={() => setMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f7f6f2] hover:text-[#1a1a18] transition-colors">
+                            <Bell className="w-4 h-4 text-[#6b6b65]" />
+                            <span className="flex-1">Notifications</span>
+                            {unreadCount > 0 && (
+                              <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">
+                                {unreadCount > 99 ? '99+' : unreadCount}
+                              </span>
+                            )}
+                          </Link>
 
                           <Link href="/messages" onClick={() => setMenuOpen(false)}
                             className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f7f6f2] hover:text-[#1a1a18] transition-colors">
