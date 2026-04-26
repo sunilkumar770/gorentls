@@ -75,12 +75,12 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Overview',  icon: <LayoutDashboard className="w-4 h-4" /> },
   { id: 'users',    label: 'Users',     icon: <Users           className="w-4 h-4" /> },
   { id: 'owners',   label: 'Owners',    icon: <Store           className="w-4 h-4" /> },
-  { id: 'listings', label: 'Listings',  icon: <Package         className="w-4 h-4" /> },
+  { id: 'listings', label: 'Assets',    icon: <Package         className="w-4 h-4" /> },
   { id: 'bookings', label: 'Bookings',  icon: <CalendarCheck   className="w-4 h-4" /> },
 ];
 
 export default function AdminDashboardPage() {
-  const { isAdmin, isAuthenticated } = useAuth();
+  const { isAdmin, isAuthenticated, loading } = useAuth();
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<TabId>('overview');
@@ -88,19 +88,32 @@ export default function AdminDashboardPage() {
   const [users,     setUsers]     = useState<AdminUser[]>([]);
   const [listings,  setListings]  = useState<AdminListing[]>([]);
   const [bookings,  setBookings]  = useState<AdminBooking[]>([]);
-  const [loading,   setLoading]   = useState(true);
+  const [loadingData, setLoadingData] = useState(true);
   const [search,    setSearch]    = useState('');
   const [listingFilter, setListingFilter] = useState<'ALL' | 'PENDING' | 'ACTIVE'>('ALL');
   const [busy,      setBusy]      = useState<Set<string>>(new Set());
 
-  // Redirect non-admins
+  // Redirect non-admins and unauthenticated users
   useEffect(() => {
-    if (isAuthenticated && !isAdmin) router.replace('/');
-  }, [isAuthenticated, isAdmin, router]);
+    console.log(`[AdminDashboard] State - loading: ${loading}, isAuthenticated: ${isAuthenticated}, isAdmin: ${isAdmin}`);
+    if (!loading) {
+      if (!isAuthenticated) {
+        console.warn('[AdminDashboard] Not authenticated. Redirecting to login.');
+        router.replace('/login?redirect=/admin/dashboard');
+        return;
+      }
+      if (!isAdmin) {
+        console.warn('[AdminDashboard] Not an admin. Redirecting to home.');
+        router.replace('/');
+        return;
+      }
+      console.log('[AdminDashboard] Access granted.');
+    }
+  }, [loading, isAuthenticated, isAdmin, router]);
 
   // Load data for current tab
   const loadTab = useCallback(async (tab: TabId) => {
-    setLoading(true);
+    setLoadingData(true);
     try {
       switch (tab) {
         case 'overview': {
@@ -129,43 +142,59 @@ export default function AdminDashboardPage() {
     } catch (err: any) {
       toast.error(`Failed to load ${tab}: ${err?.response?.data?.message ?? err.message}`);
     } finally {
-      setLoading(false);
+      setLoadingData(false);
     }
   }, []);
 
-  useEffect(() => { if (isAdmin) loadTab(activeTab); }, [activeTab, isAdmin, loadTab]);
-  useEffect(() => { if (isAdmin) loadTab('overview'); }, [isAdmin]); // eslint-disable-line
+  useEffect(() => { if (!loading && isAdmin) loadTab(activeTab); }, [activeTab, isAdmin, loadTab, loading]);
+  useEffect(() => { if (!loading && isAdmin) loadTab('overview'); }, [isAdmin, loading, loadTab]); 
 
   // ── Admin actions ────────────────────────────────────────────────────────────
-  async function toggleListingActive(id: string, current: boolean) {
+  async function toggleListingActive(id: string, isPublished: boolean) {
     setBusy(p => new Set(p).add(id));
     try {
-      await api.patch(`/admin/listings/${id}`, { is_available: !current, is_published: !current });
-      setListings(p => p.map(l => l.id === id
-        ? { ...l, is_available: !current, is_published: !current } : l));
-      toast.success(!current ? 'Listing activated.' : 'Listing deactivated.');
-    } catch { toast.error('Failed to update listing.'); }
-    finally { setBusy(p => { const s = new Set(p); s.delete(id); return s; }); }
+      if (isPublished) {
+        // Reject/Deactivate
+        await api.delete(`/admin/listings/${id}/reject`);
+        setListings(p => p.map(l => l.id === id ? { ...l, is_published: false, is_available: false } : l));
+        toast.success('Listing deactivated.');
+      } else {
+        // Approve/Publish
+        await api.patch(`/admin/listings/${id}/approve`);
+        setListings(p => p.map(l => l.id === id ? { ...l, is_published: true, is_available: true } : l));
+        toast.success('Listing approved and live.');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update listing.');
+    } finally {
+      setBusy(p => { const s = new Set(p); s.delete(id); return s; });
+    }
   }
 
   async function approveKyc(userId: string) {
     setBusy(p => new Set(p).add(userId));
     try {
-      await api.patch(`/admin/users/${userId}/kyc`, { kycStatus: 'APPROVED' });
-      setUsers(p => p.map(u => u.id === userId ? { ...u, kycStatus: 'APPROVED' } : u));
+      await api.patch(`/admin/users/${userId}/verify`);
+      setUsers(p => p.map(u => u.id === userId ? { ...u, kycStatus: 'APPROVED', isVerified: true } : u));
       toast.success('KYC approved.');
-    } catch { toast.error('Failed to approve KYC.'); }
-    finally { setBusy(p => { const s = new Set(p); s.delete(userId); return s; }); }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to approve KYC.');
+    } finally {
+      setBusy(p => { const s = new Set(p); s.delete(userId); return s; });
+    }
   }
 
   async function rejectKyc(userId: string) {
     setBusy(p => new Set(p).add(userId + '_r'));
     try {
-      await api.patch(`/admin/users/${userId}/kyc`, { kycStatus: 'REJECTED' });
+      await api.patch(`/admin/users/${userId}/suspend`);
       setUsers(p => p.map(u => u.id === userId ? { ...u, kycStatus: 'REJECTED' } : u));
-      toast.success('KYC rejected.');
-    } catch { toast.error('Failed to reject KYC.'); }
-    finally { setBusy(p => { const s = new Set(p); s.delete(userId + '_r'); return s; }); }
+      toast.success('KYC rejected (User suspended).');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to reject KYC.');
+    } finally {
+      setBusy(p => { const s = new Set(p); s.delete(userId + '_r'); return s; });
+    }
   }
 
   // ── Derived data ─────────────────────────────────────────────────────────────
@@ -195,48 +224,65 @@ export default function AdminDashboardPage() {
     || (b.renter?.name ?? b.renter?.fullName ?? '').toLowerCase().includes(q),
   );
 
-  if (!isAdmin) return null;
+  // loading state for auth hydration
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center p-6 text-center">
+        <Loader2 className="w-10 h-10 text-[var(--primary)] animate-spin mb-4" />
+        <p className="text-[var(--text-muted)] font-medium animate-pulse">Synchronizing secure session...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !isAdmin) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center p-6 text-center">
+        <Loader2 className="w-10 h-10 text-[var(--primary)] animate-spin mb-4" />
+        <p className="text-[var(--text-muted)] font-medium animate-pulse">Redirecting to secure portal...</p>
+      </div>
+    );
+  }
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
+      <div className="bg-[var(--bg-card)] border-b border-[var(--border)] sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-14">
-            <h1 className="text-base font-bold text-gray-900">Admin Dashboard</h1>
+          <div className="flex items-center justify-between h-16">
+            <h1 className="text-lg font-display font-bold text-[var(--text)] tracking-tight">Admin Control Center</h1>
             <button onClick={() => loadTab(activeTab)}
-                    className="flex items-center gap-1.5 text-xs text-gray-500
-                               hover:text-gray-900 transition-colors px-2 py-1 rounded-lg hover:bg-gray-100">
-              <RefreshCw className="w-3.5 h-3.5" /> Refresh
+                    className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]
+                               hover:text-[var(--text)] transition-colors px-3 py-1.5 rounded-[var(--r-md)] border border-transparent hover:border-[var(--border)] font-bold uppercase tracking-wider">
+              <RefreshCw className="w-3.5 h-3.5" /> Refresh Data
             </button>
           </div>
 
           {/* Tab Bar */}
-          <nav className="flex gap-1 -mb-px overflow-x-auto no-scrollbar">
+          <nav className="flex gap-2 -mb-px overflow-x-auto scrollbar-hide py-1">
             {TABS.map(tab => (
               <button key={tab.id}
                       onClick={() => { setActiveTab(tab.id); setSearch(''); }}
-                      className={`flex items-center gap-2 px-4 py-3 text-sm font-medium
-                                  border-b-2 whitespace-nowrap transition-colors
+                      className={`flex items-center gap-2 px-4 py-3 text-sm font-bold
+                                  border-b-2 whitespace-nowrap transition-colors rounded-t-[var(--r-md)]
                                   ${activeTab === tab.id
-                                    ? 'border-[#16a34a] text-[#16a34a]'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                                    ? 'border-[var(--primary)] text-[var(--primary)] bg-[var(--primary-light)]'
+                                    : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg)]'}`}>
                 {tab.icon}
                 {tab.label}
                 {/* Badges */}
                 {tab.id === 'users' && users.length > 0 && (
-                  <span className="text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">
+                  <span className="text-[10px] font-black bg-[var(--bg-subtle)] text-[var(--text)] rounded-full px-2 py-0.5">
                     {users.filter(u => (u.userType ?? u.role ?? '').toUpperCase() === 'RENTER').length}
                   </span>
                 )}
                 {tab.id === 'owners' && users.length > 0 && (
-                  <span className="text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">
+                  <span className="text-[10px] font-black bg-[var(--bg-subtle)] text-[var(--text)] rounded-full px-2 py-0.5">
                     {users.filter(u => (u.userType ?? u.role ?? '').toUpperCase() === 'OWNER').length}
                   </span>
                 )}
                 {tab.id === 'listings' && (
-                  <span className="text-xs bg-yellow-100 text-yellow-700 rounded-full px-2 py-0.5">
+                  <span className="text-[10px] font-black bg-yellow-500/10 text-yellow-600 rounded-full px-2 py-0.5">
                     {listings.filter(l => !l.is_published).length || ''}
                   </span>
                 )}
@@ -246,58 +292,58 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {loading && activeTab !== 'overview' ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 rounded-full border-4 border-[#16a34a]/20 border-t-[#16a34a] animate-spin" />
+            <Loader2 className="w-8 h-8 text-[var(--primary)] animate-spin" />
           </div>
         ) : (
           <>
             {/* ── TAB: Overview ─────────────────────────────────────────── */}
             {activeTab === 'overview' && (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {loading ? (
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     {Array.from({ length: 6 }, (_, i) => (
-                      <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 animate-pulse">
-                        <div className="h-3 bg-gray-200 rounded w-1/2 mb-3" />
-                        <div className="h-7 bg-gray-200 rounded w-1/3" />
+                      <div key={i} className="bg-[var(--bg-card)] rounded-[var(--r-xl)] border border-[var(--border)] p-6 animate-pulse">
+                        <div className="h-3 bg-[var(--bg)] rounded w-1/2 mb-4" />
+                        <div className="h-8 bg-[var(--bg)] rounded w-1/3" />
                       </div>
                     ))}
                   </div>
                 ) : stats ? (
                   <>
                     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                      <StatCard icon={<Users className="w-5 h-5 text-blue-500" />}
+                      <StatCard icon={<Users className="w-5 h-5 text-[var(--text-muted)]" />}
                                 label="Total Users"    value={stats.totalUsers}    />
-                      <StatCard icon={<Store className="w-5 h-5 text-purple-500" />}
-                                label="Owners"         value={stats.totalOwners}   />
-                      <StatCard icon={<Package className="w-5 h-5 text-[#16a34a]" />}
-                                label="Listings"       value={stats.totalListings}  />
-                      <StatCard icon={<CalendarCheck className="w-5 h-5 text-orange-500" />}
+                      <StatCard icon={<Store className="w-5 h-5 text-[var(--text-muted)]" />}
+                                label="Vendors"        value={stats.totalOwners}   />
+                      <StatCard icon={<Package className="w-5 h-5 text-[var(--text-muted)]" />}
+                                label="Assets"         value={stats.totalListings}  />
+                      <StatCard icon={<CalendarCheck className="w-5 h-5 text-[var(--text-muted)]" />}
                                 label="Bookings"       value={stats.totalBookings}  />
-                      <StatCard icon={<IndianRupee className="w-5 h-5 text-emerald-600" />}
-                                label="Revenue"        value={`₹${(stats.totalRevenue ?? 0).toLocaleString('en-IN')}`} />
+                      <StatCard icon={<IndianRupee className="w-5 h-5 text-[var(--text-muted)]" />}
+                                label="GMV"            value={`₹${(stats.totalRevenue ?? 0).toLocaleString('en-IN')}`} />
                       <StatCard icon={<AlertCircle className="w-5 h-5 text-yellow-500" />}
-                                label="Pending KYC"   value={stats.pendingKYC}    accent />
+                                label="Pending KYC"    value={stats.pendingKYC}    accent />
                     </div>
 
                     {/* Quick Actions */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                       {[
-                        { label: 'Review KYC Applications', tab: 'users'    as TabId, count: stats.pendingKYC,    color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
-                        { label: 'Pending Listings',        tab: 'listings' as TabId, count: listings.filter(l => !l.is_published).length, color: 'text-orange-600 bg-orange-50 border-orange-200' },
-                        { label: 'View All Bookings',       tab: 'bookings' as TabId, count: stats.totalBookings,  color: 'text-blue-600 bg-blue-50 border-blue-200' },
+                        { label: 'Review KYC Applications', tab: 'users'    as TabId, count: stats.pendingKYC,    color: 'text-amber-700 bg-amber-500/10 border-amber-500/20 hover:border-amber-500/40' },
+                        { label: 'Pending Asset Approval',  tab: 'listings' as TabId, count: listings.filter(l => !l.is_published).length, color: 'text-orange-700 bg-orange-500/10 border-orange-500/20 hover:border-orange-500/40' },
+                        { label: 'Recent Transactions',     tab: 'bookings' as TabId, count: stats.totalBookings,  color: 'text-[var(--text)] bg-[var(--bg-subtle)] border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)]' },
                       ].map(a => (
                         <button key={a.tab}
                                 onClick={() => setActiveTab(a.tab)}
-                                className={`flex items-center justify-between p-4 rounded-2xl border
-                                            text-left hover:shadow-sm transition-shadow ${a.color}`}>
+                                className={`flex items-center justify-between p-6 rounded-[var(--r-xl)] border
+                                            text-left shadow-sm transition-all ${a.color}`}>
                           <div>
-                            <p className="text-sm font-semibold">{a.label}</p>
-                            <p className="text-2xl font-bold mt-1">{a.count}</p>
+                            <p className="text-xs font-bold uppercase tracking-wider opacity-80 mb-1">{a.label}</p>
+                            <p className="text-3xl font-display font-bold">{a.count}</p>
                           </div>
-                          <ChevronDown className="w-5 h-5 rotate-[-90deg] opacity-60" />
+                          <ChevronDown className="w-6 h-6 rotate-[-90deg] opacity-60" />
                         </button>
                       ))}
                     </div>
@@ -313,78 +359,77 @@ export default function AdminDashboardPage() {
               <div>
                 <SearchBar value={search} onChange={setSearch}
                            placeholder={activeTab === 'owners'
-                             ? 'Search owners by name or email…'
-                             : 'Search users by name or email…'} />
-                <p className="text-xs text-gray-400 mb-4">
-                  {filteredUsers.length} {activeTab === 'owners' ? 'owner' : 'user'}
-                  {filteredUsers.length !== 1 ? 's' : ''}
+                             ? 'Query vendors by identity…'
+                             : 'Query users by identity…'} />
+                <p className="text-xs font-bold text-[var(--text-faint)] uppercase tracking-wider mb-4">
+                  {filteredUsers.length} matched records
                 </p>
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="bg-[var(--bg-card)] rounded-[var(--r-xl)] border border-[var(--border)] shadow-card overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-gray-50 border-b border-gray-100">
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Name</th>
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Email</th>
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Role</th>
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">KYC</th>
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Actions</th>
+                        <tr className="bg-[var(--bg-subtle)] border-b border-[var(--border)]">
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">Identity</th>
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">Email Record</th>
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">Access Tier</th>
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">Compliance</th>
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">Enforcement</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody className="divide-y divide-[var(--border)]">
                         {filteredUsers.length === 0 ? (
-                          <tr><td colSpan={5} className="text-center py-12 text-gray-400">No users found</td></tr>
+                          <tr><td colSpan={5} className="text-center py-16 text-[var(--text-faint)] font-bold">No records found</td></tr>
                         ) : filteredUsers.map(u => {
                           const role = (u.userType ?? u.role ?? '').toUpperCase();
                           const kyc  = u.kycStatus ?? 'PENDING';
                           const name = u.name ?? u.fullName ?? '—';
                           return (
-                            <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
-                              <td className="px-4 py-3">
+                            <tr key={u.id} className="hover:bg-[var(--bg)] transition-colors">
+                              <td className="px-5 py-4">
                                 <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center
-                                                  justify-center text-xs font-bold text-gray-600 flex-shrink-0">
+                                  <div className="w-9 h-9 rounded-full bg-[var(--bg-subtle)] border border-[var(--border)] flex items-center
+                                                  justify-center text-xs font-bold text-[var(--text)] flex-shrink-0">
                                     {name.charAt(0).toUpperCase()}
                                   </div>
-                                  <span className="font-medium text-gray-900">{name}</span>
+                                  <span className="font-bold text-[var(--text)]">{name}</span>
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-gray-500">{u.email}</td>
-                              <td className="px-4 py-3">
-                                <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold
-                                  ${role === 'OWNER'       ? 'bg-purple-100 text-purple-700' :
+                              <td className="px-5 py-4 text-[var(--text-muted)] font-medium">{u.email}</td>
+                              <td className="px-5 py-4">
+                                <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase
+                                  ${role === 'OWNER'       ? 'bg-purple-500/10 text-purple-600' :
                                     role === 'ADMIN' || role === 'SUPER_ADMIN'
-                                                           ? 'bg-red-100 text-red-700'
-                                                           : 'bg-blue-100 text-blue-700'}`}>
+                                                           ? 'bg-red-500/10 text-red-600'
+                                                           : 'bg-blue-500/10 text-blue-600'}`}>
                                   {role}
                                 </span>
                               </td>
-                              <td className="px-4 py-3">
-                                <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold
-                                  ${kyc === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                                    kyc === 'REJECTED'  ? 'bg-red-100 text-red-700'
-                                                        : 'bg-yellow-100 text-yellow-700'}`}>
+                              <td className="px-5 py-4">
+                                <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase
+                                  ${kyc === 'APPROVED' ? 'bg-green-500/10 text-green-600' :
+                                    kyc === 'REJECTED'  ? 'bg-red-500/10 text-red-600'
+                                                        : 'bg-yellow-500/10 text-yellow-600'}`}>
                                   {kyc}
                                 </span>
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="px-5 py-4">
                                 {kyc === 'PENDING' && (
-                                  <div className="flex items-center gap-1.5">
+                                  <div className="flex items-center gap-2">
                                     <ActionBtn
                                       onClick={() => approveKyc(u.id)}
                                       loading={busy.has(u.id)}
-                                      icon={<CheckCircle2 className="w-3.5 h-3.5" />}
-                                      label="Approve" variant="green" />
+                                      icon={<CheckCircle2 className="w-4 h-4" />}
+                                      label="" variant="green" title="Approve KYC" />
                                     <ActionBtn
                                       onClick={() => rejectKyc(u.id)}
                                       loading={busy.has(u.id + '_r')}
-                                      icon={<XCircle className="w-3.5 h-3.5" />}
-                                      label="Reject" variant="red" />
+                                      icon={<XCircle className="w-4 h-4" />}
+                                      label="" variant="red" title="Reject KYC" />
                                   </div>
                                 )}
                                 {kyc === 'APPROVED' && (
-                                  <span className="text-xs text-gray-400 flex items-center gap-1">
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> Verified
+                                  <span className="text-[10px] font-bold text-[var(--text-faint)] tracking-wider uppercase flex items-center gap-1.5">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> Cleared
                                   </span>
                                 )}
                               </td>
@@ -401,19 +446,19 @@ export default function AdminDashboardPage() {
             {/* ── TAB: Listings ──────────────────────────────────────────── */}
             {activeTab === 'listings' && (
               <div>
-                <div className="flex gap-3 mb-4 flex-wrap">
-                  <SearchBar value={search} onChange={setSearch} placeholder="Search listings…" />
-                  <div className="flex gap-1 bg-white border border-gray-200 rounded-xl p-1">
+                <div className="flex gap-4 mb-4 flex-wrap items-center">
+                  <SearchBar value={search} onChange={setSearch} placeholder="Search asset registry…" />
+                  <div className="flex gap-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-1.5">
                     {(['ALL', 'ACTIVE', 'PENDING'] as const).map(f => (
                       <button key={f}
                               onClick={() => setListingFilter(f)}
-                              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors
+                              className={`px-3.5 py-1.5 text-[10px] font-black tracking-wider uppercase rounded-lg transition-colors
                                 ${listingFilter === f
-                                  ? 'bg-[#16a34a] text-white'
-                                  : 'text-gray-500 hover:text-gray-700'}`}>
+                                  ? 'bg-[var(--text)] text-[var(--bg)]'
+                                  : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>
                         {f}
                         {f === 'PENDING' && listings.filter(l => !l.is_published).length > 0 && (
-                          <span className="ml-1.5 bg-white/20 rounded-full px-1.5">
+                          <span className={`${listingFilter === f ? 'bg-[var(--bg)]/20' : 'bg-[var(--border)]'} ml-2 rounded-full px-1.5`}>
                             {listings.filter(l => !l.is_published).length}
                           </span>
                         )}
@@ -421,53 +466,55 @@ export default function AdminDashboardPage() {
                     ))}
                   </div>
                 </div>
-                <p className="text-xs text-gray-400 mb-4">{filteredListings.length} listings</p>
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <p className="text-xs font-bold text-[var(--text-faint)] uppercase tracking-wider mb-4">
+                  {filteredListings.length} registered assets
+                </p>
+                <div className="bg-[var(--bg-card)] rounded-[var(--r-xl)] border border-[var(--border)] shadow-card overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-gray-50 border-b border-gray-100">
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Title</th>
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Owner</th>
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">City</th>
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Price/day</th>
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Status</th>
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Actions</th>
+                        <tr className="bg-[var(--bg-subtle)] border-b border-[var(--border)]">
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">Nomenclature</th>
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">Vendor</th>
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">Zone</th>
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">Yield/Day</th>
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">State</th>
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">Control</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody className="divide-y divide-[var(--border)]">
                         {filteredListings.length === 0 ? (
-                          <tr><td colSpan={6} className="text-center py-12 text-gray-400">No listings found</td></tr>
+                          <tr><td colSpan={6} className="text-center py-16 text-[var(--text-faint)] font-bold">No assets found</td></tr>
                         ) : filteredListings.map(l => (
-                          <tr key={l.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-4 py-3">
-                              <p className="font-medium text-gray-900 truncate max-w-[180px]">{l.title}</p>
-                              <p className="text-xs text-gray-400">{l.category}</p>
+                          <tr key={l.id} className="hover:bg-[var(--bg)] transition-colors">
+                            <td className="px-5 py-4">
+                              <p className="font-bold text-[var(--text)] truncate max-w-[200px]">{l.title}</p>
+                              <p className="text-xs font-semibold text-[var(--text-muted)] capitalize">{l.category}</p>
                             </td>
-                            <td className="px-4 py-3 text-gray-500 text-xs">
+                            <td className="px-5 py-4 text-[var(--text-muted)] font-medium text-xs">
                               {l.owner?.name ?? l.owner?.fullName ?? l.owner?.email ?? '—'}
                             </td>
-                            <td className="px-4 py-3 text-gray-500">{l.city ?? '—'}</td>
-                            <td className="px-4 py-3 font-semibold text-gray-900 tabular-nums">
+                            <td className="px-5 py-4 text-[var(--text-muted)] font-medium">{l.city ?? '—'}</td>
+                            <td className="px-5 py-4 font-bold text-[var(--text)] tabular-nums">
                               ₹{(l.price_per_day ?? 0).toLocaleString('en-IN')}
                             </td>
-                            <td className="px-4 py-3">
-                              <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold
-                                ${l.is_published && l.is_available ? 'bg-green-100 text-green-700' :
-                                  l.is_published                  ? 'bg-yellow-100 text-yellow-700'
-                                                                 : 'bg-red-100 text-red-700'}`}>
+                            <td className="px-5 py-4">
+                              <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase
+                                ${l.is_published && l.is_available ? 'bg-green-500/10 text-green-600' :
+                                  l.is_published                  ? 'bg-yellow-500/10 text-yellow-600'
+                                                                 : 'bg-red-500/10 text-red-600'}`}>
                                 {l.is_published && l.is_available ? 'Active' :
-                                 l.is_published                  ? 'Unavailable' : 'Unpublished'}
+                                 l.is_published                  ? 'Blocked' : 'Pending'}
                               </span>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-5 py-4">
                               <ActionBtn
                                 onClick={() => toggleListingActive(l.id, l.is_published)}
                                 loading={busy.has(l.id)}
                                 icon={l.is_published
-                                  ? <Ban         className="w-3.5 h-3.5" />
-                                  : <CheckCircle2 className="w-3.5 h-3.5" />}
-                                label={l.is_published ? 'Deactivate' : 'Activate'}
+                                  ? <Ban className="w-4 h-4" />
+                                  : <CheckCircle2 className="w-4 h-4" />}
+                                label={l.is_published ? 'Halt' : 'Publish'}
                                 variant={l.is_published ? 'red' : 'green'} />
                             </td>
                           </tr>
@@ -483,40 +530,42 @@ export default function AdminDashboardPage() {
             {activeTab === 'bookings' && (
               <div>
                 <SearchBar value={search} onChange={setSearch}
-                           placeholder="Search by renter, listing, or status…" />
-                <p className="text-xs text-gray-400 mb-4">{filteredBookings.length} bookings</p>
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                           placeholder="Filter operations..." />
+                <p className="text-xs font-bold text-[var(--text-faint)] uppercase tracking-wider mb-4">
+                  {filteredBookings.length} operations logged
+                </p>
+                <div className="bg-[var(--bg-card)] rounded-[var(--r-xl)] border border-[var(--border)] shadow-card overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-gray-50 border-b border-gray-100">
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Listing</th>
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Renter</th>
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Dates</th>
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Amount</th>
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Status</th>
+                        <tr className="bg-[var(--bg-subtle)] border-b border-[var(--border)]">
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">Asset Reference</th>
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">Client</th>
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">Duration</th>
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">Yield</th>
+                          <th className="text-left px-5 py-4 font-bold text-[var(--text-muted)] text-[10px] uppercase tracking-widest">Status</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody className="divide-y divide-[var(--border)]">
                         {filteredBookings.length === 0 ? (
-                          <tr><td colSpan={5} className="text-center py-12 text-gray-400">No bookings found</td></tr>
+                          <tr><td colSpan={5} className="text-center py-16 text-[var(--text-faint)] font-bold">No operations logged</td></tr>
                         ) : filteredBookings.map(b => (
-                          <tr key={b.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-4 py-3">
-                              <p className="font-medium text-gray-900 truncate max-w-[160px]">
+                          <tr key={b.id} className="hover:bg-[var(--bg)] transition-colors">
+                            <td className="px-5 py-4">
+                              <p className="font-bold text-[var(--text)] truncate max-w-[200px]">
                                 {b.listing?.title ?? '—'}
                               </p>
                             </td>
-                            <td className="px-4 py-3 text-gray-500 text-xs">
+                            <td className="px-5 py-4 text-[var(--text-muted)] font-medium text-xs">
                               {b.renter?.name ?? b.renter?.fullName ?? b.renter?.email ?? '—'}
                             </td>
-                            <td className="px-4 py-3 text-gray-500 text-xs tabular-nums">
-                              {b.startDate ?? '—'} → {b.endDate ?? '—'}
+                            <td className="px-5 py-4 text-[var(--text-muted)] font-medium text-xs tabular-nums">
+                              {b.startDate ?? '—'} <span className="opacity-50">→</span> {b.endDate ?? '—'}
                             </td>
-                            <td className="px-4 py-3 font-semibold text-gray-900 tabular-nums">
+                            <td className="px-5 py-4 font-bold text-[var(--text)] tabular-nums">
                               ₹{(b.totalPrice ?? 0).toLocaleString('en-IN')}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-5 py-4">
                               <BookingStatusBadge status={b.status} />
                             </td>
                           </tr>
@@ -543,14 +592,14 @@ function StatCard({ icon, label, value, accent = false }: {
   accent?: boolean;
 }) {
   return (
-    <div className={`bg-white rounded-2xl border shadow-sm p-5
-                     ${accent ? 'border-yellow-200' : 'border-gray-100'}`}>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{label}</span>
+    <div className={`bg-[var(--bg-card)] rounded-[var(--r-xl)] border shadow-sm p-6
+                     ${accent ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-[var(--border)]'}`}>
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">{label}</span>
         {icon}
       </div>
-      <p className={`text-2xl font-bold tabular-nums
-                     ${accent ? 'text-yellow-600' : 'text-gray-900'}`}>
+      <p className={`text-3xl font-display font-bold tabular-nums tracking-tight
+                     ${accent ? 'text-yellow-600' : 'text-[var(--text)]'}`}>
         {value ?? 0}
       </p>
     </div>
@@ -563,49 +612,51 @@ function SearchBar({ value, onChange, placeholder }: {
   placeholder: string;
 }) {
   return (
-    <div className="relative mb-4 max-w-sm">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+    <div className="relative max-w-md w-full">
+      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-faint)] pointer-events-none" />
       <input
         value={value} onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white
-                   focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a]"
+        className="w-full pl-11 pr-4 py-3 border border-[var(--border)] rounded-[var(--r-md)] text-sm font-medium bg-[var(--bg-card)] text-[var(--text)] placeholder:text-[var(--text-faint)]
+                   focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all shadow-inner"
       />
     </div>
   );
 }
 
-function ActionBtn({ onClick, loading, icon, label, variant }: {
+function ActionBtn({ onClick, loading, icon, label, variant, title }: {
   onClick:  () => void;
   loading:  boolean;
   icon:     React.ReactNode;
   label:    string;
+  title?:   string;
   variant:  'green' | 'red' | 'blue';
 }) {
   const colors = {
-    green: 'bg-green-50 text-green-700 hover:bg-green-100',
-    red:   'bg-red-50 text-red-700 hover:bg-red-100',
-    blue:  'bg-blue-50 text-blue-700 hover:bg-blue-100',
+    green: 'bg-green-500/10 text-green-700 hover:bg-green-500/20 border-green-500/20',
+    red:   'bg-red-500/10 text-red-700 hover:bg-red-500/20 border-red-500/20',
+    blue:  'bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 border-blue-500/20',
   };
   return (
-    <button onClick={onClick} disabled={loading}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold
+    <button onClick={onClick} disabled={loading} title={title}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border
                         transition-colors disabled:opacity-50 ${colors[variant]}`}>
       {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : icon}
-      {label}
+      {label && <span>{label}</span>}
     </button>
   );
 }
 
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
-      <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
-      <p className="text-gray-600 font-medium mb-4">Failed to load dashboard data</p>
+    <div className="text-center py-20 bg-[var(--bg-card)] rounded-[var(--r-xl)] border border-[var(--border)] shadow-card">
+      <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+      <p className="text-[var(--text)] font-bold text-lg mb-2">System Interruption</p>
+      <p className="text-[var(--text-muted)] font-medium mb-6">Failed to sync secure telemetry stream.</p>
       <button onClick={onRetry}
-              className="px-5 py-2 bg-[#16a34a] text-white text-sm font-semibold
-                         rounded-xl hover:bg-[#15803d] transition-colors">
-        Retry
+              className="px-6 py-3 bg-[var(--text)] text-[var(--bg)] text-sm font-bold
+                         rounded-[var(--r-md)] hover:bg-black transition-all shadow-sm">
+        Re-establish Connection
       </button>
     </div>
   );

@@ -1,14 +1,13 @@
 export const CATEGORIES = [
-  { value: 'electronics', label: 'Electronics', icon: '📱' },
-  { value: 'vehicles', label: 'Vehicles', icon: '🚗' },
-  { value: 'cameras', label: 'Cameras', icon: '📷' },
-  { value: 'sports', label: 'Sports & Fitness', icon: '⚽' },
-  { value: 'tools', label: 'Tools & Equipment', icon: '🔧' },
-  { value: 'party', label: 'Party & Events', icon: '🎉' },
-  { value: 'travel', label: 'Travel & Outdoor', icon: '🏕️' },
-  { value: 'fashion', label: 'Fashion & Apparel', icon: '👗' },
-  { value: 'furniture', label: 'Furniture', icon: '🛋️' },
-  { value: 'musical', label: 'Musical Instruments', icon: '🎸' },
+  { value: 'cameras',  label: 'Cameras',   icon: '📷' },
+  { value: 'drones',   label: 'Drones',    icon: '🛸' },
+  { value: 'laptops',  label: 'Laptops',   icon: '💻' },
+  { value: 'audio',    label: 'Audio',     icon: '🎧' },
+  { value: 'tools',    label: 'Tools',     icon: '🔧' },
+  { value: 'camping',  label: 'Camping',   icon: '🏕️' },
+  { value: 'gaming',   label: 'Gaming',    icon: '🎮' },
+  { value: 'vehicles', label: 'Vehicles',  icon: '🚗' },
+  { value: 'electronics', label: 'Gadgets', icon: '📱' },
 ] as const;
 
 export const CITIES = [

@@ -27,7 +27,7 @@ api.interceptors.response.use(
   response => response,
   (error: AxiosError) => {
     if (
-      (error.response?.status === 401 || error.response?.status === 403) &&
+      error.response?.status === 401 &&
       typeof window !== 'undefined' &&
       !window.location.pathname.includes('/login')
     ) {

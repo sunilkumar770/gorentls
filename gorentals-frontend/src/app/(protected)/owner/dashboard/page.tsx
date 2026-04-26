@@ -6,10 +6,12 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   Package, IndianRupee, Clock, CheckCircle, XCircle,
   Loader2, Star, ArrowRight, Pencil, Eye, EyeOff, AlertCircle,
+  Box, ShieldAlert
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { acceptBooking, rejectBooking } from '@/services/bookings';
+import { Button } from '@/components/ui/Button';
 import {
   getOwnerListings,
   toggleListingAvailability,
@@ -21,17 +23,17 @@ import { toast } from 'react-hot-toast';
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 function DashboardSkeleton() {
   return (
-    <div className="min-h-screen bg-[#f9fafb] pt-4 pb-16 animate-pulse">
-      <div className="max-w-6xl mx-auto px-4 sm:px-8">
-        <div className="h-10 w-1/3 bg-gray-200 rounded-lg mb-8" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+    <div className="min-h-screen bg-[var(--bg)] pt-4 pb-16 animate-pulse">
+      <div className="max-w-6xl mx-auto px-6">
+        <div className="h-10 w-1/3 bg-[var(--bg-subtle)] rounded-[var(--r-md)] mb-8" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-28 bg-white rounded-2xl shadow-sm" />
+            <div key={i} className="h-32 bg-[var(--bg-card)] rounded-[var(--r-xl)] shadow-card border border-[var(--border)]" />
           ))}
         </div>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-20 bg-white rounded-xl shadow-sm" />
+            <div key={i} className="h-24 bg-[var(--bg-card)] rounded-[var(--r-xl)] shadow-card border border-[var(--border)]" />
           ))}
         </div>
       </div>
@@ -40,7 +42,6 @@ function DashboardSkeleton() {
 }
 
 // ─── AvailabilityToggle ───────────────────────────────────────────────────────
-// Extracted as separate component to prevent re-render focus issues
 function AvailabilityToggle({
   listingId,
   isAvailable,
@@ -59,14 +60,16 @@ function AvailabilityToggle({
   };
 
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="sm"
       onClick={handleClick}
       disabled={busy}
       title={isAvailable ? 'Mark as unavailable' : 'Mark as available'}
-      className={`p-1.5 rounded transition-colors disabled:opacity-50 ${
+      className={`p-2 transition-colors ${
         isAvailable
-          ? 'text-[#16a34a] hover:bg-[#f0fdf4]'
-          : 'text-[#9ca3af] hover:bg-[#f3f4f6]'
+          ? 'text-[var(--primary)] hover:bg-[var(--primary-light)]'
+          : 'text-[var(--text-faint)] hover:bg-[var(--bg-subtle)]'
       }`}
     >
       {busy
@@ -75,7 +78,7 @@ function AvailabilityToggle({
           ? <Eye className="w-4 h-4" />
           : <EyeOff className="w-4 h-4" />
       }
-    </button>
+    </Button>
   );
 }
 
@@ -89,7 +92,6 @@ export default function OwnerDashboardPage() {
   const [actionId, setActionId]               = useState<string | null>(null);
   const [activeTab, setActiveTab]             = useState<'listings' | 'requests'>('listings');
 
-  // Load owner listings
   const loadListings = () => {
     if (!user?.id) return;
     setListingsLoading(true);
@@ -106,7 +108,27 @@ export default function OwnerDashboardPage() {
 
   useEffect(loadListings, [user?.id]);
 
-  if (loading) return <DashboardSkeleton />;
+  useEffect(() => {
+    if (!loading) {
+      if (!profile) {
+        window.location.replace('/login?redirect=/owner/dashboard');
+        return;
+      }
+    }
+  }, [loading, profile]);
+
+  if (loading || !profile) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-4 border-[var(--primary-light)] border-t-[var(--primary)] animate-spin" />
+          <span className="text-sm font-semibold text-[var(--text-muted)] tracking-widest uppercase">
+            {loading ? 'Connecting...' : 'Redirecting...'}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   const activeBookings  = bookings.filter(b => b.status === 'ACCEPTED' || b.status === 'CONFIRMED' || b.status === 'IN_PROGRESS');
   const pendingRequests = bookings.filter(b => b.status === 'PENDING');
@@ -117,15 +139,14 @@ export default function OwnerDashboardPage() {
   const hour     = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
-  // ─── Booking actions ────────────────────────────────────────────────────────
   const handleAccept = async (id: string) => {
     setActionId(id);
     try {
       await acceptBooking(id);
-      toast.success('Booking accepted!');
+      toast.success('Reservation authorized.');
       refetch?.();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Failed to accept booking.');
+      toast.error(err?.response?.data?.message ?? 'Authorization failed.');
     } finally {
       setActionId(null);
     }
@@ -135,123 +156,125 @@ export default function OwnerDashboardPage() {
     setActionId(id);
     try {
       await rejectBooking(id);
-      toast.success('Booking rejected.');
+      toast.success('Reservation declined.');
       refetch?.();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Failed to reject booking.');
+      toast.error(err?.response?.data?.message ?? 'Action failed.');
     } finally {
       setActionId(null);
     }
   };
 
-  // ─── Optimistic availability toggle ─────────────────────────────────────────
-  // UI updates instantly. If server fails → UI rolls back to previous state.
   const handleToggleAvailability = async (id: string, nextAvailable: boolean) => {
     const prevAvailable = !nextAvailable;
 
-    // 1. Optimistic update
     setListings(prev => prev.map(l => l.id === id ? { ...l, is_available: nextAvailable } : l));
 
     try {
       const updated = await toggleListingAvailability(id, nextAvailable);
-      // Sync exact server state (handles edge cases)
       setListings(prev => prev.map(l => l.id === id ? updated : l));
-      toast.success(nextAvailable ? 'Listing is now live.' : 'Listing hidden from search.');
+      toast.success(nextAvailable ? 'Asset online.' : 'Asset suspended.');
     } catch (err: any) {
-      // 2. Rollback on failure
       setListings(prev => prev.map(l => l.id === id ? { ...l, is_available: prevAvailable } : l));
-      toast.error(err?.response?.data?.message ?? 'Failed to update availability.');
+      toast.error(err?.response?.data?.message ?? 'Failed to alter asset state.');
     }
   };
 
-  // ─── Publish draft ───────────────────────────────────────────────────────────
   const handlePublish = async (id: string) => {
     try {
       const updated = await publishListing(id);
       setListings(prev => prev.map(l => l.id === id ? updated : l));
-      toast.success('Listing published! Renters can now find it.');
+      toast.success('Asset deployed to public archive.');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Failed to publish listing.');
+      toast.error(err?.response?.data?.message ?? 'Deployment failed.');
     }
   };
 
   const isKycApproved = profile?.kycStatus === 'APPROVED';
 
   return (
-    <div className="min-h-screen bg-[#f9fafb]">
+    <div className="min-h-screen bg-[var(--bg)] pb-24">
       {/* KYC Warning Banner */}
       {!isKycApproved && (
-        <div className="bg-amber-50 border-b border-amber-200 py-3 px-4">
-          <div className="max-w-6xl mx-auto flex items-center gap-3 text-amber-800">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <p className="text-sm font-medium">
-              Your KYC is pending verification. You can list items, but your listings won&apos;t be visible to renters until KYC is approved.
+        <div className="bg-[#fef3c7] border-b border-[#fde68a] py-3 px-6">
+          <div className="max-w-6xl mx-auto flex items-center gap-3 text-[#92400e]">
+            <ShieldAlert className="w-5 h-5 flex-shrink-0" />
+            <p className="text-sm font-semibold tracking-tight">
+              Verification Pipeline Pending. Assets can be registered but will remain encrypted from public search until clearance.
             </p>
           </div>
         </div>
       )}
 
-      {/* Navbar */}
-      <nav className="sticky top-0 z-50 bg-white border-b border-[#e5e7eb]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl text-[#111827]">
-            <span className="w-8 h-8 bg-[#16a34a] rounded-lg flex items-center justify-center text-white text-sm font-black">G</span>
-            GoRentals
+      {/* Utility Nav */}
+      <nav className="sticky top-0 z-50 bg-[var(--bg-card)]/80 backdrop-blur-xl border-b border-[var(--border)]">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="w-8 h-8 rounded-lg gradient-teal flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+              <Box className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-display font-bold text-lg text-[var(--text)] tracking-tight">GoRentals</span>
           </Link>
-          <Link
-            href="/create-listing"
-            className="px-4 py-2 bg-[#16a34a] text-white text-sm font-semibold rounded-lg hover:bg-[#15803d] transition-colors"
+          <Button
+            variant="gradient"
+            size="sm"
+            asChild
+            className="px-5 font-bold uppercase tracking-widest"
           >
-            + Add Listing
-          </Link>
+            <Link href="/create-listing">
+              Deploy Asset
+            </Link>
+          </Button>
         </div>
       </nav>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-8 py-8">
-
+      <div className="max-w-6xl mx-auto px-6 py-12">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#111827]">
-            {greeting}, {profile?.fullName?.split(' ')[0] ?? 'Owner'} 👋
+        <div className="mb-10">
+          <h1 className="text-3xl md:text-4xl font-display font-bold text-[var(--text)] tracking-tight">
+            {greeting}, {profile?.fullName?.split(' ')[0] ?? 'Operator'}
           </h1>
-          <p className="text-[#6b7280] text-sm mt-1">Here&apos;s your rental overview</p>
+          <p className="text-[var(--text-muted)] mt-2 font-medium">Logistics and fleet management overview.</p>
         </div>
 
         {/* KPI cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
           {[
-            { icon: Package,     label: 'My Listings',   value: listings.length.toString(),        sub: 'total',    bg: 'bg-[#f0fdf4]', color: 'text-[#16a34a]' },
-            { icon: Clock,       label: 'Active Rentals', value: activeBookings.length.toString(),  sub: 'ongoing',  bg: 'bg-blue-50',   color: 'text-blue-600' },
-            { icon: IndianRupee, label: 'Total Earned',   value: formatCurrency(totalEarned),        sub: 'lifetime', bg: 'bg-[#f0fdf4]', color: 'text-[#16a34a]' },
-            { icon: Star,        label: 'Pending',        value: pendingRequests.length.toString(),  sub: 'requests', bg: 'bg-amber-50',  color: 'text-amber-600', badge: pendingRequests.length > 0 },
-          ].map(({ icon: Icon, label, value, sub, bg, color, badge }) => (
-            <div key={label} className="bg-white rounded-2xl p-5 shadow-sm relative">
-              {badge && <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full" />}
-              <div className={`w-10 h-10 ${bg} rounded-xl flex items-center justify-center mb-3`}>
-                <Icon className={`w-5 h-5 ${color}`} />
+            { icon: Package,     label: 'Total Assets',  value: listings.length.toString(),        sub: 'registered', bgLight: 'bg-[var(--bg-subtle)]', color: 'text-[var(--primary)]', glow: 'bg-[var(--primary-light)]' },
+            { icon: Clock,       label: 'Active Leases', value: activeBookings.length.toString(),  sub: 'ongoing',    bgLight: 'bg-[#dbeafe]', color: 'text-[#1e40af]', glow: 'bg-[#eff6ff]' },
+            { icon: IndianRupee, label: 'Capital Gen',   value: `${formatCurrency(totalEarned)}`,   sub: 'lifetime',   bgLight: 'bg-[#f0fdf4]', color: 'text-[#16a34a]', glow: 'bg-[#dcfce7]' },
+            { icon: Star,        label: 'Inbound',       value: pendingRequests.length.toString(),  sub: 'requests',   bgLight: 'bg-[#fef3c7]', color: 'text-[#d97706]', glow: 'bg-[#ffedd5]', badge: pendingRequests.length > 0 },
+          ].map(({ icon: Icon, label, value, sub, bgLight, color, glow, badge }) => (
+            <div key={label} className="bg-[var(--bg-card)] rounded-[var(--r-xl)] p-6 shadow-card border border-[var(--border)] relative overflow-hidden group">
+              <div className={`absolute top-0 right-0 w-28 h-28 ${glow} rounded-full blur-[35px] -mr-8 -mt-8 opacity-50 group-hover:opacity-100 transition-opacity`} />
+              {badge && <span className="absolute top-4 right-4 w-2.5 h-2.5 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.6)]" />}
+              <div className="relative">
+                <div className={`w-10 h-10 ${bgLight} rounded-[var(--r-md)] flex items-center justify-center mb-4`}>
+                  <Icon className={`w-5 h-5 ${color}`} />
+                </div>
+                <p className="text-[11px] text-[var(--text-muted)] font-bold uppercase tracking-widest mb-1">{label}</p>
+                <p className="text-3xl font-display font-bold text-[var(--text)] tracking-tight">{value}</p>
+                <p className="text-xs text-[var(--text-faint)] font-medium mt-1">{sub}</p>
               </div>
-              <p className="text-xs text-[#6b7280] mb-1">{label}</p>
-              <p className="text-2xl font-bold text-[#111827]">{value}</p>
-              <p className="text-xs text-[#9ca3af]">{sub}</p>
             </div>
           ))}
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-[#e5e7eb] mb-6">
+        <div className="flex border-b border-[var(--border)] mb-8">
           {(['listings', 'requests'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+              className={`px-5 py-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 uppercase tracking-widest ${
                 activeTab === tab
-                  ? 'border-[#16a34a] text-[#16a34a]'
-                  : 'border-transparent text-[#6b7280] hover:text-[#111827]'
+                  ? 'border-[var(--primary)] text-[var(--primary)]'
+                  : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
               }`}
             >
-              {tab === 'listings' ? 'My Listings' : 'Booking Requests'}
+              {tab === 'listings' ? 'Fleet Database' : 'Inbound Requests'}
               {tab === 'requests' && pendingRequests.length > 0 && (
-                <span className="px-1.5 py-0.5 text-xs bg-red-100 text-red-700 rounded-full font-bold">
+                <span className="px-2 py-0.5 text-[10px] bg-[#fee2e2] text-[#b91c1c] rounded-full font-black border border-[#fecaca] shadow-sm">
                   {pendingRequests.length}
                 </span>
               )}
@@ -263,97 +286,75 @@ export default function OwnerDashboardPage() {
         {activeTab === 'listings' && (
           <section>
             {listingsLoading ? (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="h-20 bg-white rounded-xl shadow-sm animate-pulse" />
+                  <div key={i} className="h-24 bg-[var(--bg-card)] rounded-[var(--r-xl)] shadow-card border border-[var(--border)] animate-pulse" />
                 ))}
               </div>
             ) : listingsError ? (
-              /* Real error state — never silently empty */
-              <div className="bg-white rounded-2xl p-10 text-center shadow-sm border border-red-100">
-                <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
-                <h3 className="text-lg font-semibold text-[#111827] mb-1">Could not load listings</h3>
-                <p className="text-sm text-[#6b7280] mb-5">{listingsError}</p>
-                <button
+              <div className="bg-[var(--bg-card)] rounded-[var(--r-xl)] p-12 text-center shadow-card border border-[#fecaca]">
+                <AlertCircle className="w-12 h-12 text-[#f87171] mx-auto mb-4" />
+                <h3 className="text-xl font-display font-bold text-[var(--text)] mb-2">Fleet Synchronization Failed</h3>
+                <p className="text-sm text-[var(--text-muted)] mb-6 max-w-sm mx-auto">{listingsError}</p>
+                <Button
+                  variant="secondary"
+                  size="md"
                   onClick={loadListings}
-                  className="px-4 py-2 bg-[#111827] text-white text-sm font-semibold rounded-lg hover:bg-[#374151] transition-colors"
+                  className="uppercase tracking-widest font-bold"
                 >
-                  Try again
-                </button>
+                  Retry Connection
+                </Button>
               </div>
             ) : listings.length === 0 ? (
-              <div className="bg-white rounded-2xl p-16 text-center shadow-sm">
-                <Package className="w-12 h-12 text-[#d1d5db] mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-[#111827] mb-2">No listings yet</h3>
-                <p className="text-[#6b7280] text-sm mb-6">Add your first item to start earning.</p>
+              <div className="bg-[var(--bg-card)] rounded-[var(--r-xl)] p-16 text-center shadow-card border border-[var(--border)]">
+                <Package className="w-14 h-14 text-[var(--text-faint)] mx-auto mb-5" />
+                <h3 className="text-xl font-display font-bold text-[var(--text)] mb-2">Registry Empty</h3>
+                <p className="text-[var(--text-muted)] text-sm mb-8 max-w-sm mx-auto">You have zero assets deployed. Register inventory to begin generating capital.</p>
                 <Link
                   href="/create-listing"
-                  className="px-5 py-2.5 bg-[#16a34a] text-white text-sm font-semibold rounded-lg hover:bg-[#15803d] transition-colors"
+                  className="inline-flex px-8 py-3 gradient-teal text-white text-sm font-bold rounded-[var(--r-md)] hover:shadow-card transition-all uppercase tracking-widest"
                 >
-                  + Add Listing
+                  Register Asset
                 </Link>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-                {/* Table header */}
-                <div className="hidden md:grid grid-cols-12 px-5 py-3 border-b border-[#f3f4f6] text-xs font-semibold text-[#6b7280] uppercase tracking-wider">
-                  <div className="col-span-1" />
-                  <div className="col-span-4">Title</div>
-                  <div className="col-span-2">Category</div>
-                  <div className="col-span-2">Price</div>
-                  <div className="col-span-1">Status</div>
-                  <div className="col-span-2 text-right">Actions</div>
-                </div>
-
-                <div className="divide-y divide-[#f9fafb]">
-                  {listings.map(listing => {
-                    const image = listing.listing_images?.[0]?.image_url;
-                    return (
-                      <div key={listing.id} className="grid grid-cols-1 md:grid-cols-12 items-center gap-3 px-5 py-4 hover:bg-[#f9fafb] transition-colors">
-                        {/* Thumbnail */}
-                        <div className="hidden md:block col-span-1">
-                          <div className="w-12 h-10 rounded-lg bg-[#f3f4f6] overflow-hidden">
-                            {image ? (
-                              <img src={image} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Package className="w-4 h-4 text-[#d1d5db]" />
-                              </div>
-                            )}
+              <div className="flex flex-col gap-4">
+                {listings.map(listing => {
+                  const image = listing.listing_images?.[0]?.image_url;
+                  return (
+                    <div key={listing.id} className="bg-[var(--bg-card)] rounded-[var(--r-xl)] shadow-sm hover:shadow-card border border-[var(--border)] p-4 flex flex-col md:flex-row gap-5 items-start md:items-center transition-all group">
+                      
+                      <div className="w-full md:w-32 h-32 md:h-24 rounded-[var(--r-lg)] bg-[var(--bg-subtle)] overflow-hidden flex-shrink-0">
+                        {image ? (
+                          <img src={image} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package className="w-6 h-6 text-[var(--text-faint)]" />
                           </div>
-                        </div>
+                        )}
+                      </div>
 
-                        {/* Mobile view */}
-                        <div className="md:hidden flex items-center gap-3">
-                          <div className="w-14 h-12 rounded-lg bg-[#f3f4f6] overflow-hidden flex-shrink-0">
-                            {image ? <img src={image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Package className="w-4 h-4 text-[#d1d5db]" /></div>}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-[#111827] text-sm truncate">{listing.title}</p>
-                            <p className="text-xs text-[#6b7280]">{listing.category} · {formatCurrency(listing.price_per_day)}</p>
-                          </div>
-                        </div>
-
-                        {/* Desktop columns */}
-                        <div className="hidden md:block col-span-4 font-medium text-[#111827] text-sm truncate">{listing.title}</div>
-                        <div className="hidden md:block col-span-2 text-sm text-[#6b7280]">{listing.category}</div>
-                        <div className="hidden md:block col-span-2 text-sm font-semibold text-[#111827]">{formatCurrency(listing.price_per_day)}</div>
-                        <div className="hidden md:block col-span-1">
-                          {listing.is_published ? (
-                            <span className="px-2 py-0.5 text-[10px] font-bold bg-[#f0fdf4] text-[#16a34a] rounded-full uppercase tracking-tighter">Live</span>
-                          ) : (
-                            <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-600 rounded-full uppercase tracking-tighter">Draft</span>
+                      <div className="flex-1 min-w-0 flex flex-col justify-center">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-display font-bold text-[var(--text)] text-lg truncate">{listing.title}</p>
+                          {!listing.is_published && (
+                            <span className="px-2 py-0.5 text-[10px] font-bold bg-[#fef3c7] text-[#d97706] border border-[#fde68a] rounded-full uppercase tracking-tighter">Standby</span>
                           )}
                         </div>
+                        <p className="text-sm text-[var(--text-muted)] font-medium mb-3">
+                          <span className="bg-[var(--bg-subtle)] px-2 py-0.5 rounded mr-2">{listing.category}</span>
+                          {formatCurrency(listing.price_per_day)} / cycle
+                        </p>
+                      </div>
 
-                        {/* Actions */}
-                        <div className="col-span-2 flex items-center justify-end gap-1.5">
+                      <div className="flex flex-row md:flex-col items-center md:items-end justify-between w-full md:w-auto gap-3 pt-4 md:pt-0 border-t border-[var(--border)] md:border-none">
+                        <div className="flex items-center gap-2 bg-[var(--bg-subtle)] px-2 py-1 rounded-[var(--r-md)]">
                           {!listing.is_published && (
                             <button
                               onClick={() => handlePublish(listing.id)}
-                              className="px-2.5 py-1.5 text-xs font-bold text-[#16a34a] hover:bg-[#f0fdf4] rounded transition-colors"
+                              className="px-3 py-1.5 text-[11px] font-bold text-[var(--primary)] hover:bg-[var(--primary-light)] rounded-[var(--r-md)] transition-colors uppercase tracking-widest mr-1"
                             >
-                              Publish
+                              Deploy
                             </button>
                           )}
                           <AvailabilityToggle
@@ -361,25 +362,26 @@ export default function OwnerDashboardPage() {
                             isAvailable={listing.is_available}
                             onToggle={handleToggleAvailability}
                           />
+                          <div className="w-px h-4 bg-[var(--border-strong)] mx-1" />
                           <Link
                             href={`/owner/listings/${listing.id}/edit`}
-                            className="p-1.5 text-[#6b7280] hover:bg-[#f3f4f6] rounded transition-colors"
-                            title="Edit listing"
+                            className="p-2 text-[var(--text-muted)] hover:bg-[var(--bg-card)] rounded-[var(--r-md)] hover:text-[var(--text)] transition-colors"
+                            title="Configure"
                           >
                             <Pencil className="w-4 h-4" />
                           </Link>
                           <Link
                             href={`/item/${listing.id}`}
-                            className="p-1.5 text-[#6b7280] hover:bg-[#f3f4f6] rounded transition-colors"
-                            title="View public page"
+                            className="p-2 text-[var(--text-muted)] hover:bg-[var(--bg-card)] rounded-[var(--r-md)] hover:text-[var(--text)] transition-colors"
+                            title="View Terminal"
                           >
                             <ArrowRight className="w-4 h-4" />
                           </Link>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -389,42 +391,55 @@ export default function OwnerDashboardPage() {
         {activeTab === 'requests' && (
           <section>
             {pendingRequests.length === 0 ? (
-              <div className="bg-white rounded-2xl p-16 text-center shadow-sm">
-                <Clock className="w-12 h-12 text-[#d1d5db] mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-[#111827] mb-2">No pending requests</h3>
-                <p className="text-[#6b7280] text-sm">New requests will appear here.</p>
+              <div className="bg-[var(--bg-card)] rounded-[var(--r-xl)] p-16 text-center shadow-card border border-[var(--border)]">
+                <Clock className="w-14 h-14 text-[var(--text-faint)] mx-auto mb-5" />
+                <h3 className="text-xl font-display font-bold text-[var(--text)] mb-2">Zero Inbound Comm</h3>
+                <p className="text-[var(--text-muted)] text-sm">New rental authorizations will populate here.</p>
               </div>
             ) : (
               <div className="flex flex-col gap-4">
                 {pendingRequests.map(booking => (
-                  <div key={booking.id} className="bg-white rounded-2xl shadow-sm p-5 flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-[#111827] mb-1">
-                        <span className="text-[#16a34a]">{booking.listing?.title}</span>
+                  <div key={booking.id} className="bg-[var(--bg-card)] rounded-[var(--r-xl)] shadow-card hover:shadow-card-hover border border-[var(--border)] p-6 flex flex-col md:flex-row gap-6 items-center transition-all">
+                    <div className="flex-1 w-full">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-[#fef3c7] text-[#d97706] border border-[#fde68a] rounded-full uppercase tracking-widest">
+                          Auth Required
+                        </span>
+                        <p className="text-xs text-[var(--text-faint)] font-medium">Ref: {booking.id.split('-')[0]}</p>
+                      </div>
+                      <p className="text-xl font-display font-bold text-[var(--text)] mb-1">
+                        {booking.listing?.title}
                       </p>
-                      <p className="text-sm text-[#6b7280]">
-                        {formatDate(booking.checkInDate)} – {formatDate(booking.checkOutDate)}
-                        &nbsp;·&nbsp;{formatCurrency(booking.totalAmount)}
+                      <p className="text-sm font-medium text-[var(--text-muted)]">
+                        {formatDate(booking.checkInDate)} → {formatDate(booking.checkOutDate)}
+                        <span className="mx-2 opacity-50">|</span>
+                        <span className="text-[var(--primary)] font-bold">{formatCurrency(booking.totalAmount)}</span>
                       </p>
                     </div>
-                    <div className="flex gap-2 sm:flex-col sm:justify-center">
-                      <button
-                        onClick={() => handleAccept(booking.id)}
-                        disabled={actionId === booking.id}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-[#16a34a] text-white text-sm font-semibold rounded-lg hover:bg-[#15803d] transition-colors disabled:opacity-50"
-                      >
-                        {actionId === booking.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                        Accept
-                      </button>
-                      <button
-                        onClick={() => handleReject(booking.id)}
-                        disabled={actionId === booking.id}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
-                      >
-                        {actionId === booking.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                        Reject
-                      </button>
-                    </div>
+                <div className="flex w-full md:w-auto gap-3">
+                  <Button
+                    variant="ghost"
+                    size="md"
+                    onClick={() => handleReject(booking.id)}
+                    disabled={actionId === booking.id}
+                    loading={actionId === booking.id}
+                    className="flex-1 md:flex-none text-red-600 hover:bg-red-50 border-red-100"
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Decline
+                  </Button>
+                  <Button
+                    variant="gradient"
+                    size="md"
+                    onClick={() => handleAccept(booking.id)}
+                    disabled={actionId === booking.id}
+                    loading={actionId === booking.id}
+                    className="flex-1 md:flex-none"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Authorize
+                  </Button>
+                </div>
                   </div>
                 ))}
               </div>

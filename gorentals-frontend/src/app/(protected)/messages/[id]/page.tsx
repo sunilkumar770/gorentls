@@ -148,19 +148,19 @@ export default function ChatPage() {
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) return (
-    <div className="flex items-center justify-center h-[calc(100vh-64px)]">
-      <Loader2 className="w-6 h-6 animate-spin text-[#16a34a]" />
+    <div className="flex items-center justify-center h-[calc(100vh-64px)] bg-[var(--bg)]">
+      <Loader2 className="w-6 h-6 animate-spin text-[var(--primary)]" />
     </div>
   );
 
   // ── Error ──────────────────────────────────────────────────────────────────
   if (error) return (
-    <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)] gap-4 px-4">
-      <AlertCircle className="w-10 h-10 text-red-400" />
-      <p className="text-sm text-[#374151] font-medium">Could not load conversation</p>
-      <p className="text-sm text-[#6b7280] text-center">{error}</p>
+    <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)] gap-4 px-4 bg-[var(--bg)]">
+      <AlertCircle className="w-10 h-10 text-red-500" />
+      <p className="text-sm text-[var(--text)] font-bold">Could not load conversation</p>
+      <p className="text-sm text-[var(--text-muted)] text-center">{error}</p>
       <button onClick={() => router.back()}
-        className="px-4 py-2 bg-[#111827] text-white text-sm font-semibold rounded-lg hover:bg-[#374151] transition-colors">
+        className="px-5 py-2.5 bg-[var(--text)] text-[var(--bg)] text-sm font-bold rounded-[var(--r-md)] hover:bg-black transition-colors shadow-sm">
         Go back
       </button>
     </div>
@@ -168,41 +168,41 @@ export default function ChatPage() {
 
   // ── Chat Room ──────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] max-w-3xl mx-auto bg-white rounded-none sm:rounded-2xl sm:my-4 sm:shadow-xl overflow-hidden sm:border border-[#e5e7eb]">
+    <div className="flex flex-col h-[calc(100vh-64px)] max-w-4xl mx-auto bg-[var(--bg-card)] rounded-none sm:rounded-[var(--r-xl)] sm:my-6 sm:shadow-card overflow-hidden sm:border border-[var(--border)]">
 
       {/* ── Header ── */}
-      <div className="bg-[#16a34a] px-4 py-3 text-white flex items-center gap-3 flex-shrink-0">
+      <div className="gradient-teal px-4 py-4 text-white flex items-center gap-4 flex-shrink-0 shadow-sm border-b border-[var(--border)]/20">
         <button onClick={() => router.back()}
-          className="p-1.5 rounded-lg hover:bg-[#15803d] transition-colors"
+          className="p-2 rounded-[var(--r-md)] hover:bg-white/10 transition-colors"
           aria-label="Back to messages">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
+        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 shadow-inner">
           {otherParty?.charAt(0)?.toUpperCase() ?? '?'}
         </div>
         <div className="flex-1 min-w-0">
           <h2 className="font-bold text-base leading-tight truncate">
             {otherParty ?? 'Chat'}
           </h2>
-          <p className="text-xs text-green-100 truncate">
+          <p className="text-xs text-white/80 truncate font-medium mt-0.5">
             {conversation?.listingTitle}
           </p>
         </div>
         {/* Live WS status indicator */}
         {wsConnected
-          ? <Wifi    className="w-4 h-4 text-green-200 flex-shrink-0" />
-          : <WifiOff className="w-4 h-4 text-yellow-300 animate-pulse flex-shrink-0" />
+          ? <Wifi className="w-4 h-4 text-white/90 flex-shrink-0" />
+          : <span title="Reconnecting..."><WifiOff className="w-4 h-4 text-amber-300 animate-pulse flex-shrink-0" /></span>
         }
       </div>
 
       {/* ── Messages ── */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#f9fafb] scroll-smooth"
+        className="flex-1 overflow-y-auto px-4 py-6 space-y-4 bg-gradient-to-b from-[var(--bg)] to-[var(--bg-card)] scroll-smooth"
       >
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full">
-            <p className="text-sm text-[#9ca3af]">No messages yet — say hello! 👋</p>
+            <p className="text-sm font-medium text-[var(--text-faint)]">No messages yet — say hello! 👋</p>
           </div>
         )}
 
@@ -213,17 +213,17 @@ export default function ChatPage() {
 
           return (
             <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl shadow-sm ${
+              <div className={`max-w-[75%] px-5 py-3 rounded-2xl shadow-sm border ${
                 isMe
-                  ? 'bg-[#16a34a] text-white rounded-tr-none'
-                  : 'bg-white text-[#111827] border border-[#f3f4f6] rounded-tl-none'
+                  ? 'gradient-teal text-white rounded-tr-sm border-transparent'
+                  : 'bg-[var(--bg-card)] text-[var(--text)] border-[var(--border)] rounded-tl-sm'
               }`}>
                 <p className="text-sm leading-relaxed break-words">{m.messageText}</p>
-                <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${
-                  isMe ? 'text-green-200' : 'text-[#9ca3af]'
+                <div className={`flex items-center justify-end gap-1 mt-1.5 text-[10px] font-medium ${
+                  isMe ? 'text-white/80' : 'text-[var(--text-faint)]'
                 }`}>
                   {isPending
-                    ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
                     : m.createdAt
                       ? formatDistanceToNow(parseISO(m.createdAt), { addSuffix: true })
                       : null
@@ -238,7 +238,7 @@ export default function ChatPage() {
       {/* ── Input ── */}
       <form
         onSubmit={handleSend}
-        className="px-4 py-3 border-t border-[#f3f4f6] bg-white flex gap-2 flex-shrink-0"
+        className="px-4 py-4 border-t border-[var(--border)] bg-[var(--bg-card)] flex gap-3 flex-shrink-0 items-center"
       >
         <input
           ref={inputRef}
@@ -246,15 +246,15 @@ export default function ChatPage() {
           value={inputText}
           onChange={e => setInputText(e.target.value)}
           placeholder={wsConnected ? 'Type a message...' : 'Reconnecting...'}
-          className="flex-1 bg-[#f9fafb] border border-[#e5e7eb] rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#16a34a] focus:border-transparent"
+          className="flex-1 bg-[var(--bg)] border border-[var(--border-strong)] rounded-full px-5 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all placeholder:text-[var(--text-faint)] text-[var(--text)] shadow-inner"
         />
         <button
           type="submit"
           disabled={!inputText.trim()}
           aria-label="Send message"
-          className="w-10 h-10 bg-[#16a34a] text-white rounded-full flex items-center justify-center hover:bg-[#15803d] active:bg-[#166534] transition-colors disabled:opacity-40 flex-shrink-0"
+          className="w-12 h-12 gradient-teal text-white rounded-full flex items-center justify-center hover:shadow-md transition-all disabled:opacity-40 flex-shrink-0"
         >
-          <Send className="w-4 h-4" />
+          <Send className="w-5 h-5 ml-0.5" />
         </button>
       </form>
     </div>

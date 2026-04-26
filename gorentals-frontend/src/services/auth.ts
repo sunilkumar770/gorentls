@@ -37,13 +37,12 @@ export function buildProfile(data: any): Profile {
 // Helper: sync token to BOTH storage locations
 function setToken(token: string) {
   localStorage.setItem('gr_token', token);
-  localStorage.setItem('token', token);
-  document.cookie = `token=${token}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`;
+  // Ensure the cookie name matches what middleware (proxy.ts) expects
+  document.cookie = `token=${token}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
 }
 
 function clearToken() {
   localStorage.removeItem('gr_token');
-  localStorage.removeItem('token');
   localStorage.removeItem('gr_user');
   document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
 }

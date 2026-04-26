@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react';
 import { getListings } from '@/services/listings';
 import type { Listing } from '@/types';
-import { MapPin, Search, Package } from 'lucide-react';
+import { MapPin, Search, Package, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
+import { Input } from '@/components/ui/Input';
 
-const CITIES = ['All Cities', 'Mumbai', 'Delhi', 'Bengaluru', 'Hyderabad', 'Chennai', 'Pune', 'Kolkata', 'Ahmedabad', 'Testville'];
+// Removed "Testville" — only real Indian cities
+const CITIES = ['All Cities', 'Hyderabad', 'Mumbai', 'Delhi', 'Bengaluru', 'Chennai', 'Pune', 'Kolkata', 'Ahmedabad'];
 
 export default function StoresPage() {
   const [listings, setListings] = useState<Listing[]>([]);
@@ -16,13 +18,14 @@ export default function StoresPage() {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
+    setLoading(true);
     getListings({ city: selectedCity === 'All Cities' ? undefined : selectedCity })
-      .then((data: any) => setListings(Array.isArray(data) ? data : data.content))
+      .then((data: any) => setListings(Array.isArray(data) ? data : data.content ?? []))
       .finally(() => setLoading(false));
   }, [selectedCity]);
 
   const filtered = listings.filter(l =>
-    search ? l.title.toLowerCase().includes(search.toLowerCase()) : true
+    search ? l.stores?.store_name?.toLowerCase().includes(search.toLowerCase()) || l.title.toLowerCase().includes(search.toLowerCase()) : true
   );
 
   // Group by store/owner
@@ -31,8 +34,8 @@ export default function StoresPage() {
     const storeId = l.owner_id || 'unknown';
     if (!storeMap.has(storeId)) {
       storeMap.set(storeId, {
-        name: l.stores?.store_name || 'Independent Collector',
-        city: l.stores?.store_city || 'Unknown Location',
+        name: l.stores?.store_name || 'Independent Owner',
+        city: l.stores?.store_city || '',
         listings: [],
       });
     }
@@ -41,43 +44,41 @@ export default function StoresPage() {
   const stores = Array.from(storeMap.entries());
 
   return (
-    <div className="min-h-screen bg-[#fff8f6] pt-12 pb-24">
+    <div className="min-h-screen bg-[var(--bg)] pt-10 pb-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
 
         {/* Header */}
-        <div className="mb-16 border-b border-[#251913]/5 pb-12">
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-[#f97316] mb-3">Browse</p>
-          <h1 className="text-6xl md:text-8xl font-display font-black tracking-tighter text-[#251913] leading-[0.85] mb-4">
-            The<br /><span className="text-[#f97316]">Archive.</span>
+        <div className="mb-14 pb-10 border-b border-[var(--border)]">
+          <p className="text-xs font-bold uppercase tracking-[0.3em] text-[var(--primary)] mb-3">Owner Stores</p>
+          <h1 className="text-5xl md:text-7xl font-display font-bold tracking-tight text-[var(--text)] leading-[0.9] mb-4">
+            Browse<br /><span className="text-[var(--primary)]">Owners.</span>
           </h1>
-          <p className="text-xl text-[#8c7164] font-medium max-w-lg">
+          <p className="text-lg text-[var(--text-muted)] font-medium max-w-lg">
             Explore verified owners and their curated collections near you.
           </p>
         </div>
 
         {/* Search + Filter */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-12">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8c7164]" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search by listing name..."
-              className="w-full pl-12 pr-5 py-4 bg-white rounded-[1rem] border border-transparent ring-1 ring-[#f97316]/10 focus:ring-[#f97316] outline-none text-[#251913] font-bold placeholder-[#8c7164]/40 transition-all shadow-ambient"
-            />
-          </div>
+        <div className="flex flex-col sm:flex-row gap-4 mb-8">
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search by owner or store name..."
+            icon={<Search className="w-4 h-4" />}
+            className="bg-[var(--bg-card)] shadow-sm"
+          />
         </div>
 
         {/* City Chips */}
-        <div className="flex flex-wrap gap-3 mb-12">
+        <div className="flex flex-wrap gap-2 mb-10">
           {CITIES.map(city => (
             <button
               key={city}
-              onClick={() => { setSelectedCity(city); setLoading(true); }}
-              className={`px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all ${
+              onClick={() => { setSelectedCity(city); }}
+              className={`px-4 py-2 rounded-[var(--r-pill)] text-xs font-bold uppercase tracking-widest transition-all border ${
                 selectedCity === city
-                  ? 'bg-[#251913] text-white shadow-ambient'
-                  : 'bg-white text-[#8c7164] hover:bg-[#fff8f6] ring-1 ring-[#251913]/5 shadow-sm'
+                  ? 'gradient-teal text-white border-transparent shadow-card'
+                  : 'bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--border-strong)] hover:text-[var(--text)]'
               }`}
             >
               {city}
@@ -87,54 +88,63 @@ export default function StoresPage() {
 
         {/* Store Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-            {[1,2,3,4,5,6].map(i => (
-              <div key={i} className="h-64 bg-white rounded-[2rem] animate-pulse shadow-sm" />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="h-64 bg-[var(--bg-card)] rounded-[var(--r-xl)] animate-pulse border border-[var(--border)]" />
             ))}
           </div>
         ) : stores.length === 0 ? (
-          <div className="bg-white rounded-[2.5rem] p-20 text-center shadow-ambient ring-1 ring-[#f97316]/5">
-            <MapPin className="h-16 w-16 text-[#f97316]/20 mx-auto mb-6" />
-            <h3 className="text-3xl font-display font-black text-[#251913] mb-2">No Collections Found</h3>
-            <p className="text-[#8c7164] font-medium">Try a different city or search term.</p>
+          <div className="bg-[var(--bg-card)] rounded-[var(--r-xl)] p-20 text-center shadow-card border border-[var(--border)]">
+            <div className="w-16 h-16 bg-[var(--bg-subtle)] rounded-full flex items-center justify-center mx-auto mb-5">
+              <MapPin className="h-8 w-8 text-[var(--text-faint)]" />
+            </div>
+            <h3 className="text-2xl font-display font-bold text-[var(--text)] mb-2">No Stores Found</h3>
+            <p className="text-[var(--text-muted)]">
+              {selectedCity !== 'All Cities' ? `No owners in ${selectedCity} yet. Try another city.` : 'Try searching by a different name.'}
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {stores.map(([id, store]) => (
-              <div key={id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-ambient ring-1 ring-[#f97316]/5 group transition-all hover:-translate-y-2 hover:shadow-[0_32px_64px_rgba(37,25,19,0.12)]">
+              <div key={id} className="bg-[var(--bg-card)] rounded-[var(--r-xl)] overflow-hidden shadow-card hover:shadow-card-hover border border-[var(--border)] group transition-all hover:-translate-y-1">
                 {/* Store header */}
-                <div className="p-8 border-b border-[#251913]/5">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="w-14 h-14 bg-gradient-to-br from-[#f97316] to-[#ea580c] rounded-[1rem] flex items-center justify-center text-white font-display font-black text-xl shadow-lg">
+                <div className="p-6 border-b border-[var(--border)]">
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="w-12 h-12 gradient-teal rounded-[var(--r-lg)] flex items-center justify-center text-white font-display font-bold text-lg shadow-card flex-shrink-0">
                       {store.name.charAt(0)}
                     </div>
-                    <div>
-                      <h3 className="text-xl font-display font-black text-[#251913] leading-tight">{store.name}</h3>
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-[#8c7164] uppercase tracking-widest mt-1">
-                        <MapPin className="w-3 h-3 text-[#f97316]" />
-                        {store.city}
-                      </div>
+                    <div className="min-w-0">
+                      <h3 className="text-lg font-display font-bold text-[var(--text)] leading-tight truncate">{store.name}</h3>
+                      {store.city && (
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-muted)] mt-0.5">
+                          <MapPin className="w-3 h-3 text-[var(--primary)]" />
+                          {store.city}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs font-bold text-[#8c7164] uppercase tracking-widest">
-                    <Package className="w-3.5 h-3.5 text-[#f97316]" />
-                    {store.listings.length} artifact{store.listings.length !== 1 ? 's' : ''} available
+                  <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-faint)] uppercase tracking-widest">
+                    <Package className="w-3.5 h-3.5 text-[var(--primary)]" />
+                    {store.listings.length} item{store.listings.length !== 1 ? 's' : ''} available
+                    <span className="ml-auto flex items-center gap-1 text-[var(--primary)]">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Verified
+                    </span>
                   </div>
                 </div>
 
                 {/* Listings preview */}
-                <div className="p-6 space-y-3">
+                <div className="p-4 space-y-2">
                   {store.listings.slice(0, 2).map(l => (
                     <Link key={l.id} href={`/item/${l.id}`}>
-                      <div className="flex justify-between items-center py-3 px-4 bg-[#fff8f6] rounded-[0.75rem] hover:bg-[#ffeae0] transition-colors">
-                        <span className="text-sm font-bold text-[#251913] truncate max-w-[60%]">{l.title}</span>
-                        <span className="text-sm font-black text-[#f97316]">{formatCurrency(l.price_per_day ?? 0)}/d</span>
+                      <div className="flex justify-between items-center py-2.5 px-3 bg-[var(--bg-subtle)] rounded-[var(--r-md)] hover:bg-[var(--primary-light)] transition-colors group/item">
+                        <span className="text-sm font-semibold text-[var(--text)] truncate max-w-[60%]">{l.title}</span>
+                        <span className="text-sm font-bold text-[var(--primary)] group-hover/item:font-extrabold">{formatCurrency(l.price_per_day ?? 0)}/day</span>
                       </div>
                     </Link>
                   ))}
                   {store.listings.length > 2 && (
-                    <p className="text-center text-xs font-black uppercase tracking-widest text-[#8c7164] pt-2">
-                      +{store.listings.length - 2} more artifacts
+                    <p className="text-center text-xs font-bold uppercase tracking-widest text-[var(--text-faint)] pt-1">
+                      +{store.listings.length - 2} more items
                     </p>
                   )}
                 </div>

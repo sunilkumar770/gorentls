@@ -12,7 +12,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -47,8 +46,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/health").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
-                .requestMatchers("/api/listings/search/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/listings/*/availability").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/listings/owner/mine").hasRole("OWNER")
+                .requestMatchers(HttpMethod.GET, "/api/listings/**").permitAll()
                 // SockJS sends HTTP GET /ws/chat/info before WS upgrade.
                 // MUST be permitted here — real auth = AuthChannelInterceptor on STOMP CONNECT
                 .requestMatchers("/ws/**").permitAll()

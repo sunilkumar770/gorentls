@@ -2,54 +2,72 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 /**
  * Decode JWT payload without a library.
- * Safe for Next.js Edge Runtime — uses only atob() which is available there.
- * Does NOT verify the signature — that is the backend's job.
- * We only need the role claim for routing decisions.
+ * Safe for Next.js - uses only atob() which is available.
  */
-function decodeJwtRole(token: string): string {
+function parseJwt(token: string) {
   try {
     const base64Payload = token.split('.')[1];
-    if (!base64Payload) return '';
-    // Convert base64url → base64 standard before decoding
+    if (!base64Payload) return { role: '', isAdmin: false, isOwner: false };
+    
     const base64 = base64Payload.replace(/-/g, '+').replace(/_/g, '/');
     const json = atob(base64);
     const payload = JSON.parse(json);
     
-    // Spring JWT may use: role | userType | authorities[0]
     const raw: string =
       payload.role ??
       payload.userType ??
       payload.authorities?.[0] ??
       '';
-    return raw.replace(/^ROLE_/, '').toUpperCase();
+    
+    const role = raw.replace(/^ROLE_/, '').toUpperCase();
+    return {
+      role,
+      isAdmin: role === 'ADMIN' || role === 'SUPER_ADMIN',
+      isOwner: role === 'OWNER'
+    };
   } catch {
-    return '';
+    return { role: '', isAdmin: false, isOwner: false };
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  
+  // 1. Diagnostics
+  console.log(`[Middleware] ${request.method} ${pathname}`);
 
-  // Read token from cookie (set by AuthContext on login)
-  const token =
-    request.cookies.get('accessToken')?.value ??
-    request.cookies.get('token')?.value ??
-    '';
+  // 2. Public bypass
+  if (
+    pathname.startsWith('/_next') || 
+    pathname.startsWith('/api') || 
+    pathname.includes('.') ||
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname === '/admin/login' ||
+    pathname === '/'
+  ) {
+    return NextResponse.next();
+  }
 
-  const role = token ? decodeJwtRole(token) : '';
+  // Read token from cookie
+  const token = request.cookies.get('token')?.value || request.cookies.get('accessToken')?.value;
   const isLoggedIn = !!token;
-  const isAdmin    = role === 'ADMIN' || role === 'SUPER_ADMIN';
-  const isOwner    = role === 'OWNER';
+  
+  console.log(`[Middleware] Token present: ${isLoggedIn}`);
+
+  if (!token) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  const { role, isAdmin, isOwner } = parseJwt(token);
+  console.log(`[Middleware] Parsed Role: ${role} | isAdmin: ${isAdmin} | isOwner: ${isOwner}`);
 
   // ── Guard: admin routes ────────────────────────────────────────────────────
   if (pathname.startsWith('/admin')) {
-    if (!isLoggedIn) {
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(loginUrl);
-    }
     if (!isAdmin) {
-      // Logged in but not admin → send to their own dashboard
+      console.warn(`[Middleware] Access denied to admin route ${pathname} for role ${role}`);
       return NextResponse.redirect(
         new URL(isOwner ? '/owner/dashboard' : '/', request.url)
       );
@@ -63,7 +81,6 @@ export async function middleware(request: NextRequest) {
       loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
     }
-    // Note: owners and admins can both access /owner paths usually
   }
 
   // ── Guard: authenticated-only routes ──────────────────────────────────────
@@ -76,6 +93,9 @@ export async function middleware(request: NextRequest) {
 
   // ── Guard: redirect logged-in users away from /login ──────────────────────
   if (pathname === '/login' && isLoggedIn) {
+    if (request.nextUrl.searchParams.has('reason') || request.nextUrl.searchParams.has('redirect')) {
+      return NextResponse.next();
+    }
     const dest = isAdmin ? '/admin/dashboard' : isOwner ? '/owner/dashboard' : '/';
     return NextResponse.redirect(new URL(dest, request.url));
   }

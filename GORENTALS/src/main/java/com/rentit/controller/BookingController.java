@@ -5,7 +5,7 @@ import com.rentit.dto.BookingResponse;
 import com.rentit.service.BookingService;
 import com.rentit.model.BookingStatus;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -19,10 +19,10 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/bookings")
+@RequiredArgsConstructor
 public class BookingController {
 
-    @Autowired
-    private BookingService bookingService;
+    private final BookingService bookingService;
 
     @PostMapping
     @PreAuthorize("hasRole('RENTER')")

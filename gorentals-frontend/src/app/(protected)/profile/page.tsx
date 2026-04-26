@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { updateProfile } from '@/services/user';
 import api from '@/lib/axios';
 import KYCModal from '@/components/profile/KYCModal';
@@ -12,6 +12,8 @@ import {
   CheckCircle2, Clock, AlertTriangle, Lock, LogOut, 
   Eye, EyeOff, Loader2 
 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import UpgradeOwnerCard from '@/components/UpgradeOwnerCard';
 
 
@@ -45,12 +47,13 @@ export default function ProfileSettingsPage() {
     }
   }, [user]);
 
-  const userTypeLabel = {
+  const userTypeLabels: Record<string, string> = {
     OWNER: 'Verified Owner',
     RENTER: 'Renter',
     ADMIN: 'Administrator',
     SUPER_ADMIN: 'Super Administrator',
-  }[user?.role || 'RENTER'];
+  };
+  const userTypeLabel = userTypeLabels[user?.role || 'RENTER'] || 'Renter';
 
   // Handlers
   const handleSaveProfile = async () => {
@@ -130,33 +133,30 @@ export default function ProfileSettingsPage() {
         {/* Sidebar Nav */}
         <div className="w-full md:w-64 shrink-0">
           <nav className="flex md:flex-col gap-2 overflow-x-auto pb-4 md:pb-0 hide-scrollbar">
-            <button 
+            <Button 
+              variant={activeTab === 'profile' ? 'secondary' : 'ghost'}
               onClick={() => setActiveTab('profile')}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm whitespace-nowrap transition-colors ${
-                activeTab === 'profile' ? 'bg-white text-[#111827] shadow-sm border border-[#e5e7eb]' : 'text-[#6b7280] hover:bg-[#f3f4f6]'
-              }`}
+              className={`justify-start gap-3 w-full h-12 ${activeTab === 'profile' ? 'shadow-sm border-[var(--border)]' : 'text-[var(--text-muted)]'}`}
             >
-              <User className={`w-5 h-5 ${activeTab === 'profile' ? 'text-[#16a34a]' : ''}`} />
+              <User className={`w-5 h-5 ${activeTab === 'profile' ? 'text-[var(--primary)]' : ''}`} />
               Personal Info
-            </button>
-            <button 
+            </Button>
+            <Button 
+              variant={activeTab === 'security' ? 'secondary' : 'ghost'}
               onClick={() => setActiveTab('security')}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm whitespace-nowrap transition-colors ${
-                activeTab === 'security' ? 'bg-white text-[#111827] shadow-sm border border-[#e5e7eb]' : 'text-[#6b7280] hover:bg-[#f3f4f6]'
-              }`}
+              className={`justify-start gap-3 w-full h-12 ${activeTab === 'security' ? 'shadow-sm border-[var(--border)]' : 'text-[var(--text-muted)]'}`}
             >
-              <Lock className={`w-5 h-5 ${activeTab === 'security' ? 'text-[#16a34a]' : ''}`} />
+              <Lock className={`w-5 h-5 ${activeTab === 'security' ? 'text-[var(--primary)]' : ''}`} />
               Security
-            </button>
-            <button 
+            </Button>
+            <Button 
+              variant={activeTab === 'danger' ? 'secondary' : 'ghost'}
               onClick={() => setActiveTab('danger')}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm whitespace-nowrap transition-colors ${
-                activeTab === 'danger' ? 'bg-white text-[#111827] shadow-sm border border-[#e5e7eb]' : 'text-[#6b7280] hover:bg-red-50 hover:text-red-600'
-              }`}
+              className={`justify-start gap-3 w-full h-12 ${activeTab === 'danger' ? 'text-red-600 hover:bg-red-50' : 'text-[var(--text-muted)]'}`}
             >
               <AlertTriangle className={`w-5 h-5 ${activeTab === 'danger' ? 'text-red-500' : ''}`} />
               Danger Zone
-            </button>
+            </Button>
           </nav>
         </div>
 
@@ -201,13 +201,14 @@ export default function ProfileSettingsPage() {
                     </div>
                   </div>
                   {kycStatus !== 'APPROVED' && (
-                    <button 
+                    <Button 
+                      variant="primary"
+                      size="sm"
                       onClick={() => setRequestingKYC(true)}
-                      className="px-5 py-2.5 rounded-xl font-semibold text-sm bg-[#16a34a] hover:bg-[#15803d] text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={kycStatus === 'PENDING'}
                     >
                       {kycStatus === 'PENDING' ? 'Submitted' : 'Verify Now'}
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -227,27 +228,27 @@ export default function ProfileSettingsPage() {
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-[#6b7280] mb-1.5">Full Name</label>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-faint)] mb-1.5 ml-1">Full Name</label>
                       {editing ? (
-                        <input
+                        <Input
                           value={fullName}
                           onChange={e => setFullName(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-[#f9fafb] border border-[#d1d5db] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] text-[#111827]"
+                          className="bg-[var(--bg-faint)]"
                         />
                       ) : (
-                        <p className="font-medium text-[#111827]">{fullName}</p>
+                        <p className="font-semibold text-[var(--text)] px-1">{fullName}</p>
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-[#6b7280] mb-1.5">Phone Number</label>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-faint)] mb-1.5 ml-1">Phone Number</label>
                       {editing ? (
-                        <input
+                        <Input
                           value={phone}
                           onChange={e => setPhone(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-[#f9fafb] border border-[#d1d5db] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] text-[#111827]"
+                          className="bg-[var(--bg-faint)]"
                         />
                       ) : (
-                        <p className="font-medium text-[#111827]">{phone || 'Not provided'}</p>
+                        <p className="font-semibold text-[var(--text)] px-1">{phone || 'Not provided'}</p>
                       )}
                     </div>
                   </div>
@@ -263,15 +264,15 @@ export default function ProfileSettingsPage() {
                   )}
 
                   {editing && (
-                    <div className="pt-4 border-t border-[#f3f4f6]">
-                      <button
+                    <div className="pt-4 border-t border-[var(--border)]">
+                      <Button
+                        variant="primary"
+                        size="md"
                         onClick={handleSaveProfile}
-                        disabled={savingProfile}
-                        className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#111827] hover:bg-[#374151] text-white rounded-xl font-semibold text-sm transition-colors"
+                        loading={savingProfile}
                       >
-                        {savingProfile && <Loader2 className="w-4 h-4 animate-spin" />}
                         Save Changes
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -290,14 +291,14 @@ export default function ProfileSettingsPage() {
                   <div>
                     <label className="block text-sm font-medium text-[#374151] mb-1.5">Current Password</label>
                     <div className="relative">
-                      <input
+                      <Input
                         type={showCurrent ? 'text' : 'password'}
                         value={currentPwd}
                         onChange={e => setCurrentPwd(e.target.value)}
                         required
-                        className="w-full pr-10 px-4 py-2.5 bg-[#f9fafb] border border-[#d1d5db] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] text-[#111827]"
+                        className="pr-12"
                       />
-                      <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#4b5563]">
+                      <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-faint)] hover:text-[var(--text)]">
                         {showCurrent ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
@@ -306,15 +307,15 @@ export default function ProfileSettingsPage() {
                   <div>
                     <label className="block text-sm font-medium text-[#374151] mb-1.5">New Password</label>
                     <div className="relative">
-                      <input
+                      <Input
                         type={showNew ? 'text' : 'password'}
                         value={newPwd}
                         onChange={e => setNewPwd(e.target.value)}
                         required
                         minLength={8}
-                        className="w-full pr-10 px-4 py-2.5 bg-[#f9fafb] border border-[#d1d5db] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] text-[#111827]"
+                        className="pr-12"
                       />
-                      <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#4b5563]">
+                      <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-faint)] hover:text-[var(--text)]">
                         {showNew ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
@@ -322,24 +323,23 @@ export default function ProfileSettingsPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-[#374151] mb-1.5">Confirm New Password</label>
-                    <input
+                    <Input
                       type="password"
                       value={confirmPwd}
                       onChange={e => setConfirmPwd(e.target.value)}
                       required
-                      className="w-full px-4 py-2.5 bg-[#f9fafb] border border-[#d1d5db] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] text-[#111827]"
                     />
                   </div>
 
                   <div className="pt-2">
-                    <button
+                    <Button
                       type="submit"
-                      disabled={pwdLoading}
-                      className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#111827] hover:bg-[#374151] text-white rounded-xl font-semibold text-sm transition-colors"
+                      variant="primary"
+                      size="md"
+                      loading={pwdLoading}
                     >
-                      {pwdLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                       Update Password
-                    </button>
+                    </Button>
                   </div>
                 </form>
               </div>
@@ -358,12 +358,13 @@ export default function ProfileSettingsPage() {
                   <div>
                     <h3 className="font-bold text-lg text-[#111827]">Sign Out</h3>
                     <p className="text-[#6b7280] text-sm mb-4 mt-1">End your current session on this device.</p>
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="md"
                       onClick={handleLogout}
-                      className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl font-semibold text-sm transition-colors"
                     >
                       Sign Out
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>

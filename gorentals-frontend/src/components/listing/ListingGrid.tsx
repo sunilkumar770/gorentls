@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { Package } from 'lucide-react';
 import type { Listing, PagedResponse } from '@/types';
@@ -15,6 +16,7 @@ interface ListingGridProps {
   onPageChange?: (page: number) => void;
   emptyTitle?:   string;
   emptyBody?:    string;
+  emptyAction?:  React.ReactNode;
   filters?:      any;
 }
 
@@ -48,6 +50,7 @@ export default function ListingGrid({
   onPageChange,
   emptyTitle   = 'No listings found',
   emptyBody    = 'Try adjusting your filters or search in a different area.',
+  emptyAction,
   filters,
 }: ListingGridProps) {
   const { listings: fetchedListings, loading: fetchedLoading, error: fetchedError } = useListings(filters || {});
@@ -78,12 +81,13 @@ export default function ListingGrid({
   );
 
   if (items.length === 0) return (
-    <div className="text-center py-20 bg-white rounded-2xl border border-[#01696f]/8">
-      <div className="w-16 h-16 bg-[#e6f4f4] rounded-2xl flex items-center justify-center mx-auto mb-4">
-        <Package className="w-8 h-8 text-[#01696f]" strokeWidth={1.5} />
+    <div className="text-center py-20 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)]">
+      <div className="w-16 h-16 bg-[var(--primary-light)] rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <Package className="w-8 h-8 text-[var(--primary)]" strokeWidth={1.5} />
       </div>
-      <h3 className="text-lg font-semibold text-[#1a1a18] mb-2">{emptyTitle}</h3>
-      <p className="text-[#6b6b65] text-sm max-w-xs mx-auto">{emptyBody}</p>
+      <h3 className="text-lg font-semibold text-[var(--text)] mb-2">{emptyTitle}</h3>
+      <p className="text-[var(--text-muted)] text-sm max-w-xs mx-auto mb-5">{emptyBody}</p>
+      {emptyAction && <div>{emptyAction}</div>}
     </div>
   );
 

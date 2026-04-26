@@ -1,13 +1,42 @@
-import { createClient } from '@supabase/supabase-js';
+/**
+ * GoRentals Cloud-Free Mock
+ * 
+ * We have removed the '@supabase/supabase-js' dependency to completely detach 
+ * from cloud services. This mock allows the application to function without 
+ * throwing errors by mimicking the Supabase Storage and Auth API shapes.
+ */
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://placeholder.supabase.co';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
+export const supabase = {
+  storage: {
+    from: (bucket: string) => ({
+      /**
+       * Mocks the upload process.
+       * Always returns an error explaining that cloud uploads are detached.
+       */
+      upload: async () => ({ 
+        data: null, 
+        error: new Error('[GoRentals] Cloud connection detached. Local storage only.') 
+      }),
+      
+      /**
+       * Mocks retrieving a public URL.
+       * Returns a placeholder based on the path.
+       */
+      getPublicUrl: (path: string) => ({ 
+        data: { publicUrl: path.startsWith('http') ? path : `/placeholder-image.jpg` } 
+      }),
 
-if (supabaseUrl === 'http://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
-  console.warn(
-    '[GoRentals] Missing Supabase env vars. Image uploads are disabled.\n' +
-    'Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local for real uploads.'
-  );
-}
-
-export const supabase = createClient(supabaseUrl, supabaseKey);
+      /**
+       * Mocks the removal process.
+       */
+      remove: async () => ({ error: null }),
+    })
+  },
+  
+  auth: {
+    getSession: async () => ({ data: { session: null }, error: null }),
+    onAuthStateChange: () => ({ 
+      data: { subscription: { unsubscribe: () => {} } } 
+    }),
+  }
+} as any;

@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 const CATEGORIES = [
   { icon: Camera,   label: 'Cameras',     query: 'cameras',   color: 'text-[#01696f]',  bg: 'bg-[#e6f4f4]' },
@@ -59,43 +61,44 @@ export default function Home() {
                 <span className="text-[#01696f]">anytime</span>
               </h1>
 
-              <p className="text-lg text-[#6b6b65] max-w-md mb-10 leading-relaxed">
+              <p className="text-lg text-[var(--text-muted)] max-w-md mb-10 leading-relaxed">
                 Professional gear, tools, and electronics — from trusted, KYC-verified owners near you.
               </p>
 
               {/* Search bar */}
               <form action="/search" method="GET" className="mb-6">
-                <div className="flex gap-2 bg-white rounded-2xl p-2 shadow-[0_2px_16px_rgba(1,105,111,0.1)] border border-[#01696f]/15">
+                <div className="flex gap-2 bg-white rounded-2xl p-2 shadow-card border border-[var(--border)]">
                   <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6b6b65]" />
-                    <input
+                    <Input
                       type="text"
                       name="q"
                       placeholder="Search cameras, laptops, drones..."
-                      className="w-full pl-12 pr-4 py-3.5 text-[#1a1a18] placeholder-[#9b9b93] bg-transparent focus:outline-none text-sm"
+                      className="pl-12 bg-transparent border-none focus:ring-0"
                     />
                   </div>
-                  <button
+                  <Button
                     type="submit"
-                    className="px-6 py-3.5 bg-[#01696f] text-white font-bold rounded-xl hover:bg-[#015a5f] transition-colors text-sm flex-shrink-0"
+                    variant="primary"
+                    size="md"
+                    className="px-8"
                   >
                     Search
-                  </button>
+                  </Button>
                 </div>
               </form>
 
-              {/* Popular tags */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-[#9b9b93] font-medium">Popular:</span>
-                {['Sony A7IV', 'DJI Drone', 'MacBook', 'Guitar', 'Camping Tent'].map(term => (
-                  <Link
-                    key={term}
-                    href={`/search?q=${encodeURIComponent(term)}`}
-                    className="text-xs text-[#01696f] font-semibold px-3 py-1.5 rounded-full border border-[#01696f]/20 bg-[#01696f]/5 hover:bg-[#01696f]/10 transition-colors"
-                  >
-                    {term}
+              {/* Secondary CTA + category links */}
+              <div className="flex flex-wrap items-center gap-3">
+                <Button variant="primary" size="lg" asChild className="gap-2">
+                  <Link href="/search">
+                    Browse all gear <ArrowRight className="w-4 h-4" />
                   </Link>
-                ))}
+                </Button>
+                <Button variant="outline" size="lg" asChild>
+                  <Link href="/signup">
+                    List your gear
+                  </Link>
+                </Button>
               </div>
             </div>
 
@@ -136,17 +139,17 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Stats strip ──────────────────────────────────────────── */}
+      {/* ── Trust strip (honest, non-quantitative) ──────────────── */}
       <div className="bg-[#01696f] text-white py-5">
         <div className="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-center gap-8 md:gap-16">
           {[
-            { value: '500+', label: 'Verified owners' },
-            { value: '2,000+', label: 'Items listed' },
-            { value: '10,000+', label: 'Rentals completed' },
-            { value: '4.9★', label: 'Average rating' },
+            { value: 'KYC Verified', label: 'Every owner' },
+            { value: 'Escrow', label: 'Deposit protection' },
+            { value: 'Razorpay', label: 'Secure payments' },
+            { value: 'Hyderabad', label: 'Based in India' },
           ].map(({ value, label }) => (
             <div key={label} className="text-center">
-              <p className="text-2xl font-display font-bold">{value}</p>
+              <p className="text-lg font-display font-bold">{value}</p>
               <p className="text-xs text-white/70 font-medium mt-0.5">{label}</p>
             </div>
           ))}
@@ -157,8 +160,8 @@ export default function Home() {
       <section className="bg-white py-20 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-display font-bold text-[#1a1a18]">Browse by category</h2>
-            <p className="text-[#6b6b65] mt-2">Explore high-quality gear in every niche</p>
+            <h2 className="text-3xl font-display font-bold text-[var(--text)]">Browse by category</h2>
+            <p className="text-[var(--text-muted)] mt-2">Explore high-quality gear in every niche</p>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
@@ -166,15 +169,15 @@ export default function Home() {
               <Link
                 key={label}
                 href={`/search?category=${query}`}
-                className="group flex flex-col items-center gap-3 p-6 bg-[#f7f6f2] rounded-2xl hover:bg-white hover:shadow-[0_4px_20px_rgba(1,105,111,0.1)] transition-all duration-200 border border-transparent hover:border-[#01696f]/10"
+                className="group flex flex-col items-center gap-3 p-6 bg-[var(--bg-faint)] rounded-[var(--r-lg)] hover:bg-white hover:shadow-card-hover transition-all duration-200 border border-transparent hover:border-[var(--primary-muted)]"
               >
-                <div className={`w-14 h-14 ${bg} rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform`}>
+                <div className={`w-14 h-14 ${bg} rounded-[var(--r-md)] flex items-center justify-center group-hover:scale-105 transition-transform`}>
                   <Icon className={`w-7 h-7 ${color}`} strokeWidth={1.5} />
                 </div>
-                <span className="text-sm font-semibold text-[#1a1a18] group-hover:text-[#01696f] transition-colors text-center">
+                <span className="text-sm font-semibold text-[var(--text)] group-hover:text-[var(--primary)] transition-colors text-center">
                   {label}
                 </span>
-                <span className="block h-0.5 w-0 group-hover:w-8 bg-[#01696f] rounded-full transition-all duration-300" />
+                <span className="block h-0.5 w-0 group-hover:w-8 bg-[var(--primary)] rounded-full transition-all duration-300" />
               </Link>
             ))}
           </div>
@@ -197,7 +200,19 @@ export default function Home() {
             </Link>
           </div>
 
-          <ListingGrid filters={{ sort: 'newest' }} />
+          <ListingGrid
+            filters={{ sort: 'newest' }}
+            emptyTitle="No listings yet — be the first!"
+            emptyBody="We're just getting started. List your gear and be among the first owners on GoRentals."
+            emptyAction={
+              <Link
+                href="/signup"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[#01696f] text-white text-sm font-bold rounded-xl hover:bg-[#015a5f] transition-colors"
+              >
+                List your first item →
+              </Link>
+            }
+          />
 
           <div className="text-center mt-10 sm:hidden">
             <Link
@@ -278,12 +293,16 @@ export default function Home() {
           <p className="text-[#9b9b93] text-xl mb-12 max-w-2xl mx-auto leading-relaxed">
             Join thousands of verified owners who earn from their cameras, tools, and electronics every week.
           </p>
-          <Link
-            href="/signup"
-            className="inline-flex items-center gap-3 px-10 py-5 bg-[#01696f] text-white font-bold rounded-2xl hover:bg-[#015a5f] shadow-xl transition-all text-lg"
+          <Button
+            variant="primary"
+            size="lg"
+            className="px-12 py-7 text-lg rounded-2xl"
+            asChild
           >
-            List your first item <ArrowRight className="w-5 h-5" />
-          </Link>
+            <Link href="/signup">
+              List your first item <ArrowRight className="w-5 h-5 ml-2" />
+            </Link>
+          </Button>
         </div>
       </section>
     </>

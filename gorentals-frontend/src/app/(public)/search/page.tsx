@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ListingGrid from '@/components/listing/ListingGrid';
 import { CATEGORIES } from '@/constants';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Search as SearchIcon, SlidersHorizontal, X, Camera, Gamepad2, Wrench, Tent, Music, Package } from 'lucide-react';
 import { Suspense } from 'react';
 
@@ -56,29 +58,30 @@ function SearchPageContent() {
 
           {/* Search bar */}
           <form onSubmit={handleSearch} className="max-w-2xl">
-            <div className="flex gap-2 bg-[#f7f6f2] rounded-2xl p-2 border border-[#01696f]/12">
+            <div className="flex gap-2 items-end">
               <div className="relative flex-1">
-                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#9b9b93]" />
-                <input
-                  type="text"
+                <Input
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   placeholder="Search cameras, laptops, drones..."
-                  className="w-full pl-11 pr-10 py-3 bg-transparent focus:outline-none text-[#1a1a18] placeholder-[#9b9b93] text-sm font-medium"
+                  icon={<SearchIcon className="w-5 h-5" />}
+                  className="bg-[var(--bg-faint)] border-[var(--border)]"
                 />
                 {query && (
                   <button type="button" onClick={clearSearch}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9b9b93] hover:text-[#6b6b65] transition-colors">
+                    className="absolute right-3 top-[23px] text-[var(--text-faint)] hover:text-[var(--text-muted)] transition-colors">
                     <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
-              <button
+              <Button
                 type="submit"
-                className="px-6 py-3 bg-[#01696f] text-white font-bold rounded-xl hover:bg-[#015a5f] transition-colors text-sm flex-shrink-0"
+                variant="primary"
+                size="md"
+                className="h-[46px] px-8"
               >
                 Search
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -91,10 +94,10 @@ function SearchPageContent() {
         <div className="flex gap-2 overflow-x-auto pb-3 mb-6 scrollbar-hide">
           <button
             onClick={() => setCategory('')}
-            className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+            className={`flex-shrink-0 px-4 py-2 rounded-[var(--r-md)] text-sm font-semibold transition-all ${
               !category
-                ? 'bg-[#01696f] text-white'
-                : 'bg-white text-[#6b6b65] border border-[#01696f]/12 hover:border-[#01696f]/30'
+                ? 'bg-[var(--primary)] text-white shadow-sm'
+                : 'bg-white text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--primary-muted)]'
             }`}
           >
             All
@@ -105,10 +108,10 @@ function SearchPageContent() {
               <button
                 key={c.value}
                 onClick={() => setCategory(c.value === category ? '' : c.value)}
-                className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-[var(--r-md)] text-sm font-semibold transition-all ${
                   category === c.value
-                    ? 'bg-[#01696f] text-white'
-                    : 'bg-white text-[#6b6b65] border border-[#01696f]/12 hover:border-[#01696f]/30'
+                    ? 'bg-[var(--primary)] text-white shadow-sm'
+                    : 'bg-white text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--primary-muted)]'
                 }`}
               >
                 <Icon className="w-4 h-4" strokeWidth={1.5} />

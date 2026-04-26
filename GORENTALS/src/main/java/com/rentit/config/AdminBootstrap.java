@@ -37,32 +37,38 @@ public class AdminBootstrap implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        if (userRepository.existsByEmail(adminEmail)) {
-            System.out.println("AdminBootstrap: Admin account already exists (" + adminEmail + "). Skipping.");
-            return;
+        User adminUser = userRepository.findByEmail(adminEmail).orElse(null);
+
+        if (adminUser == null) {
+            System.out.println("AdminBootstrap: Creating initial user account for " + adminEmail + "...");
+            adminUser = new User();
+            adminUser.setEmail(adminEmail);
+            adminUser.setPasswordHash(passwordEncoder.encode(adminPassword));
+            adminUser.setFullName(adminName);
+            adminUser.setUserType(User.UserType.ADMIN);
+            adminUser.setIsActive(true);
+            adminUser.setCreatedAt(LocalDateTime.now());
+            adminUser.setUpdatedAt(LocalDateTime.now());
+            adminUser = userRepository.save(adminUser);
+        } else {
+            System.out.println("AdminBootstrap: User account " + adminEmail + " already exists. Ensuring ADMIN type.");
+            if (adminUser.getUserType() != User.UserType.ADMIN) {
+                adminUser.setUserType(User.UserType.ADMIN);
+                adminUser = userRepository.save(adminUser);
+            }
         }
 
-        System.out.println("AdminBootstrap: Creating initial admin account...");
-
-        User adminUser = new User();
-        adminUser.setEmail(adminEmail);
-        adminUser.setPasswordHash(passwordEncoder.encode(adminPassword));
-        adminUser.setFullName(adminName);
-        adminUser.setUserType(User.UserType.ADMIN);
-        adminUser.setIsActive(true);
-        adminUser.setCreatedAt(LocalDateTime.now());
-        adminUser.setUpdatedAt(LocalDateTime.now());
-
-        User savedUser = userRepository.save(adminUser);
-
-        AdminUser roleUser = new AdminUser();
-        roleUser.setUser(savedUser);
-        roleUser.setRole("SUPER_ADMIN");
-        roleUser.setCreatedAt(LocalDateTime.now());
-        roleUser.setUpdatedAt(LocalDateTime.now());
-
-        adminUserRepository.save(roleUser);
-
-        System.out.println("AdminBootstrap ✅: Created " + adminEmail + " with role SUPER_ADMIN");
+        if (adminUserRepository.findByUser(adminUser).isEmpty()) {
+            System.out.println("AdminBootstrap: Linking user " + adminEmail + " to admin_users table...");
+            AdminUser roleUser = new AdminUser();
+            roleUser.setUser(adminUser);
+            roleUser.setRole("SUPER_ADMIN");
+            roleUser.setCreatedAt(LocalDateTime.now());
+            roleUser.setUpdatedAt(LocalDateTime.now());
+            adminUserRepository.save(roleUser);
+            System.out.println("AdminBootstrap ✅: Successfully linked " + adminEmail + " with role SUPER_ADMIN");
+        } else {
+            System.out.println("AdminBootstrap: Admin record for " + adminEmail + " already exists. Skipping.");
+        }
     }
 }

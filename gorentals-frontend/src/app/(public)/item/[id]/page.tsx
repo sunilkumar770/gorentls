@@ -4,15 +4,17 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/axios';
+import { cn, daysBetween } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { createBooking } from '@/services/bookings';
-import { todayISO, daysBetween } from '@/lib/utils';
-import { MapPin, Shield, Calendar, Loader2, ChevronLeft, Package, Info } from 'lucide-react';
+import { getListing } from '@/services/listings';
+import { startOfDay, format } from 'date-fns';
+import { Button } from '@/components/ui/Button';
+import { MapPin, Shield, Calendar, Loader2, ChevronLeft, Package, Info, CheckCircle2, ShieldCheck, BadgeCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import type { Listing, BlockedRange } from '@/types';
 import { getAvailability } from '@/services/availability';
 import { DayPicker, DateRange } from 'react-day-picker';
-import { format, isSameDay, startOfDay } from 'date-fns';
 import 'react-day-picker/dist/style.css';
 
 export default function ItemDetailPage() {
@@ -31,18 +33,24 @@ export default function ItemDetailPage() {
 
   useEffect(() => {
     Promise.all([
-      api.get<Listing>(`/listings/${id}`),
+      getListing(id as string),
       getAvailability(id as string)
     ])
-      .then(([listingRes, availRes]) => {
-        setListing(listingRes.data);
-        setBlockedRanges(availRes.blockedRanges);
+      .then(([listingData, availRes]) => {
+        if (!listingData) {
+          setError('This item could not be found in the system.');
+        } else {
+          setListing(listingData);
+          setBlockedRanges(availRes.blockedRanges);
+        }
         setLoading(false);
       })
-      .catch(() => { setError('This listing could not be found.'); setLoading(false); });
+      .catch(() => { 
+        setError('An error occurred while fetching item details.'); 
+        setLoading(false); 
+      });
   }, [id]);
 
-  // Production pricing formula: total = (days × pricePerDay) + securityDeposit
   const startDate = selectedRange?.from ? format(selectedRange.from, 'yyyy-MM-dd') : '';
   const endDate   = selectedRange?.to ? format(selectedRange.to, 'yyyy-MM-dd') : '';
   const days    = selectedRange?.from && selectedRange?.to ? daysBetween(selectedRange.from, selectedRange.to) : 0;
@@ -69,158 +77,202 @@ export default function ItemDetailPage() {
       router.push(`/checkout/${b.id}`);
     } catch (err: any) {
       if (err.response?.status === 409) {
-        toast.error('These dates are not available. Please choose different dates.');
+        toast.error('Selected dates are no longer available.');
       } else {
-        toast.error(err?.response?.data?.message ?? 'Could not create booking. Please try again.');
+        toast.error(err?.response?.data?.message ?? 'Booking initialization failed. Please try again.');
       }
       setBooking(false);
     }
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="w-9 h-9 rounded-full border-4 border-[#16a34a]/20 border-t-[#16a34a] animate-spin" />
+    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+      <div className="w-10 h-10 rounded-full border-4 border-[var(--primary-light)] border-t-[var(--primary)] animate-spin" />
     </div>
   );
 
   if (error || !listing) return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 px-4">
-      <div className="text-5xl">😕</div>
-      <p className="text-gray-700 font-semibold">{error ?? 'Listing not found.'}</p>
-      <Link href="/search" className="text-[#16a34a] text-sm font-medium hover:underline">← Back to search</Link>
+    <div className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center gap-4 px-4 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-[var(--bg-subtle)] flex items-center justify-center mb-2">
+        <Package className="w-8 h-8 text-[var(--text-faint)]" />
+      </div>
+      <p className="text-[var(--text)] font-semibold text-xl">{error ?? 'Item missing'}</p>
+      <p className="text-[var(--text-muted)] max-w-sm">The item you are looking for may have been removed or is currently unavailable.</p>
+      <Link href="/search" className="mt-4 px-6 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-[var(--r-md)] text-[var(--text)] font-medium hover:bg-[var(--bg-subtle)] transition-colors">
+        Return to Directory
+      </Link>
     </div>
   );
 
   const images = listing.listing_images ?? [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Breadcrumb */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-2 text-sm text-gray-500">
-          <button onClick={() => router.back()}
-                  className="flex items-center gap-1 hover:text-gray-800 transition-colors">
-            <ChevronLeft className="w-4 h-4" /> Back
-          </button>
-          <span>/</span>
-          <Link href="/search" className="hover:text-gray-800">Search</Link>
-          <span>/</span>
-          <span className="text-gray-800 truncate max-w-[200px]">{listing.title}</span>
+    <div className="min-h-screen bg-[var(--bg)] pb-24">
+      {/* Breadcrumb Layer */}
+      <div className="bg-[var(--bg-card)] border-b border-[var(--border)] sticky top-0 z-20">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-3 text-sm text-[var(--text-muted)]">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => router.back()}
+            className="gap-1.5 font-medium -ml-2"
+          >
+            <ChevronLeft className="w-4 h-4" /> Go back
+          </Button>
+          <span className="text-[var(--border-strong)]">/</span>
+          <Link href="/search" className="hover:text-[var(--primary)] transition-colors">Directory</Link>
+          <span className="text-[var(--border-strong)]">/</span>
+          <span className="text-[var(--text)] font-medium truncate max-w-[250px]">{listing.title}</span>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="max-w-6xl mx-auto px-6 py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
 
-          {/* Left */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="rounded-2xl overflow-hidden bg-gray-200 aspect-video">
-              {images.length > 0 ? (
-                <img src={images[activeImg]?.image_url} alt={listing.title}
-                     className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Package className="w-16 h-16 text-gray-300" />
+          {/* Left Column: Gallery & Details */}
+          <div className="lg:col-span-7 space-y-10">
+            {/* Gallery */}
+            <div className="space-y-4">
+              <div className="rounded-[var(--r-xl)] overflow-hidden bg-[var(--bg-subtle)] aspect-[4/3] shadow-card">
+                {images.length > 0 ? (
+                  <img src={images[activeImg]?.image_url} alt={listing.title}
+                       className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-[var(--text-faint)]">
+                    <Package className="w-12 h-12 mb-3 opacity-50" />
+                    <span className="text-sm font-medium">No imagery provided</span>
+                  </div>
+                )}
+              </div>
+
+              {images.length > 1 && (
+                <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+                  {images.map((img, i) => (
+                    <button key={img.id} onClick={() => setActiveImg(i)}
+                            className={`w-20 h-20 flex-shrink-0 rounded-[var(--r-md)] overflow-hidden border-2 transition-all shadow-sm
+                              ${i === activeImg ? 'border-[var(--primary)] ring-2 ring-[var(--primary-light)]' : 'border-transparent opacity-70 hover:opacity-100 hover:shadow-card'}`}>
+                      <img src={img.image_url} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
 
-            {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {images.map((img, i) => (
-                  <button key={img.id} onClick={() => setActiveImg(i)}
-                          className={`w-16 h-16 flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all
-                            ${i === activeImg ? 'border-[#16a34a]' : 'border-transparent opacity-60 hover:opacity-90'}`}>
-                    <img src={img.image_url} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div>
-              <div className="flex items-start justify-between gap-4 mb-2">
-                <h1 className="text-2xl font-bold text-gray-900">{listing.title}</h1>
-                {!listing.is_available && (
-                  <span className="px-3 py-1 bg-red-50 text-red-700 text-xs font-semibold rounded-full flex-shrink-0">
-                    Not Available
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mb-4">
-                {listing.stores?.store_city && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    {listing.stores.store_city}
-                  </span>
-                )}
+            {/* Header Info */}
+            <div className="space-y-4 pt-2">
+              <div className="flex flex-wrap items-center gap-3 text-sm font-medium">
                 {listing.category && (
-                  <span className="px-2.5 py-0.5 bg-gray-100 rounded-full text-xs font-medium">
+                  <span className="px-3 py-1 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] rounded-[var(--r-pill)]">
                     {listing.category}
                   </span>
                 )}
+                {listing.stores?.store_city && (
+                  <span className="flex items-center gap-1.5 text-[var(--text-muted)]">
+                    <MapPin className="w-4 h-4 text-[var(--primary)]" />
+                    {listing.stores.store_city}
+                  </span>
+                )}
+                {!listing.is_available && (
+                  <span className="px-3 py-1 bg-[#fef2f2] text-[#991b1b] border border-[#fecaca] rounded-[var(--r-pill)] flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5" /> Booked out
+                  </span>
+                )}
               </div>
-              <p className="text-gray-600 leading-relaxed whitespace-pre-line text-sm">
-                {listing.description}
-              </p>
+
+              <h1 className="text-3xl md:text-4xl font-display font-bold text-[var(--text)] leading-tight tracking-tight">
+                {listing.title}
+              </h1>
+
+              <div className="prose prose-p:text-[var(--text-muted)] prose-p:leading-relaxed max-w-none pt-4 border-t border-[var(--border)]">
+                <p className="whitespace-pre-line">{listing.description}</p>
+              </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Listed by</h3>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#16a34a]/10 rounded-full flex items-center justify-center">
-                    <span className="text-[#16a34a] font-bold text-sm">
-                      {(listing.stores?.store_name ?? 'U').charAt(0).toUpperCase()}
-                    </span>
-                  </div>
+            {/* Trust Pillars */}
+            <div className="grid grid-cols-2 gap-4 py-8 border-y border-[var(--border)]">
+               <div className="flex gap-3">
+                  <ShieldCheck className="w-6 h-6 text-[var(--primary)] flex-shrink-0" />
                   <div>
-                    <p className="font-semibold text-gray-900 text-sm">{listing.stores?.store_name}</p>
+                    <h4 className="font-semibold text-[var(--text)] text-sm mb-0.5">Renter Protection</h4>
+                    <p className="text-xs text-[var(--text-muted)]">Verified condition on pickup.</p>
                   </div>
+               </div>
+               <div className="flex gap-3">
+                  <BadgeCheck className="w-6 h-6 text-[var(--primary)] flex-shrink-0" />
+                  <div>
+                    <h4 className="font-semibold text-[var(--text)] text-sm mb-0.5">Secure Transaction</h4>
+                    <p className="text-xs text-[var(--text-muted)]">Payments held until fulfillment.</p>
+                  </div>
+               </div>
+            </div>
+
+            {/* Owner Profile Card */}
+            <div className="bg-[var(--bg-card)] rounded-[var(--r-lg)] border border-[var(--border)] shadow-sm p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-[var(--primary-light)] rounded-full flex items-center justify-center">
+                  <span className="text-[var(--primary)] font-display font-bold text-xl">
+                    {(listing.stores?.store_name ?? 'S').charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest mb-1">Managed By</h3>
+                  <p className="font-semibold text-[var(--text)] text-lg">{listing.stores?.store_name}</p>
+                  <p className="text-sm text-[var(--text-faint)] flex items-center gap-1 mt-0.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[var(--primary)]" /> Verified Partner
+                  </p>
                 </div>
               </div>
               
               {!isOwnListing && isAuthenticated && (
-                <button 
+                <Button 
+                  variant="secondary"
+                  size="md"
                   onClick={async () => {
                     import('@/services/messages').then(async ({ startConversation }) => {
                       const toast = (await import('react-hot-toast')).toast;
                       try {
-                        const conv = await startConversation(listing.id, "Hi, I'm interested in this item.");
+                        const conv = await startConversation(listing.id, "Hi, I'm interested in renting this item.");
                         router.push(`/messages/${conv.id}`);
                       } catch (err) {
-                        toast.error('Failed to start conversation. It might already exist.');
+                        toast.error('Failed to open channel. It may already exist.');
                         router.push('/messages');
                       }
                     });
                   }}
-                  className="px-4 py-2 mt-6 bg-[#f0fdf4] text-[#16a34a] text-sm font-semibold rounded-lg hover:bg-[#dcfce7] transition-colors border border-[#86efac]"
+                  className="whitespace-nowrap"
                 >
-                  Contact Owner
-                </button>
+                  Message Owner
+                </Button>
               )}
             </div>
           </div>
 
-          {/* Right — booking card */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-6 bg-white rounded-2xl border border-gray-200 shadow-md p-6">
-              <div className="mb-5">
-                <p className="text-3xl font-bold text-gray-900">
-                  ₹{(listing.price_per_day ?? 0).toLocaleString('en-IN')}
-                  <span className="text-base font-normal text-gray-500">/day</span>
-                </p>
+          {/* Right Column: Interaction & Booking Widget */}
+          <div className="lg:col-span-5">
+            <div className="sticky top-28 bg-[var(--bg-card)] rounded-[var(--r-xl)] border border-[var(--border-strong)] shadow-card-hover p-8">
+              
+              {/* Pricing Header */}
+              <div className="mb-6 flex flex-col gap-1 pb-6 border-b border-[var(--border)]">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-4xl font-display font-bold text-[var(--text)] tracking-tight">
+                    ₹{(listing.price_per_day ?? 0).toLocaleString('en-IN')}
+                  </span>
+                  <span className="text-[var(--text-muted)] font-medium">/ day</span>
+                </div>
                 {deposit > 0 && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    + ₹{deposit.toLocaleString('en-IN')} refundable deposit
+                  <p className="text-sm text-[var(--text-faint)] flex items-center gap-1.5 mt-1">
+                     <Shield className="w-4 h-4 text-[var(--primary)]" /> 
+                     ₹{deposit.toLocaleString('en-IN')} refundable deposit
                   </p>
                 )}
               </div>
 
-              <div className="mb-5">
-                <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wider">
-                  Select Rental Dates
+              {/* Date Selection */}
+              <div className="mb-6">
+                <label className="block text-xs font-bold text-[var(--text-muted)] mb-3 uppercase tracking-widest flex items-center gap-2">
+                  <Calendar className="w-4 h-4" /> Specify Duration
                 </label>
-                <div className="flex justify-center border rounded-2xl p-2 bg-gray-50/50">
+                <div className="flex justify-center rounded-[var(--r-md)] bg-[var(--bg)] border border-[var(--border)] p-4 shadow-inner">
                   <DayPicker
                     mode="range"
                     selected={selectedRange}
@@ -230,73 +282,84 @@ export default function ItemDetailPage() {
                       ...blockedRanges.map(r => ({ from: new Date(r.startDate), to: new Date(r.endDate) }))
                     ]}
                     styles={{
-                      caption: { color: '#111827', fontWeight: '700' },
-                      head_cell: { color: '#6b7280', fontSize: '0.65rem', fontWeight: '700' },
-                      day: { fontWeight: '500' }
+                      caption: { color: 'var(--text)', fontFamily: 'Satoshi', fontWeight: '700' },
+                      head_cell: { color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600' },
+                      day: { fontWeight: '500', color: 'var(--text)' }
                     }}
                     modifiersStyles={{
-                      selected: { backgroundColor: '#16a34a', color: 'white' },
-                      today: { color: '#16a34a', fontWeight: 'bold' }
+                      selected: { backgroundColor: 'var(--primary)', color: 'white', borderRadius: '4px' },
+                      today: { color: 'var(--primary)', fontWeight: 'bold' }
                     }}
                   />
                 </div>
                 {selectedRange?.from && !selectedRange?.to && (
-                  <p className="text-[10px] text-orange-600 mt-2 flex items-center gap-1">
-                    <Info className="w-3 h-3" /> Select return date to continue
-                  </p>
+                  <div className="mt-3 p-3 bg-[var(--primary-light)] rounded-[var(--r-md)] border border-[var(--primary)]/20">
+                    <p className="text-xs text-[var(--primary-muted)] font-medium flex items-center gap-2">
+                      <ChevronLeft className="w-4 h-4 -rotate-90" /> Select your intended return date
+                    </p>
+                  </div>
                 )}
               </div>
 
+              {/* Live Quotation */}
               {days > 0 && (
-                <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-2 text-sm">
-                  <div className="flex justify-between text-gray-600">
+                <div className="bg-[var(--bg-subtle)] rounded-[var(--r-md)] p-5 mb-6 space-y-3">
+                  <div className="flex justify-between text-[var(--text-muted)] text-sm">
                     <span>₹{(listing.price_per_day ?? 0).toLocaleString('en-IN')} × {days} day{days !== 1 ? 's' : ''}</span>
-                    <span className="font-semibold text-gray-900">₹{rental.toLocaleString('en-IN')}</span>
+                    <span className="font-semibold text-[var(--text)]">₹{rental.toLocaleString('en-IN')}</span>
                   </div>
                   {deposit > 0 && (
-                    <div className="flex justify-between text-gray-600">
-                      <span>Deposit <span className="text-xs text-gray-400">(refundable)</span></span>
-                      <span className="font-semibold text-gray-900">₹{deposit.toLocaleString('en-IN')}</span>
+                    <div className="flex justify-between text-[var(--text-muted)] text-sm">
+                      <span>Deposit <span className="text-[10px] opacity-70 uppercase tracking-wider">(refundable)</span></span>
+                      <span className="font-semibold text-[var(--text)]">₹{deposit.toLocaleString('en-IN')}</span>
                     </div>
                   )}
-                  <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-2">
-                    <span>Total</span>
-                    <span className="text-[#16a34a]">₹{total.toLocaleString('en-IN')}</span>
+                  <div className="flex justify-between items-center font-display font-bold text-lg pt-3 border-t border-[var(--border-strong)]">
+                    <span className="text-[var(--text)]">Total</span>
+                    <span className="text-[var(--primary)]">₹{total.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
               )}
 
-              {/* 4 mutually exclusive CTA states */}
+              {/* Action State Machine */}
               {!isAuthenticated ? (
-                <Link href={`/login?redirect=/item/${listing.id}`}
-                      className="block w-full h-12 bg-[#16a34a] text-white font-semibold rounded-xl
-                                 flex items-center justify-center text-sm hover:bg-[#15803d] transition-colors">
-                  Login to Book
-                </Link>
+                <Button 
+                  variant="gradient" 
+                  size="lg" 
+                  className="w-full"
+                  asChild
+                >
+                  <Link href={`/login?redirect=/item/${listing.id}`}>
+                    Sign In to Request
+                  </Link>
+                </Button>
               ) : isOwnListing ? (
-                <div className="w-full h-12 bg-gray-100 text-gray-400 rounded-xl
-                                flex items-center justify-center text-sm font-medium select-none">
-                  You own this listing
+                <div className="w-full h-14 bg-[var(--bg-subtle)] border border-[var(--border)] text-[var(--text-muted)] rounded-[var(--r-md)]
+                                flex items-center justify-center font-semibold cursor-not-allowed">
+                  This is your listing
                 </div>
               ) : !listing.is_available ? (
-                <div className="w-full h-12 bg-red-50 text-red-400 rounded-xl
-                                flex items-center justify-center text-sm font-medium select-none">
-                  Currently Unavailable
+                <div className="w-full h-14 bg-[#fef2f2] border border-[#fecaca] text-[#991b1b] rounded-[var(--r-md)]
+                                flex items-center justify-center font-semibold cursor-not-allowed">
+                  Inventory Unavailable
                 </div>
               ) : (
-                <button onClick={handleBookNow} disabled={!canBook || booking}
-                        className="w-full h-12 bg-[#16a34a] text-white font-semibold rounded-xl
-                                   flex items-center justify-center gap-2 hover:bg-[#15803d]
-                                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm">
-                  {booking && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {booking ? 'Processing…' : days > 0 ? `Book for ₹${total.toLocaleString('en-IN')}` : 'Select dates to continue'}
-                </button>
+                <Button 
+                  variant="gradient" 
+                  size="lg" 
+                  className="w-full h-14"
+                  onClick={handleBookNow} 
+                  disabled={!canBook || booking}
+                  loading={booking}
+                >
+                  {days > 0 ? `Reserve for ₹${total.toLocaleString('en-IN')}` : 'Choose Dates'}
+                </Button>
               )}
 
               {isAuthenticated && listing.is_available && !isOwnListing && (
-                <p className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-3">
-                  <Shield className="w-3.5 h-3.5" /> Secured by Razorpay
-                </p>
+                <div className="mt-5 flex items-center justify-center gap-2 text-xs text-[var(--text-faint)] font-medium">
+                  <ShieldCheck className="w-4 h-4" /> Transactions secured by Razorpay
+                </div>
               )}
             </div>
           </div>

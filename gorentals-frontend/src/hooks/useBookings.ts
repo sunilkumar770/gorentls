@@ -50,6 +50,14 @@ export function useOwnerBookings() {
   const [error,    setError]    = useState<string | null>(null);
 
   const refetch = useCallback(async () => {
+    // Only fetch if we have a token
+    const token = typeof window !== 'undefined' ? localStorage.getItem('gr_token') : null;
+    if (!token) {
+      setBookings([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);

@@ -55,7 +55,7 @@ public class AdminService {
         }
 
         // ── Dashboard ─────────────────────────────────────────────────────────────
-
+        @Transactional(readOnly = true)
         public AdminDashboardStats getDashboardStats() {
                 long totalUsers = userRepository.count();
                 long totalOwners = userRepository.countOwners();
@@ -99,12 +99,14 @@ public class AdminService {
         /**
          * Returns all users, or filters by search term across email / fullName / phone.
          */
+        @Transactional(readOnly = true)
         public Page<UserResponse> getUsers(Pageable pageable, String search) {
                 return userRepository.searchAll(likePattern(search), pageable)
                                      .map(this::mapToUserResponse);
         }
 
         /** Legacy no-search overload — delegates to getUsers with empty search */
+        @Transactional(readOnly = true)
         public Page<UserResponse> getAllUsers(Pageable pageable) {
                 return getUsers(pageable, "");
         }
@@ -114,12 +116,14 @@ public class AdminService {
         /**
          * Returns owner-type users, optionally filtered by search term.
          */
+        @Transactional(readOnly = true)
         public Page<UserResponse> getOwners(Pageable pageable, String search) {
                 return userRepository.searchByUserType(likePattern(search), User.UserType.OWNER, pageable)
                                      .map(this::mapToUserResponse);
         }
 
         /** Legacy no-search overload */
+        @Transactional(readOnly = true)
         public Page<BusinessOwnerResponse> getAllOwners(Pageable pageable) {
                 return businessOwnerRepository.findAll(pageable)
                                               .map(this::mapToBusinessOwnerResponse);
@@ -182,11 +186,13 @@ public class AdminService {
 
         // ── Listings ──────────────────────────────────────────────────────────────
 
+        @Transactional(readOnly = true)
         public Page<ListingResponse> getPendingListings(Pageable pageable) {
                 return listingRepository.findByIsPublishedFalse(pageable)
                                         .map(this::mapToListingResponse);
         }
 
+        @Transactional(readOnly = true)
         public Page<ListingResponse> getAllListings(Pageable pageable) {
                 return listingRepository.findAll(pageable).map(this::mapToListingResponse);
         }
@@ -230,10 +236,12 @@ public class AdminService {
 
         // ── Bookings / Transactions ───────────────────────────────────────────────
 
+        @Transactional(readOnly = true)
         public Page<BookingResponse> getAllBookings(Pageable pageable) {
                 return bookingRepository.findAll(pageable).map(this::mapToBookingResponse);
         }
 
+        @Transactional(readOnly = true)
         public Page<TransactionResponse> getAllTransactions(Pageable pageable) {
                 return paymentRepository.findAll(pageable).map(this::mapToTransactionResponse);
         }

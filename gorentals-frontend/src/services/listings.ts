@@ -88,23 +88,24 @@ export async function getOwnerListings(_ownerId?: string): Promise<Listing[]> {
   return items.map(mapListingResponse);
 }
 
-export async function createListing(
-  listing: Omit<Listing, 'id' | 'created_at' | 'average_rating' | 'total_reviews' | 'total_views'>
-): Promise<Listing> {
-  const payload = {
+function mapListingToRequest(listing: Partial<Listing>) {
+  return {
     title:           listing.title,
     description:     listing.description,
     category:        listing.category,
     type:            listing.subcategory ?? 'General',
     pricePerDay:     listing.price_per_day,
     securityDeposit: listing.security_deposit,
-    location:        listing.stores?.store_city ?? '',
-    city:            listing.stores?.store_city ?? '',
-    state:           '',
-    isAvailable:     listing.is_available  ?? true,
-    isPublished:     listing.is_published  ?? true,
-    images:          listing.listing_images?.map(i => i.image_url) ?? [],
+    isAvailable:     listing.is_available,
+    isPublished:     listing.is_published,
+    images:          listing.listing_images?.map(i => i.image_url),
   };
+}
+
+export async function createListing(
+  listing: Omit<Listing, 'id' | 'created_at' | 'average_rating' | 'total_reviews' | 'total_views'>
+): Promise<Listing> {
+  const payload = mapListingToRequest(listing);
   const res = await api.post('/listings', payload);
   return mapListingResponse(res.data);
 }
@@ -130,7 +131,8 @@ export async function updateListing(
   listingId: string,
   data: Partial<Listing>
 ): Promise<Listing> {
-  const res = await api.put(`/listings/${listingId}`, data);
+  const payload = mapListingToRequest(data);
+  const res = await api.put(`/listings/${listingId}`, payload);
   return mapListingResponse(res.data);
 }
 

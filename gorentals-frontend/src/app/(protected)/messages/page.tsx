@@ -36,24 +36,24 @@ export default function MessagesPage() {
     String(user?.id) === String(c.ownerId) ? c.renterName : c.ownerName;
 
   return (
-    <div className="min-h-screen bg-[#f9fafb]">
+    <div className="min-h-screen bg-[var(--bg)]">
       <div className="max-w-3xl mx-auto px-4 py-8">
 
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-[#111827] flex items-center gap-2">
-              <MessageCircle className="w-6 h-6 text-[#16a34a]" />
-              Messages
+            <h1 className="text-3xl font-display font-bold text-[var(--text)] flex items-center gap-3">
+              <MessageCircle className="w-7 h-7 text-[var(--primary)]" />
+              Inbox
               {totalUnread > 0 && (
-                <span className="px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full">
+                <span className="px-2.5 py-0.5 text-xs font-bold bg-[#ef4444] text-white rounded-full shadow-sm">
                   {totalUnread}
                 </span>
               )}
             </h1>
-            <p className="text-sm text-[#6b7280] mt-1">Your conversations with renters and owners</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1 font-medium">Your active negotiations and support threads</p>
           </div>
           <button onClick={load} disabled={loading}
-            className="p-2 rounded-lg text-[#6b7280] hover:bg-[#f3f4f6] transition-colors"
+            className="p-2.5 rounded-[var(--r-md)] text-[var(--text-muted)] bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors shadow-sm"
             aria-label="Refresh conversations">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -61,63 +61,66 @@ export default function MessagesPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-6 h-6 animate-spin text-[#16a34a]" />
+            <Loader2 className="w-6 h-6 animate-spin text-[var(--primary)]" />
           </div>
         ) : error ? (
-          <div className="bg-white rounded-2xl p-10 text-center border border-red-100">
-            <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-            <p className="text-sm text-[#374151] font-medium mb-1">Could not load conversations</p>
-            <p className="text-sm text-[#6b7280] mb-4">{error}</p>
+          <div className="bg-[var(--bg-card)] rounded-[var(--r-xl)] p-10 text-center border border-red-500/20 shadow-card">
+            <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-3" />
+            <p className="text-sm text-[var(--text)] font-bold mb-1">Could not load inbox</p>
+            <p className="text-sm text-[var(--text-muted)] mb-4">{error}</p>
             <button onClick={load}
-              className="px-4 py-2 bg-[#111827] text-white text-sm font-semibold rounded-lg hover:bg-[#374151] transition-colors">
+              className="px-5 py-2.5 bg-[var(--text)] text-[var(--bg)] text-sm font-bold rounded-[var(--r-md)] hover:bg-black transition-colors shadow-sm">
               Try again
             </button>
           </div>
         ) : conversations.length === 0 ? (
-          <div className="bg-white rounded-2xl p-16 text-center border border-[#f3f4f6]">
-            <MessageCircle className="w-12 h-12 text-[#d1d5db] mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-[#111827] mb-2">No conversations yet</h3>
-            <p className="text-sm text-[#6b7280] max-w-xs mx-auto">
-              Tap &ldquo;Contact Owner&rdquo; on any listing to start a conversation.
+          <div className="bg-[var(--bg-card)] rounded-[var(--r-xl)] p-16 text-center border border-[var(--border)] shadow-card">
+            <MessageCircle className="w-12 h-12 text-[var(--border-strong)] mx-auto mb-4" />
+            <h3 className="text-lg font-display font-bold text-[var(--text)] mb-2">No active threads</h3>
+            <p className="text-sm text-[var(--text-muted)] max-w-xs mx-auto">
+              Tap &ldquo;Contact Owner&rdquo; on any listing or respond to rental requests.
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             {conversations.map(conv => {
               const unread     = getUnread(conv);
               const otherParty = getOtherParty(conv);
               const hasUnread  = unread > 0;
               return (
                 <Link key={conv.id} href={`/messages/${conv.id}`}>
-                  <div className={`bg-white rounded-xl px-5 py-4 border transition-all hover:shadow-md hover:border-[#16a34a] cursor-pointer ${
-                    hasUnread ? 'border-l-4 border-l-[#16a34a] border-[#e5e7eb]' : 'border-[#f3f4f6]'
+                  <div className={`bg-[var(--bg-card)] rounded-[var(--r-lg)] px-5 py-4 border transition-all hover:shadow-card hover:border-[var(--primary)] cursor-pointer ${
+                    hasUnread ? 'border-l-4 border-l-[var(--primary)] border-[var(--border)]' : 'border-[var(--border)]'
                   }`}>
-                    <div className="flex items-start gap-3">
-                      <div className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                        hasUnread ? 'bg-[#16a34a] text-white' : 'bg-[#f0fdf4] text-[#16a34a]'
+                    <div className="flex items-start gap-4">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 shadow-sm ${
+                        hasUnread ? 'gradient-teal text-white border-transparent' : 'bg-[var(--primary-light)] text-[var(--primary)] border border-[var(--primary)]/10'
                       }`}>
                         {otherParty?.charAt(0)?.toUpperCase() ?? '?'}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <div className="flex items-center justify-between gap-2 mb-1">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className={`text-sm truncate ${hasUnread ? 'font-bold text-[#111827]' : 'font-semibold text-[#374151]'}`}>
+                            <span className={`text-sm truncate ${hasUnread ? 'font-bold text-[var(--text)]' : 'font-semibold text-[var(--text-muted)]'}`}>
                               {otherParty}
                             </span>
                             {hasUnread && (
-                              <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-bold bg-[#16a34a] text-white rounded-full">
+                              <span className="flex-shrink-0 px-2 py-0.5 text-[10px] font-bold gradient-teal text-white rounded-full shadow-sm">
                                 {unread}
                               </span>
                             )}
                           </div>
                           {conv.lastMessageAt && (
-                            <span className="text-[11px] text-[#9ca3af] whitespace-nowrap flex-shrink-0">
+                            <span className="text-[11px] font-semibold text-[var(--text-faint)] whitespace-nowrap flex-shrink-0">
                               {formatDistanceToNow(parseISO(conv.lastMessageAt), { addSuffix: true })}
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-[#6b7280] font-medium mb-1 truncate">📦 {conv.listingTitle}</p>
-                        <p className={`text-sm line-clamp-1 ${hasUnread ? 'font-medium text-[#111827]' : 'text-[#6b7280]'}`}>
+                        <p className="text-xs text-[var(--text-muted)] font-medium mb-1.5 truncate flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-[var(--primary)] block opacity-70"></span> 
+                          {conv.listingTitle}
+                        </p>
+                        <p className={`text-sm line-clamp-1 ${hasUnread ? 'font-medium text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
                           {conv.lastMessage ?? 'No messages yet — say hello!'}
                         </p>
                       </div>

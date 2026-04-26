@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { submitKYC } from '@/services/user';
 import { uploadFile } from '@/services/storage';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'react-hot-toast';
 
 interface KYCModalProps {
@@ -62,8 +62,8 @@ export default function KYCModal({ isOpen, onClose }: KYCModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#251913]/90 backdrop-blur-md">
-      <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl relative overflow-hidden ring-1 ring-[#f97316]/10">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+      <div className="bg-[var(--bg-card)] w-full max-w-lg rounded-[var(--r-xl)] shadow-2xl relative overflow-hidden border border-[var(--border)]">
         {step === 1 ? (
           <div className="p-8">
             <button 
@@ -80,7 +80,7 @@ export default function KYCModal({ isOpen, onClose }: KYCModalProps) {
               <h2 className="text-2xl font-display font-black text-[#251913]">Trust & Verification</h2>
             </div>
 
-            <p className="text-[#8c7164] font-medium mb-8">
+            <p className="text-[var(--text-muted)] font-medium mb-8">
               Verify your identity to unlock higher rental limits and premium listings. Your data is encrypted and secure.
             </p>
 
@@ -95,15 +95,15 @@ export default function KYCModal({ isOpen, onClose }: KYCModalProps) {
                     key={doc.id}
                     type="button"
                     onClick={() => setDocType(doc.id as any)}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
+                    className={`flex flex-col items-center gap-2 p-4 rounded-[var(--r-md)] border-2 transition-all ${
                       docType === doc.id 
-                        ? 'border-[#f97316] bg-[#f97316]/5' 
-                        : 'border-gray-100 hover:border-gray-200'
+                        ? 'border-[var(--primary)] bg-[var(--primary-light)] text-[var(--primary)]' 
+                        : 'border-[var(--border)] bg-[var(--bg)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
                     }`}
                   >
-                    <doc.icon className={`w-6 h-6 ${docType === doc.id ? 'text-[#f97316]' : 'text-[#8c7164]'}`} />
-                    <span className={`text-[10px] font-black uppercase tracking-wider ${
-                      docType === doc.id ? 'text-[#f97316]' : 'text-[#8c7164]'
+                    <doc.icon className={`w-6 h-6 ${docType === doc.id ? 'text-[var(--primary)]' : 'text-[var(--text-faint)]'}`} />
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                      docType === doc.id ? 'text-[var(--primary)]' : 'text-[var(--text-faint)]'
                     }`}>
                       {doc.label}
                     </span>
@@ -124,24 +124,25 @@ export default function KYCModal({ isOpen, onClose }: KYCModalProps) {
                 />
               </div>
 
-              <div className="relative p-6 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center gap-2 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
+              <div className="relative p-6 border-2 border-dashed border-[var(--border)] rounded-[var(--r-md)] flex flex-col items-center gap-2 bg-[var(--bg-subtle)] hover:bg-[var(--border)] transition-colors cursor-pointer">
                 <input
                   type="file"
                   className="absolute inset-0 opacity-0 cursor-pointer"
                   onChange={handleFileChange}
                   accept=".pdf,image/*"
                 />
-                <Upload className="w-6 h-6 text-[#8c7164]" />
-                <span className="text-sm font-bold text-[#8c7164]">
+                <Upload className="w-6 h-6 text-[var(--text-faint)]" />
+                <span className="text-sm font-bold text-[var(--text-muted)]">
                   {file ? file.name : 'Upload ID Document'}
                 </span>
-                <span className="text-[10px] text-gray-400 font-medium">(PDF, Jpg or Png up to 5MB)</span>
+                <span className="text-[10px] text-[var(--text-faint)] font-medium">(PDF, Jpg or Png up to 5MB)</span>
               </div>
 
               <Button 
                 type="submit" 
+                variant="gradient"
                 disabled={isSubmitting}
-                className="w-full bg-[#f97316] hover:bg-[#ea580c] py-4 rounded-2xl text-white font-black uppercase tracking-widest shadow-lg shadow-[#f97316]/20 transition-all hover:-translate-y-1"
+                className="w-full py-4"
               >
                 {isSubmitting ? (
                   <Loader2 className="w-5 h-5 animate-spin" />

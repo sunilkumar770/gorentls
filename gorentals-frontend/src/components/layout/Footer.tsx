@@ -1,15 +1,15 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 const FOOTER_LINKS = {
   Discover: [
-    { href: '/search',     label: 'Browse all items' },
-    { href: '/categories', label: 'Categories'       },
-    { href: '/stores',     label: 'Owner stores'     },
+    { href: '/search',          label: 'Browse all items'  },
+    { href: '/stores',          label: 'Owner stores'      },
   ],
   Earn: [
-    { href: '/create-listing', label: 'List your item'    },
-    { href: '/insurance',      label: 'Owner protection'  },
-    { href: '/earn',           label: 'How it works'      },
+    { href: '/signup?role=OWNER', label: 'List your item'  },
   ],
   Support: [
     { href: '/help',    label: 'Help Center'      },
@@ -19,6 +19,10 @@ const FOOTER_LINKS = {
 };
 
 export function Footer() {
+  const pathname = usePathname();
+  const hiddenRoutes = ['/login', '/signup', '/forgot-password', '/admin/login'];
+  if (hiddenRoutes.includes(pathname)) return null;
+
   return (
     <footer className="bg-[#1a1a18]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">

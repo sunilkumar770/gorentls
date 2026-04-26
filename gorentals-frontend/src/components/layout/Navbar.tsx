@@ -41,12 +41,13 @@ export function Navbar() {
   const { totalUnread } = useChat();
   const router   = useRouter();
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Track scroll position to apply stronger shadow when scrolled
   useEffect(() => {
+    setMounted(true);
     const onScroll = () => setScrolled(window.scrollY > 8);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
@@ -60,6 +61,9 @@ export function Navbar() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  const hiddenRoutes = ['/login', '/signup', '/forgot-password', '/admin/login'];
+  if (hiddenRoutes.includes(pathname)) return null;
 
   const handleLogout = () => {
     logout();
@@ -94,9 +98,11 @@ export function Navbar() {
             {/* Desktop nav */}
             <div className="hidden md:flex items-center gap-1">
               {navLinks.map(link => {
+                // If not mounted yet, skip auth links to ensure server/client match
+                if (!mounted && link.auth) return null;
                 if (link.auth && !user) return null;
                 const isActive  = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href));
-                const showBadge = link.href === '/messages' && totalUnread > 0;
+                const showBadge = mounted && link.href === '/messages' && totalUnread > 0;
                 return (
                   <Link
                     key={link.href}
