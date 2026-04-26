@@ -22,11 +22,11 @@ public class Booking {
     @Column(updatable = false, nullable = false)
     private UUID id;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "listing_id", nullable = false)
     private Listing listing;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "renter_id", nullable = false)
     private User renter;
     
