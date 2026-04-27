@@ -74,7 +74,7 @@ export async function signIn(
 export const loginUser = signIn;
 
 /**
- * Admin login endpoint - updated to /auth/admin-login
+ * Admin login specifically for the /auth/admin-login endpoint.
  */
 export async function adminSignIn(
   email: string,

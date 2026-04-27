@@ -30,6 +30,7 @@ function GoRentalsLogo() {
 export function Navbar() {
   const { user, profile, isOwner, isAdmin, loading, logout } = useAuth();
   const { totalUnread } = useChat();
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const router   = useRouter();
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
@@ -37,6 +38,27 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Polling for notifications (every 30s)
+  useEffect(() => {
+    if (!user) {
+      setUnreadNotifications(0);
+      return;
+    }
+
+    const fetchCount = async () => {
+      try {
+        const count = await notificationService.getUnreadCount();
+        setUnreadNotifications(count);
+      } catch (err) {
+        console.error('[Navbar] Failed to fetch unread count', err);
+      }
+    };
+
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   useEffect(() => {
     setMounted(true);
@@ -144,22 +166,22 @@ export function Navbar() {
               <Search className="w-5 h-5" />
             </Link>
 
-            {/* Mobile messages/notifications icon */}
+            {/* Mobile messages & notifications icons */}
             {user && (
-              <>
-                <Link href="/notifications" className="relative p-2 rounded-lg text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5 transition-colors md:hidden">
-                  <Bell className="w-5 h-5" />
-                  {unreadCount > 0 && (
-                    <span className={badgeClass}>{unreadCount > 9 ? '9+' : unreadCount}</span>
-                  )}
-                </Link>
-                <Link href="/messages" className="relative p-2 rounded-lg text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5 transition-colors md:hidden">
+              <div className="flex items-center md:hidden">
+                <Link href="/messages" className="relative p-2 rounded-lg text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5 transition-colors">
                   <MessageCircle className="w-5 h-5" />
                   {totalUnread > 0 && (
                     <span className={badgeClass}>{totalUnread > 9 ? '9+' : totalUnread}</span>
                   )}
                 </Link>
-              </>
+                <Link href="/notifications" className="relative p-2 rounded-lg text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5 transition-colors">
+                  <Bell className="w-5 h-5" />
+                  {unreadNotifications > 0 && (
+                    <span className={badgeClass}>{unreadNotifications > 9 ? '9+' : unreadNotifications}</span>
+                  )}
+                </Link>
+              </div>
             )}
 
             {!loading && (
@@ -169,6 +191,16 @@ export function Navbar() {
                     <Link href="/create-listing"
                       className="hidden sm:flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-[#01696f] rounded-xl hover:bg-[#015a5f] transition-colors shadow-sm">
                       <Plus className="w-4 h-4" /> List item
+                    </Link>
+
+                    {/* Desktop Notifications Bell */}
+                    <Link href="/notifications" className="hidden md:flex relative p-2 rounded-lg text-[#6b7280] hover:text-[#111827] hover:bg-[#f9fafb] transition-colors">
+                      <Bell className="w-5 h-5" />
+                      {unreadNotifications > 0 && (
+                        <span className={badgeClass}>
+                          {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                        </span>
+                      )}
                     </Link>
 
                     <div className="relative" ref={menuRef}>
@@ -220,6 +252,18 @@ export function Navbar() {
                             {totalUnread > 0 && (
                               <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">
                                 {totalUnread > 99 ? '99+' : totalUnread}
+                              </span>
+                            )}
+                          </Link>
+
+                          {/* Notifications with live badge in dropdown */}
+                          <Link href="/notifications" onClick={() => setMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f9fafb] hover:text-[#111827] transition-colors">
+                            <Bell className="w-4 h-4 text-[#6b7280]" />
+                            <span className="flex-1">Notifications</span>
+                            {unreadNotifications > 0 && (
+                              <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">
+                                {unreadNotifications > 99 ? '99+' : unreadNotifications}
                               </span>
                             )}
                           </Link>

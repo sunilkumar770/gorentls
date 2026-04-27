@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { signIn, buildProfile } from '@/services/auth';
+import { signIn, adminSignIn, buildProfile } from '@/services/auth';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [userType, setUserType] = useState<'RENTER' | 'OWNER'>('RENTER');
+  const [userType, setUserType] = useState<'RENTER' | 'OWNER' | 'ADMIN'>('RENTER');
   const [loading, setLoading] = useState(false);
   const [redirectTo, setRedirectTo] = useState<string | null>(null);
 
@@ -36,21 +36,32 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await signIn(email, password);
+      let result;
       
-      if (error) {
-        toast.error(error);
-        return;
+      if (userType === 'ADMIN') {
+        result = await adminSignIn(email, password);
+      } else {
+        result = await signIn(email, password);
       }
       
-      if (!data) throw new Error('Sign-in failed. Please check your credentials.');
+      const { data, error } = result;
+
+      if (error || !data) {
+        throw new Error(error || 'Identity verification failed');
+      }
 
       const profile = buildProfile(data);
       login(data.accessToken, profile);
-      toast.success('Welcome back!');
+
+      toast.success(userType === 'ADMIN' ? `Welcome back, ${profile.fullName}` : 'Welcome back to the collection.');
       
       const role = profile.role.toUpperCase();
-      const dest = role === 'OWNER' ? '/owner/dashboard' : (redirectTo ?? '/dashboard');
+      const dest = role === 'ADMIN' 
+        ? '/admin' 
+        : role === 'OWNER' 
+          ? '/owner/dashboard' 
+          : redirectTo ?? '/dashboard';
+          
       router.replace(dest);
       router.refresh();
       

@@ -96,7 +96,7 @@ export async function proxy(request: NextRequest) {
     if (request.nextUrl.searchParams.has('reason') || request.nextUrl.searchParams.has('redirect')) {
       return NextResponse.next();
     }
-    const dest = isAdmin ? '/admin/dashboard' : isOwner ? '/owner/dashboard' : '/';
+    const dest = isAdmin ? '/admin' : isOwner ? '/owner/dashboard' : '/';
     return NextResponse.redirect(new URL(dest, request.url));
   }
 
