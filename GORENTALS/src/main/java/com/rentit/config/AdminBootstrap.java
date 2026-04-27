@@ -4,16 +4,20 @@ import com.rentit.model.AdminUser;
 import com.rentit.model.User;
 import com.rentit.repository.AdminUserRepository;
 import com.rentit.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @Component
+@Order(1)
 public class AdminBootstrap implements CommandLineRunner {
 
     @Value("${app.admin.email}")
@@ -40,7 +44,7 @@ public class AdminBootstrap implements CommandLineRunner {
         User adminUser = userRepository.findByEmail(adminEmail).orElse(null);
 
         if (adminUser == null) {
-            System.out.println("AdminBootstrap: Creating initial user account for " + adminEmail + "...");
+            log.info("AdminBootstrap: Creating initial user account for {}...", adminEmail);
             adminUser = new User();
             adminUser.setEmail(adminEmail);
             adminUser.setPasswordHash(passwordEncoder.encode(adminPassword));
@@ -51,7 +55,7 @@ public class AdminBootstrap implements CommandLineRunner {
             adminUser.setUpdatedAt(LocalDateTime.now());
             adminUser = userRepository.save(adminUser);
         } else {
-            System.out.println("AdminBootstrap: User account " + adminEmail + " already exists. Ensuring ADMIN type.");
+            log.info("AdminBootstrap: User account {} already exists. Ensuring ADMIN type.", adminEmail);
             if (adminUser.getUserType() != User.UserType.ADMIN) {
                 adminUser.setUserType(User.UserType.ADMIN);
                 adminUser = userRepository.save(adminUser);
@@ -59,16 +63,16 @@ public class AdminBootstrap implements CommandLineRunner {
         }
 
         if (adminUserRepository.findByUser(adminUser).isEmpty()) {
-            System.out.println("AdminBootstrap: Linking user " + adminEmail + " to admin_users table...");
+            log.info("AdminBootstrap: Linking user {} to admin_users table...", adminEmail);
             AdminUser roleUser = new AdminUser();
             roleUser.setUser(adminUser);
             roleUser.setRole("SUPER_ADMIN");
             roleUser.setCreatedAt(LocalDateTime.now());
             roleUser.setUpdatedAt(LocalDateTime.now());
             adminUserRepository.save(roleUser);
-            System.out.println("AdminBootstrap ✅: Successfully linked " + adminEmail + " with role SUPER_ADMIN");
+            log.info("AdminBootstrap ✅: Successfully linked {} with role SUPER_ADMIN", adminEmail);
         } else {
-            System.out.println("AdminBootstrap: Admin record for " + adminEmail + " already exists. Skipping.");
+            log.info("AdminBootstrap: Admin record for {} already exists. Skipping.", adminEmail);
         }
     }
 }

@@ -228,19 +228,29 @@ public class BookingService {
         booking.setStatus(BookingStatus.CANCELLED);
         booking.setUpdatedAt(LocalDateTime.now());
         
-        Booking savedBooking = bookingRepository.save(booking);
-        
         // Process refund if payment was completed
         if ("COMPLETED".equals(booking.getPaymentStatus())) {
-            // TODO: Implement refund logic
+            Payment refund = new Payment();
+            refund.setBooking(booking);
+            refund.setAmount(booking.getTotalAmount());
+            refund.setPaymentType("REFUND");
+            refund.setStatus("COMPLETED");
+            refund.setCreatedAt(LocalDateTime.now());
+            paymentRepository.save(refund);
+
+            booking.setPaymentStatus("REFUNDED");
+
             notificationService.sendNotification(
                 booking.getRenter().getId(),
-                "Booking Cancelled - Refund Initiated",
-                String.format("Your booking for %s has been cancelled. Refund will be processed shortly.",
-                    booking.getListing().getTitle()),
-                "REFUND_INITIATED"
+                "Booking Cancelled - Refund Processed",
+                String.format("Your booking for %s has been cancelled. Full refund of ₹%s has been processed to your original payment method.",
+                    booking.getListing().getTitle(),
+                    booking.getTotalAmount()),
+                "REFUND_PROCESSED"
             );
         }
+
+        Booking savedBooking = bookingRepository.save(booking);
         
         // Send notification
         UUID notifyUserId = isRenter ? booking.getListing().getOwner().getId() : booking.getRenter().getId();
@@ -363,14 +373,21 @@ public class BookingService {
         
         // Process security deposit refund
         if (booking.getSecurityDeposit().compareTo(BigDecimal.ZERO) > 0) {
-            // TODO: Implement deposit refund logic
+            Payment depositRefund = new Payment();
+            depositRefund.setBooking(booking);
+            depositRefund.setAmount(booking.getSecurityDeposit());
+            depositRefund.setPaymentType("DEPOSIT_REFUND");
+            depositRefund.setStatus("COMPLETED");
+            depositRefund.setCreatedAt(LocalDateTime.now());
+            paymentRepository.save(depositRefund);
+
             notificationService.sendNotification(
                 booking.getRenter().getId(),
-                "Booking Completed - Deposit Refund",
-                String.format("Your booking for %s has been completed. Security deposit of ₹%s will be refunded shortly.",
+                "Booking Completed - Deposit Refunded",
+                String.format("Your booking for %s has been completed. Security deposit of ₹%s has been refunded to your original payment method.",
                     booking.getListing().getTitle(),
                     booking.getSecurityDeposit()),
-                "DEPOSIT_REFUND"
+                "DEPOSIT_REFUNDED"
             );
         }
         
@@ -427,6 +444,7 @@ public class BookingService {
      * Map Booking entity to BookingResponse DTO
      */
     private BookingResponse mapToBookingResponse(Booking booking) {
+        if (booking == null) return null;
         User renter = booking.getRenter();
         User owner = (booking.getListing() != null) ? booking.getListing().getOwner() : null;
         

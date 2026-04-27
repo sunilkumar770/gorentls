@@ -4,8 +4,10 @@ import com.rentit.model.Listing;
 import com.rentit.model.User;
 import com.rentit.repository.ListingRepository;
 import com.rentit.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,7 +15,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 
+@Slf4j
 @Component
+@Order(2)
 public class InventorySeeder implements CommandLineRunner {
 
     @Autowired
@@ -26,16 +30,16 @@ public class InventorySeeder implements CommandLineRunner {
     @Transactional
     public void run(String... args) throws Exception {
         if (listingRepository.count() > 0) {
-            System.out.println("InventorySeeder: Listings already exist. Skipping seed.");
+            log.info("InventorySeeder: Listings already exist. Skipping seed.");
             return;
         }
 
-        System.out.println("InventorySeeder: Empty marketplace detected. Seeding inventory...");
+        log.info("InventorySeeder: Empty marketplace detected. Seeding inventory...");
 
         // Ensure we have an admin user to attach these listings to
         User owner = userRepository.findByEmail("admin@gorentals.com").orElse(null);
         if (owner == null) {
-            System.out.println("InventorySeeder: Admin user not found. Cannot seed listings.");
+            log.warn("InventorySeeder: Admin user not found. Cannot seed listings.");
             return;
         }
 
@@ -166,6 +170,6 @@ public class InventorySeeder implements CommandLineRunner {
         l7.setUpdatedAt(LocalDateTime.now());
 
         listingRepository.saveAll(Arrays.asList(l1, l2, l3, l4, l5, l6, l7));
-        System.out.println("InventorySeeder ✅: Seeded 7 premium listings into the marketplace.");
+        log.info("InventorySeeder ✅: Seeded 7 premium listings into the marketplace.");
     }
 }

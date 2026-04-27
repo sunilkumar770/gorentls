@@ -279,28 +279,6 @@ public class ListingService {
         return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
     }
 
-    /**
-     * Update listing availability
-     */
-    @Transactional
-    public ListingResponse updateAvailability(UUID id, boolean isAvailable, String userEmail) {
-        Listing listing = listingRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Listing not found"));
-        
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        if (!listing.getOwner().getId().equals(user.getId())) {
-            throw new RuntimeException("You are not authorized to update this listing");
-        }
-        
-        listing.setIsAvailable(isAvailable);
-        listing.setUpdatedAt(LocalDateTime.now());
-        
-        Listing updatedListing = listingRepository.save(listing);
-        
-        return mapToListingResponse(updatedListing);
-    }
 
     /**
      * Get listings by category

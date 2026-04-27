@@ -343,7 +343,7 @@ export default function OwnerDashboardPage() {
                         </div>
                         <p className="text-sm text-[var(--text-muted)] font-medium mb-3">
                           <span className="bg-[var(--bg-subtle)] px-2 py-0.5 rounded mr-2">{listing.category}</span>
-                          {formatCurrency(listing.price_per_day)} / cycle
+                          {formatCurrency(listing.pricePerDay ?? listing.price_per_day ?? 0)} / cycle
                         </p>
                       </div>
 

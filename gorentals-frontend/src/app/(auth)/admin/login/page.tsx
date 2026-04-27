@@ -28,7 +28,7 @@ export default function AdminLoginPage() {
       console.log('[AdminLogin] Success. Profile received:', profile);
       login(data.accessToken, profile);
       toast.success(`Access granted — welcome, ${profile.fullName}`);
-      router.replace('/admin/dashboard');
+      router.replace('/admin');
       router.refresh();
     } catch (err: any) {
       toast.error(err.message || 'Authentication failure. Check your credentials.');
