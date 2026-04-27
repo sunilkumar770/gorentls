@@ -2,6 +2,7 @@ package com.rentit.service;
 
 import com.rentit.dto.*;
 import com.rentit.model.*;
+import com.rentit.model.enums.BookingStatus;
 import com.rentit.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -462,7 +463,7 @@ public class AdminService {
                                 .rentalAmount(booking.getRentalAmount())
                                 .securityDeposit(booking.getSecurityDeposit())
                                 .totalAmount(booking.getTotalAmount())
-                                .status(booking.getStatus().name())
+                                .status(booking.getBookingStatus().name())
                                 .paymentStatus(booking.getPaymentStatus())
                                 .razorpayOrderId(booking.getRazorpayOrderId())
                                 .razorpayPaymentId(booking.getRazorpayPaymentId())

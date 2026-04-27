@@ -1,7 +1,7 @@
 package com.rentit.repository;
 
 import com.rentit.model.Booking;
-import com.rentit.model.BookingStatus;
+import com.rentit.model.enums.BookingStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -173,4 +173,9 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
            "AND b.status IN ('CONFIRMED', 'IN_PROGRESS') " +
            "ORDER BY b.startDate ASC")
     List<Booking> findBookedDatesForListing(@Param("listingId") UUID listingId);
+
+    /**
+     * Find bookings by status and where dispute window has ended
+     */
+    List<Booking> findByBookingStatusAndDisputeWindowEndsAtBefore(com.rentit.model.enums.BookingStatus bookingStatus, java.time.Instant now);
 }

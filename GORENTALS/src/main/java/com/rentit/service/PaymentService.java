@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rentit.dto.InitiatePaymentResponse;
 import com.rentit.dto.VerifyPaymentRequest;
 import com.rentit.model.Booking;
-import com.rentit.model.BookingStatus;
+import com.rentit.model.enums.BookingStatus;
 import com.rentit.repository.BookingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +50,7 @@ public class PaymentService {
     @Value("${razorpay.key.secret}")
     private String razorpayKeySecret;
 
-    @Value("${app.razorpay.webhook-secret:placeholder}")
+    @Value("${razorpay.webhook-secret:placeholder}")
     private String webhookSecret;
 
     private static final String RAZORPAY_ORDERS_API = "https://api.razorpay.com/v1/orders";
@@ -59,20 +59,27 @@ public class PaymentService {
     /** Booking statuses that make payment initiation invalid. */
     private static final Set<BookingStatus> UNPAYABLE_STATUSES = EnumSet.of(
         BookingStatus.CANCELLED,
-        BookingStatus.REJECTED,
+        BookingStatus.NO_SHOW,
         BookingStatus.COMPLETED
     );
 
     // ─────────────────────────────────────────────────────────────────────────
 
     @Transactional
-    public InitiatePaymentResponse initiatePayment(String bookingId) {
+    public InitiatePaymentResponse initiatePayment(String bookingId, String username) {
         Booking booking = findOrThrow(bookingId);
 
+        // Security Check: Only the renter of the booking can initiate payment
+        if (!booking.getRenter().getEmail().equals(username)) {
+            log.warn("User {} attempted to initiate payment for booking {} owned by {}", 
+                username, bookingId, booking.getRenter().getEmail());
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to pay for this booking.");
+        }
+
         // BUG-15 FIX: reject terminal states before talking to Razorpay
-        if (UNPAYABLE_STATUSES.contains(booking.getStatus())) {
+        if (UNPAYABLE_STATUSES.contains(booking.getBookingStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                "Cannot initiate payment for a booking in status: " + booking.getStatus());
+                "Cannot initiate payment for a booking in status: " + booking.getBookingStatus());
         }
 
         String ps = booking.getPaymentStatus();
@@ -151,7 +158,16 @@ public class PaymentService {
     // ─────────────────────────────────────────────────────────────────────────
 
     @Transactional
-    public void verifyAndConfirmPayment(VerifyPaymentRequest req) {
+    public void verifyAndConfirmPayment(VerifyPaymentRequest req, String username) {
+        Booking booking = findOrThrow(req.getBookingId());
+
+        // Security Check: Only the renter of the booking can verify payment
+        if (!booking.getRenter().getEmail().equals(username)) {
+            log.warn("User {} attempted to verify payment for booking {} owned by {}", 
+                username, req.getBookingId(), booking.getRenter().getEmail());
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to verify this booking.");
+        }
+
         String sigPayload = req.getRazorpayOrderId() + "|" + req.getRazorpayPaymentId();
         String computed   = hmacSha256Hex(sigPayload, razorpayKeySecret);
 
@@ -166,19 +182,19 @@ public class PaymentService {
         // BUG-16 FIX: idempotency check covers all terminal/already-confirmed states.
         // Previously only checked COMPLETED paymentStatus — a CANCELLED booking
         // could have been re-confirmed by a late webhook.
-        if (UNPAYABLE_STATUSES.contains(booking.getStatus())) {
+        if (UNPAYABLE_STATUSES.contains(booking.getBookingStatus())) {
             log.warn("Ignoring payment verify for booking {} — status is {}",
-                req.getBookingId(), booking.getStatus());
+                req.getBookingId(), booking.getBookingStatus());
             return;
         }
         if ("COMPLETED".equals(booking.getPaymentStatus())
-                || BookingStatus.CONFIRMED.equals(booking.getStatus())) {
+                || BookingStatus.CONFIRMED.equals(booking.getBookingStatus())) {
             log.info("Booking {} already confirmed — skipping duplicate verify", req.getBookingId());
             return;
         }
 
         booking.setPaymentStatus("COMPLETED");
-        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setBookingStatus(BookingStatus.CONFIRMED);
         booking.setRazorpayPaymentId(req.getRazorpayPaymentId());
         bookingRepository.save(booking);
 
@@ -217,14 +233,14 @@ public class PaymentService {
             .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
 
         // BUG-16 FIX: same idempotency guard for webhook path
-        if (UNPAYABLE_STATUSES.contains(booking.getStatus())) {
+        if (UNPAYABLE_STATUSES.contains(booking.getBookingStatus())) {
             log.warn("Ignoring payment.captured for booking {} — status is {}",
-                bookingId, booking.getStatus());
+                bookingId, booking.getBookingStatus());
             return;
         }
 
-        if (!BookingStatus.CONFIRMED.equals(booking.getStatus())) {
-            booking.setStatus(BookingStatus.CONFIRMED);
+        if (!BookingStatus.CONFIRMED.equals(booking.getBookingStatus())) {
+            booking.setBookingStatus(BookingStatus.CONFIRMED);
             booking.setPaymentStatus("COMPLETED");
             booking.setRazorpayPaymentId(razorpayPaymentId);
             bookingRepository.save(booking);

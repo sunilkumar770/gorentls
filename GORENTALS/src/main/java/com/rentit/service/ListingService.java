@@ -6,7 +6,7 @@ import com.rentit.dto.ListingResponse;
 import com.rentit.dto.PagedResponse;
 import com.rentit.dto.UserResponse;
 import com.rentit.model.BlockedDate;
-import com.rentit.model.BookingStatus;
+import com.rentit.model.enums.BookingStatus;
 import com.rentit.model.Listing;
 import com.rentit.model.User;
 import com.rentit.model.UserProfile;
@@ -48,10 +48,9 @@ public class ListingService {
 
     /** Booking statuses that represent an active, in-flight rental. */
     private static final Set<BookingStatus> ACTIVE_BOOKING_STATUSES = EnumSet.of(
-        BookingStatus.PENDING,
-        BookingStatus.ACCEPTED,
+        BookingStatus.PENDING_PAYMENT,
         BookingStatus.CONFIRMED,
-        BookingStatus.IN_PROGRESS
+        BookingStatus.IN_USE
     );
 
     private final ListingRepository     listingRepository;
@@ -277,7 +276,7 @@ public class ListingService {
         // BUG-21 FIX: block deletion if active bookings exist
         long activeCount = bookingRepository.findByListingId(id, Pageable.unpaged())
             .stream()
-            .filter(b -> ACTIVE_BOOKING_STATUSES.contains(b.getStatus()))
+            .filter(b -> ACTIVE_BOOKING_STATUSES.contains(b.getBookingStatus()))
             .count();
         if (activeCount > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,

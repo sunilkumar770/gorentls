@@ -68,4 +68,4 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Page<User> searchByUserType(@Param("search") String search,
                                 @Param("userType") User.UserType userType,
                                 Pageable pageable);
-}
+}

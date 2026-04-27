@@ -5,7 +5,7 @@ import com.rentit.dto.BookingResponse;
 import com.rentit.dto.ListingResponse;
 import com.rentit.dto.UserResponse;
 import com.rentit.model.*;
-import com.rentit.model.BookingStatus;
+import com.rentit.model.enums.BookingStatus;
 import com.rentit.pricing.PricingCalculator;
 import com.rentit.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -105,7 +105,7 @@ public class BookingService {
                                      ? listing.getSecurityDeposit() : BigDecimal.ZERO;
 
         PricingCalculator.Phase1Quote quote =
-            PricingCalculator.calcPhase1(rentalAmount, securityDeposit);
+            PricingCalculator.quote(listing.getPricePerDay(), totalDays, securityDeposit);
 
         // ── Persist ──────────────────────────────────────────────────────────
         Booking booking = new Booking();
@@ -114,12 +114,12 @@ public class BookingService {
         booking.setStartDate(startDate);
         booking.setEndDate(endDate);
         booking.setTotalDays((int) totalDays);
-        booking.setRentalAmount(quote.base);
-        booking.setSecurityDeposit(quote.deposit);
-        booking.setGstAmount(quote.gstAmount);
-        booking.setPlatformFee(quote.platformFee);
-        booking.setTotalAmount(quote.totalAmount);
-        booking.setStatus(BookingStatus.PENDING);
+        booking.setRentalAmount(quote.base());
+        booking.setSecurityDeposit(quote.deposit());
+        booking.setGstAmount(quote.gstAmount());
+        booking.setPlatformFee(quote.platformFee());
+        booking.setTotalAmount(quote.totalAmount());
+        booking.setBookingStatus(BookingStatus.PENDING_PAYMENT);
         booking.setPaymentStatus("PENDING");
 
         Booking saved = bookingRepository.save(booking);
@@ -189,7 +189,7 @@ public class BookingService {
                                 .map(this::mapToBookingResponse);
     }
 
-    /** Get upcoming CONFIRMED/IN_PROGRESS bookings for a renter. */
+    /** Get upcoming CONFIRMED/IN_USE bookings for a renter. */
     @Transactional(readOnly = true)
     public List<BookingResponse> getUpcomingBookingsForRenter(String userEmail) {
         User user = userRepository.findByEmail(userEmail)
@@ -198,7 +198,7 @@ public class BookingService {
             .stream().map(this::mapToBookingResponse).collect(Collectors.toList());
     }
 
-    /** Get upcoming CONFIRMED/IN_PROGRESS bookings for an owner. */
+    /** Get upcoming CONFIRMED/IN_USE bookings for an owner. */
     @Transactional(readOnly = true)
     public List<BookingResponse> getUpcomingBookingsForOwner(String ownerEmail) {
         User owner = userRepository.findByEmail(ownerEmail)
@@ -247,11 +247,11 @@ public class BookingService {
         boolean isAdmin  = caller.getUserType() == User.UserType.ADMIN;
 
         // ── Authorization matrix ─────────────────────────────────────────────
-        // BUG-09 FIX: IN_PROGRESS added as an owner-only action (mark handover)
+        // BUG-09 FIX: IN_USE added as an owner-only action (mark handover)
         switch (newStatus) {
-            case ACCEPTED, REJECTED, COMPLETED, IN_PROGRESS -> {
+            case IN_USE, RETURNED, COMPLETED, NO_SHOW, DISPUTED -> {
                 if (!isOwner && !isAdmin)
-                    throw new AccessDeniedException("Only the listing owner can perform this action.");
+                    throw new AccessDeniedException("Only the listing owner or admin can perform this action.");
             }
             case CANCELLED -> {
                 if (!isOwner && !isRenter && !isAdmin)
@@ -263,20 +263,15 @@ public class BookingService {
 
         // ── State machine guard ──────────────────────────────────────────────
         // BUG-05 FIX: PENDING → ACCEPTED (not CONFIRMED)
-        // BUG-06 FIX: IN_PROGRESS is now a valid precondition for COMPLETED
-        BookingStatus current = booking.getStatus();
+        // BUG-06 FIX: IN_USE is now a valid precondition for COMPLETED
+        BookingStatus current = booking.getBookingStatus();
         boolean validTransition = switch (current) {
-            case PENDING      -> newStatus == BookingStatus.ACCEPTED
-                              || newStatus == BookingStatus.REJECTED
-                              || newStatus == BookingStatus.CANCELLED;
-            case ACCEPTED     -> newStatus == BookingStatus.CONFIRMED
-                              || newStatus == BookingStatus.CANCELLED;
-            case CONFIRMED    -> newStatus == BookingStatus.IN_PROGRESS
-                              || newStatus == BookingStatus.COMPLETED
-                              || newStatus == BookingStatus.CANCELLED;
-            case IN_PROGRESS  -> newStatus == BookingStatus.COMPLETED
-                              || newStatus == BookingStatus.CANCELLED;
-            default           -> false; // COMPLETED, REJECTED, CANCELLED are terminal
+            case PENDING_PAYMENT -> newStatus == BookingStatus.CONFIRMED || newStatus == BookingStatus.CANCELLED;
+            case CONFIRMED       -> newStatus == BookingStatus.IN_USE || newStatus == BookingStatus.CANCELLED || newStatus == BookingStatus.NO_SHOW;
+            case IN_USE          -> newStatus == BookingStatus.RETURNED || newStatus == BookingStatus.DISPUTED;
+            case RETURNED        -> newStatus == BookingStatus.COMPLETED || newStatus == BookingStatus.DISPUTED;
+            case DISPUTED        -> newStatus == BookingStatus.COMPLETED || newStatus == BookingStatus.CANCELLED;
+            default              -> false; // COMPLETED, CANCELLED, NO_SHOW are terminal
         };
 
         if (!validTransition)
@@ -285,7 +280,7 @@ public class BookingService {
                 + " (booking: " + bookingId + ")");
 
         // ── Blocked-date side-effects ────────────────────────────────────────
-        if (newStatus == BookingStatus.ACCEPTED || newStatus == BookingStatus.CONFIRMED) {
+        if (newStatus == BookingStatus.CONFIRMED) {
             if (blockedDateRepository
                     .findByListing_IdAndBooking_Id(booking.getListing().getId(), booking.getId())
                     .isEmpty()) {
@@ -297,12 +292,12 @@ public class BookingService {
                 bd.setReason("BOOKING");
                 blockedDateRepository.save(bd);
             }
-        } else if (newStatus == BookingStatus.CANCELLED || newStatus == BookingStatus.REJECTED) {
+        } else if (newStatus == BookingStatus.CANCELLED) {
             blockedDateRepository.deleteByListing_IdAndBooking_Id(
                 booking.getListing().getId(), booking.getId());
         }
 
-        booking.setStatus(newStatus);
+        booking.setBookingStatus(newStatus);
         booking.setUpdatedAt(LocalDateTime.now());
         Booking saved = bookingRepository.save(booking);
 
@@ -310,15 +305,10 @@ public class BookingService {
         // BUG-10 FIX: one clear notification per outcome; no spurious refund
         //             notification unless payment was actually completed.
         switch (newStatus) {
-            case ACCEPTED -> notificationService.sendNotification(
-                booking.getRenter().getId(), "Booking Accepted",
-                String.format("Your booking for '%s' was accepted. Please complete payment.",
-                    booking.getListing().getTitle()), "BOOKING_ACCEPTED");
-
-            case REJECTED -> notificationService.sendNotification(
-                booking.getRenter().getId(), "Booking Rejected",
-                String.format("Your booking for '%s' was not accepted by the owner.",
-                    booking.getListing().getTitle()), "BOOKING_REJECTED");
+            case PENDING_PAYMENT -> notificationService.sendNotification(
+                booking.getRenter().getId(), "Booking Requested",
+                String.format("Your booking for '%s' is pending payment.",
+                    booking.getListing().getTitle()), "BOOKING_PENDING");
 
             case CANCELLED -> {
                 UUID notifyId = isRenter
@@ -353,7 +343,7 @@ public class BookingService {
                 }
             }
 
-            default -> { /* IN_PROGRESS, etc. — no notification needed */ }
+            default -> { /* IN_USE, RETURNED, etc. — no notification needed */ }
         }
 
         log.info("Booking {} transitioned {} → {} by {}",
@@ -408,7 +398,7 @@ public class BookingService {
             .totalAmount(booking.getTotalAmount())
             .gstAmount(Objects.requireNonNullElse(booking.getGstAmount(),  BigDecimal.ZERO))
             .platformFee(Objects.requireNonNullElse(booking.getPlatformFee(), BigDecimal.ZERO))
-            .status(booking.getStatus() != null ? booking.getStatus().name() : "PENDING")
+            .status(booking.getBookingStatus() != null ? booking.getBookingStatus().name() : "PENDING_PAYMENT")
             .paymentStatus(booking.getPaymentStatus() != null ? booking.getPaymentStatus() : "PENDING")
             .razorpayOrderId(booking.getRazorpayOrderId())
             .razorpayPaymentId(booking.getRazorpayPaymentId())

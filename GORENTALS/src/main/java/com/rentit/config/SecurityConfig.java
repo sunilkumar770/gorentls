@@ -46,6 +46,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/health").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
+                .requestMatchers("/api/payments/webhook").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/listings/owner/mine").hasRole("OWNER")
                 .requestMatchers(HttpMethod.GET, "/api/listings/**").permitAll()
                 // SockJS sends HTTP GET /ws/chat/info before WS upgrade.

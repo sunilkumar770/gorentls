@@ -9,6 +9,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import com.rentit.model.enums.PaymentKind;
 
 @Data
 @Entity
@@ -28,6 +29,10 @@ public class Payment {
     @Column(nullable = false)
     private BigDecimal amount;
     
+    @Enumerated(EnumType.STRING)
+    @Column(name = "kind", length = 20)
+    private PaymentKind kind = PaymentKind.ADVANCE;
+    
     @Column(name = "payment_type")
     private String paymentType; // RENTAL, DEPOSIT, REFUND
     
@@ -41,6 +46,12 @@ public class Payment {
     
     @Column(name = "payment_method")
     private String paymentMethod;
+    
+    @Column(name = "refund_id")
+    private String refundId;
+    
+    @Column(name = "refund_status")
+    private String refundStatus;
     
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -72,6 +83,14 @@ public class Payment {
 
 	public void setAmount(BigDecimal amount) {
 		this.amount = amount;
+	}
+
+	public PaymentKind getKind() {
+		return kind;
+	}
+
+	public void setKind(PaymentKind kind) {
+		this.kind = kind;
 	}
 
 	public String getPaymentType() {
@@ -112,6 +131,22 @@ public class Payment {
 
 	public void setPaymentMethod(String paymentMethod) {
 		this.paymentMethod = paymentMethod;
+	}
+
+	public String getRefundId() {
+		return refundId;
+	}
+
+	public void setRefundId(String refundId) {
+		this.refundId = refundId;
+	}
+
+	public String getRefundStatus() {
+		return refundStatus;
+	}
+
+	public void setRefundStatus(String refundStatus) {
+		this.refundStatus = refundStatus;
 	}
 
 	public LocalDateTime getCreatedAt() {

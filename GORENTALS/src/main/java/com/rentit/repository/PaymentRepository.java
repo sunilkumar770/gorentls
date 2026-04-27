@@ -28,6 +28,11 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     Optional<Payment> findByRazorpayPaymentId(String razorpayPaymentId);
     
     /**
+     * Check if payment exists by Razorpay payment ID
+     */
+    boolean existsByRazorpayPaymentId(String razorpayPaymentId);
+    
+    /**
      * Find payment by booking ID
      */
     Optional<Payment> findByBookingId(UUID bookingId);

@@ -3,11 +3,12 @@ package com.rentit.controller;
 import com.rentit.dto.BookingRequest;
 import com.rentit.dto.BookingResponse;
 import com.rentit.service.BookingService;
-import com.rentit.model.BookingStatus;
+import com.rentit.model.enums.BookingStatus;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,7 +30,7 @@ public class BookingController {
     public ResponseEntity<BookingResponse> createBooking(
             @Valid @RequestBody BookingRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+        return ResponseEntity.status(HttpStatus.CREATED)
                              .body(bookingService.createBooking(request, userDetails.getUsername()));
     }
 
@@ -65,21 +66,7 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.updateStatus(id, BookingStatus.CANCELLED, userDetails.getUsername()));
     }
 
-    @PatchMapping("/{id}/accept")
-    @PreAuthorize("hasRole('OWNER')")
-    public ResponseEntity<BookingResponse> acceptBooking(
-            @PathVariable UUID id,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(bookingService.updateStatus(id, BookingStatus.ACCEPTED, userDetails.getUsername()));
-    }
 
-    @PatchMapping("/{id}/reject")
-    @PreAuthorize("hasRole('OWNER')")
-    public ResponseEntity<BookingResponse> rejectBooking(
-            @PathVariable UUID id,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(bookingService.updateStatus(id, BookingStatus.REJECTED, userDetails.getUsername()));
-    }
 
     @PatchMapping("/{id}/complete")
     @PreAuthorize("hasRole('OWNER')")
