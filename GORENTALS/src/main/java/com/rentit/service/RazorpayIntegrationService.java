@@ -61,6 +61,21 @@ public class RazorpayIntegrationService {
         String paymentKind,
         String currency
     ) {
+        // ── DEMO/MOCK MODE ───────────────────────────────────────────────────
+        if ("rzp_test_demo".equals(keyId)) {
+            log.info("Razorpay order created (MOCK): orderId=order_mock_{} bookingId={} kind={} amount=₹{}",
+                UUID.randomUUID().toString().substring(0, 8), bookingId, paymentKind, amountINR);
+            
+            JSONObject mockOrder = new JSONObject();
+            mockOrder.put("id", "order_mock_" + UUID.randomUUID().toString().substring(0, 8));
+            mockOrder.put("entity", "order");
+            mockOrder.put("amount", toPaise(amountINR));
+            mockOrder.put("currency", currency != null ? currency : "INR");
+            mockOrder.put("receipt", bookingId.toString());
+            mockOrder.put("status", "created");
+            return mockOrder;
+        }
+
         try {
             RazorpayClient client = client();
             long paise = toPaise(amountINR);
@@ -98,6 +113,12 @@ public class RazorpayIntegrationService {
         String paymentId,
         String signature
     ) {
+        // ── DEMO/MOCK MODE ───────────────────────────────────────────────────
+        if (orderId != null && orderId.startsWith("order_mock_")) {
+            log.info("Payment signature verification (MOCK BYPASS): orderId={} paymentId={}", orderId, paymentId);
+            return true;
+        }
+
         try {
             JSONObject params = new JSONObject();
             params.put("razorpay_order_id",   orderId);

@@ -169,6 +169,7 @@ public class BookingEscrowService {
         booking.setReturnedAt(now);
         booking.setDisputeWindowEndsAt(disputeWindowEnds);
         booking.setBookingStatus(BookingStatus.RETURNED);
+        booking.setEscrowStatus(EscrowStatus.RETURNED);
         bookingRepo.save(booking);
         broadcastEscrowUpdate(booking);
         log.info("Return recorded: booking={} disputeWindowEnds={}",

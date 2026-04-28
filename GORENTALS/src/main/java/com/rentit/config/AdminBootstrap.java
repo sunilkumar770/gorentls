@@ -51,11 +51,12 @@ public class AdminBootstrap implements CommandLineRunner {
             adminUser.setUpdatedAt(LocalDateTime.now());
             adminUser = userRepository.save(adminUser);
         } else {
-            System.out.println("AdminBootstrap: User account " + adminEmail + " already exists. Ensuring ADMIN type.");
+            System.out.println("AdminBootstrap: User account " + adminEmail + " already exists. Ensuring ADMIN type and syncing password.");
+            adminUser.setPasswordHash(passwordEncoder.encode(adminPassword));
             if (adminUser.getUserType() != User.UserType.ADMIN) {
                 adminUser.setUserType(User.UserType.ADMIN);
-                adminUser = userRepository.save(adminUser);
             }
+            adminUser = userRepository.save(adminUser);
         }
 
         if (adminUserRepository.findByUser(adminUser).isEmpty()) {

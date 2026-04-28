@@ -25,11 +25,12 @@ package com.rentit.model.enums;
  */
 public enum EscrowStatus {
 
-    NONE,              // no money captured yet
+    PENDING,           // no money captured yet
     ADVANCE_HELD,      // advance payment in escrow
     FULL_HELD,         // full rental + deposit in escrow
     PARTIAL_RELEASED,  // split resolution: part paid out, part refunded
     REFUNDED,          // full or partial refund sent back to renter
+    PARTIALLY_REFUNDED, // partial refund sent back to renter
     ON_HOLD,           // dispute open — funds frozen, no payout until resolved
     READY_FOR_PAYOUT,  // all conditions met, payout engine will pick up
     PAID_OUT,          // RazorpayX transfer initiated to owner

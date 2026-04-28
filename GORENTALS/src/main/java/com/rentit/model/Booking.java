@@ -69,7 +69,7 @@ public class Booking {
     
     @Enumerated(EnumType.STRING)
     @Column(name = "escrow_status", length = 20)
-    private EscrowStatus escrowStatus = EscrowStatus.NONE;
+    private EscrowStatus escrowStatus = EscrowStatus.PENDING;
     
     @Column(name = "advance_amount")
     private BigDecimal advanceAmount = BigDecimal.ZERO;

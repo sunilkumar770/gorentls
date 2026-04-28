@@ -6,6 +6,7 @@ import { Package } from 'lucide-react';
 import type { Listing, PagedResponse } from '@/types';
 import { ListingCard } from '@/components/listing/ListingCard';
 import { useListings } from '@/hooks/useListings';
+import { Button } from '@/components/ui/Button';
 
 type ListingsData = Listing[] | PagedResponse<Listing>;
 

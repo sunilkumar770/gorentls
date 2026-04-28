@@ -8,6 +8,7 @@ import com.rentit.model.enums.EscrowStatus;
 import com.rentit.model.enums.PaymentKind;
 import com.rentit.repository.BookingRepository;
 import com.rentit.repository.PaymentRepository;
+import com.rentit.repository.UserRepository;
 import com.rentit.service.BookingEscrowService;
 import com.rentit.service.RazorpayIntegrationService;
 import jakarta.validation.Valid;
@@ -71,6 +72,7 @@ public class BookingPaymentController {
     private final BookingEscrowService       escrowService;
     private final BookingRepository          bookingRepo;
     private final PaymentRepository          paymentRepo;
+    private final UserRepository            userRepo;
     private final Counter orderCreatedCounter;
     private final Counter paymentConfirmedCounter;
     private final Counter paymentFailedCounter;
@@ -81,12 +83,14 @@ public class BookingPaymentController {
         BookingEscrowService       escrowService,
         BookingRepository          bookingRepo,
         PaymentRepository          paymentRepo,
+        UserRepository            userRepo,
         MeterRegistry              meterRegistry
     ) {
         this.razorpay      = razorpay;
         this.escrowService = escrowService;
         this.bookingRepo   = bookingRepo;
         this.paymentRepo   = paymentRepo;
+        this.userRepo      = userRepo;
 
         this.orderCreatedCounter = Counter.builder("payments.orders.created")
             .description("Total Razorpay orders created")
@@ -135,7 +139,7 @@ public class BookingPaymentController {
         @Valid @RequestBody CreateOrderRequest req,
         @AuthenticationPrincipal UserDetails principal
     ) {
-        UUID userId    = UUID.fromString(principal.getUsername());
+        UUID userId    = resolveUserId(principal);
         Booking booking = fetchBookingForUser(req.bookingId(), userId, "RENTER");
 
         String kind = req.paymentKind() != null
@@ -213,7 +217,7 @@ public class BookingPaymentController {
         @Valid @RequestBody ConfirmPaymentRequest req,
         @AuthenticationPrincipal UserDetails principal
     ) {
-        UUID userId    = UUID.fromString(principal.getUsername());
+        UUID userId    = resolveUserId(principal);
         Booking booking = fetchBookingForUser(req.bookingId(), userId, "RENTER");
 
         // ── Signature verification (must happen before any DB write) ───────────
@@ -305,7 +309,7 @@ public class BookingPaymentController {
         @PathVariable UUID bookingId,
         @AuthenticationPrincipal UserDetails principal
     ) {
-        UUID userId    = UUID.fromString(principal.getUsername());
+        UUID userId    = resolveUserId(principal);
         Booking booking = bookingRepo.findById(bookingId)
             .orElseThrow(() -> BusinessException.notFound("Booking", bookingId));
 
@@ -392,6 +396,19 @@ public class BookingPaymentController {
             "razorpayRefundId", refundId,
             "amount",       req.amount()
         ));
+    }
+
+    private UUID resolveUserId(UserDetails principal) {
+        String username = principal.getUsername();
+        try {
+            // Try parsing as UUID first (some clients might send UUID)
+            return UUID.fromString(username);
+        } catch (IllegalArgumentException e) {
+            // If not a UUID, it must be an email
+            return userRepo.findByEmail(username)
+                .map(com.rentit.model.User::getId)
+                .orElseThrow(() -> BusinessException.notFound("User", username));
+        }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

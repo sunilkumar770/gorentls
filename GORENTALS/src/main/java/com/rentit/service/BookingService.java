@@ -112,7 +112,10 @@ public class BookingService {
         booking.setGstAmount(quote.gstAmount());
         booking.setPlatformFee(quote.platformFee());
         booking.setTotalAmount(quote.totalAmount());
+        booking.setAdvanceAmount(quote.advanceAmount());
+        booking.setRemainingAmount(quote.remainingAmount());
         booking.setBookingStatus(BookingStatus.PENDING_PAYMENT);
+        booking.setEscrowStatus(com.rentit.model.enums.EscrowStatus.PENDING);
         booking.setPaymentStatus("PENDING");
 
         Booking saved = bookingRepository.save(booking);
@@ -285,6 +288,16 @@ public class BookingService {
         } else if (newStatus == BookingStatus.CANCELLED) {
             blockedDateRepository.deleteByListing_IdAndBooking_Id(
                 booking.getListing().getId(), booking.getId());
+        }
+
+        // ── Escrow Side-Effects ──────────────────────────────────────────────
+        // Sync the escrow service if the status change is a lifecycle event.
+        // We call these BEFORE setting the status on the object so the service 
+        // can verify the transition from the CURRENT status.
+        if (newStatus == BookingStatus.IN_USE) {
+            escrowService.markHandover(booking);
+        } else if (newStatus == BookingStatus.RETURNED) {
+            escrowService.markReturn(booking);
         }
 
         booking.setBookingStatus(newStatus);

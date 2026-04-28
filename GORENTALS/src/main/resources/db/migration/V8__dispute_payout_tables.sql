@@ -198,11 +198,15 @@ BEGIN
         AND column_name = 'escrow_status' 
         AND data_type = 'character varying'
     ) THEN
-        -- Convert existing VARCHAR values to the enum
+        -- Drop default first to avoid casting error
+        ALTER TABLE bookings ALTER COLUMN escrow_status DROP DEFAULT;
+        -- Convert existing VARCHAR values to the enum, mapping NONE to PENDING
         ALTER TABLE bookings 
             ALTER COLUMN escrow_status 
             TYPE escrow_status 
-            USING escrow_status::escrow_status;
+            USING (CASE WHEN escrow_status = 'NONE' THEN 'PENDING' ELSE escrow_status END)::escrow_status;
+        -- Re-add default
+        ALTER TABLE bookings ALTER COLUMN escrow_status SET DEFAULT 'PENDING'::escrow_status;
     END IF;
     
     -- Ensure column exists (for fresh DBs, V7 or baseline should have added it,

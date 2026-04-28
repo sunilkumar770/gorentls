@@ -68,6 +68,16 @@ public class BookingController {
 
 
 
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<BookingResponse> updateStatus(
+            @PathVariable UUID id,
+            @RequestBody java.util.Map<String, String> statusUpdate,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        BookingStatus newStatus = BookingStatus.valueOf(statusUpdate.get("status"));
+        return ResponseEntity.ok(bookingService.updateStatus(id, newStatus, userDetails.getUsername()));
+    }
+
     @PatchMapping("/{id}/complete")
     @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<BookingResponse> completeBooking(

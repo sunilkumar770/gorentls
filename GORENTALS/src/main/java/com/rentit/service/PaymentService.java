@@ -45,10 +45,10 @@ public class PaymentService {
     private final BookingRepository bookingRepository;
     private final ObjectMapper      objectMapper;
 
-    @Value("${razorpay.key.id}")
+    @Value("${razorpay.key-id}")
     private String razorpayKeyId;
 
-    @Value("${razorpay.key.secret}")
+    @Value("${razorpay.key-secret}")
     private String razorpayKeySecret;
 
     @Value("${razorpay.webhook-secret:placeholder}")
