@@ -1,21 +1,16 @@
-﻿# Stage 1: Build
+# Build stage
 FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /app
+COPY .mvn/ .mvn
 COPY mvnw pom.xml ./
-COPY .mvn .mvn
-RUN chmod +x mvnw && ./mvnw dependency:go-offline -q
+RUN ./mvnw dependency:go-offline -B
 COPY src ./src
-RUN ./mvnw clean package -DskipTests -q
+RUN ./mvnw clean package -DskipTests -B
 
-# Stage 2: Run (slim JRE only)
-FROM eclipse-temurin:21-jre-alpine AS runner
+# Runtime stage — distroless for minimal attack surface
+FROM gcr.io/distroless/java21-debian12:nonroot
 WORKDIR /app
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-USER appuser
 COPY --from=builder /app/target/*.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", \
-  "-Djava.security.egd=file:/dev/./urandom", \
-  "-XX:+UseContainerSupport", \
-  "-XX:MaxRAMPercentage=75.0", \
-  "-jar", "app.jar"]
+USER nonroot:nonroot
+ENTRYPOINT ["java", "-jar", "app.jar"]

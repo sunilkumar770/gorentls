@@ -1,50 +1,55 @@
+version: '3.8'
+
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: gorentals-db
+  postgres:
+    image: postgres:16-alpine
     environment:
+      POSTGRES_USER: rentit
+      POSTGRES_PASSWORD: rentit_local
       POSTGRES_DB: gorentals
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d gorentals"]
+      test: ["CMD-SHELL", "pg_isready -U rentit"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
   backend:
-    build:
-      context: ./GORENTALS
-      dockerfile: Dockerfile
-    container_name: gorentals-backend
+    build: ./GORENTALS
     ports:
       - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      DB_URL: jdbc:postgresql://db:5432/gorentals
-      DB_USERNAME: postgres
-      DB_PASSWORD: password
-      JWT_SECRET: ${JWT_SECRET:-demo_secret_for_local_parity_32_chars_long}
-      FRONTEND_URL: http://localhost:3000
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/gorentals
+      SPRING_DATASOURCE_USERNAME: rentit
+      SPRING_DATASOURCE_PASSWORD: rentit_local
+      JWT_SECRET: ${JWT_SECRET}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD}
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
 
   frontend:
-    build:
-      context: ./gorentals-frontend
-      dockerfile: Dockerfile
-    container_name: gorentals-frontend
+    build: ./gorentals-frontend
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8080/api
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+      NEXT_PUBLIC_RAZORPAY_KEY_ID: ${NEXT_PUBLIC_RAZORPAY_KEY_ID}
     depends_on:
       - backend
 
 volumes:
-  pgdata:
+  postgres_data:

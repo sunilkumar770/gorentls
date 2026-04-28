@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: gorentals-backend
+    runtime: docker
+    repo: https://github.com/sunilkumar770/gorentls
+    dockerfilePath: ./GORENTALS/Dockerfile
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: gorentals-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: SPRING_MAIL_PASSWORD
+        sync: false
+    healthCheckPath: /api/health
+
+  - type: web
+    name: gorentals-frontend
+    runtime: docker
+    repo: https://github.com/sunilkumar770/gorentls
+    dockerfilePath: ./gorentals-frontend/Dockerfile
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: gorentals-backend
+          property: url
+      - key: NEXT_PUBLIC_RAZORPAY_KEY_ID
+        sync: false
+
+databases:
+  - name: gorentals-db
+    databaseName: gorentals
+    user: rentit
+    plan: free
