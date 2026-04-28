@@ -5,6 +5,7 @@ import com.rentit.dto.ListingRequest;
 import com.rentit.dto.ListingResponse;
 import com.rentit.dto.PagedResponse;
 import com.rentit.dto.UserResponse;
+import com.rentit.exception.BusinessException;
 import com.rentit.model.BlockedDate;
 import com.rentit.model.enums.BookingStatus;
 import com.rentit.model.Listing;
@@ -20,11 +21,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -37,7 +35,7 @@ import java.util.UUID;
  * BUG-20 FIX: updateListing() enforces the KYC gate on isPublished — owner
  *             cannot re-publish a listing if KYC is not APPROVED.
  * BUG-21 FIX: deleteListing() refuses to delete if any ACTIVE booking exists
- *             (PENDING, ACCEPTED, CONFIRMED, IN_PROGRESS).
+ *             (PENDING_PAYMENT, CONFIRMED, IN_USE).
  * BUG-22 FIX: removed the duplicate updateAvailability(UUID, boolean, String)
  *             overload that had inconsistent error types. One method remains.
  */
@@ -54,10 +52,10 @@ public class ListingService {
     );
 
     private final ListingRepository     listingRepository;
-    private final UserRepository         userRepository;
-    private final BlockedDateRepository  blockedDateRepository;
-    private final BookingRepository      bookingRepository;
-    private final NotificationService    notificationService;
+    private final UserRepository        userRepository;
+    private final BlockedDateRepository blockedDateRepository;
+    private final BookingRepository     bookingRepository;
+    private final NotificationService   notificationService;
 
     public PagedResponse<ListingResponse> getAllListings(int page, int size, 
         String city, String category) {
@@ -97,7 +95,7 @@ public class ListingService {
      */
     public ListingResponse getListingById(UUID id) {
         Listing listing = listingRepository.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
+            .orElseThrow(() -> BusinessException.notFound("Listing", id));
         return mapToListingResponse(listing);
     }
 
@@ -107,11 +105,10 @@ public class ListingService {
     @Transactional
     public ListingResponse createListing(ListingRequest request, String userEmail) {
         User owner = userRepository.findByEmail(userEmail)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            .orElseThrow(() -> BusinessException.notFound("User", userEmail));
 
         if (owner.getUserType() != User.UserType.OWNER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                "Only owners can create listings");
+            throw BusinessException.forbidden("Only owners can create listings");
         }
         
         // Create new listing
@@ -160,13 +157,13 @@ public class ListingService {
     @Transactional
     public ListingResponse updateListing(UUID id, ListingRequest request, String userEmail) {
         Listing listing = listingRepository.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
+            .orElseThrow(() -> BusinessException.notFound("Listing", id));
 
         User user = userRepository.findByEmail(userEmail)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            .orElseThrow(() -> BusinessException.notFound("User", userEmail));
 
         if (!listing.getOwner().getId().equals(user.getId())) {
-            throw new AccessDeniedException("You are not authorized to update this listing");
+            throw BusinessException.forbidden("You are not authorized to update this listing");
         }
 
         listing.setTitle(request.getTitle());
@@ -188,8 +185,10 @@ public class ListingService {
                 boolean kycApproved = user.getProfile() != null
                     && user.getProfile().getKycStatus() == UserProfile.KYCStatus.APPROVED;
                 if (!kycApproved) {
-                    throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                        "KYC verification must be approved before publishing a listing");
+                    throw BusinessException.unprocessable(
+                        "KYC verification must be approved before publishing a listing",
+                        "KYC_REQUIRED"
+                    );
                 }
             }
             listing.setIsPublished(request.getIsPublished());
@@ -201,34 +200,36 @@ public class ListingService {
 
     @Transactional
     public ListingResponse publishListing(UUID id, String userEmail) {
-        // Get the listing
         Listing listing = listingRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Listing not found"));
-        
-        // Get the user
+            .orElseThrow(() -> BusinessException.notFound("Listing", id));
+
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        // Verify ownership
+            .orElseThrow(() -> BusinessException.notFound("User", userEmail));
+
         if (!listing.getOwner().getId().equals(user.getId())) {
-            throw new RuntimeException("You are not authorized to publish this listing");
+            throw BusinessException.forbidden("You are not authorized to publish this listing");
         }
-        
-        // Check if listing is complete
+
+        // KYC gate: owner cannot publish if KYC is not APPROVED
+        boolean kycApproved = user.getProfile() != null
+            && user.getProfile().getKycStatus() == UserProfile.KYCStatus.APPROVED;
+        if (!kycApproved) {
+            throw BusinessException.unprocessable(
+                "KYC verification must be approved before publishing a listing",
+                "KYC_REQUIRED"
+            );
+        }
+
         if (listing.getTitle() == null || listing.getTitle().isEmpty()) {
-            throw new RuntimeException("Please add a title before publishing");
+            throw BusinessException.badRequest("Please add a title before publishing", "MISSING_TITLE");
         }
         if (listing.getPricePerDay() == null || listing.getPricePerDay().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new RuntimeException("Please add a valid price before publishing");
+            throw BusinessException.badRequest("Please add a valid price before publishing", "INVALID_PRICE");
         }
-        
-        // Publish the listing
+
         listing.setIsPublished(true);
         listing.setUpdatedAt(LocalDateTime.now());
-        
-        Listing publishedListing = listingRepository.save(listing);
-        
-        return mapToListingResponse(publishedListing);
+        return mapToListingResponse(listingRepository.save(listing));
     }
 
     /**
@@ -238,15 +239,13 @@ public class ListingService {
     @Transactional
     public ListingResponse updateAvailability(UUID id, Boolean isAvailable, String ownerEmail) {
         if (isAvailable == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "isAvailable must be true or false");
+            throw BusinessException.badRequest("isAvailable must be true or false", "INVALID_INPUT");
         }
         Listing listing = listingRepository.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                "Listing not found: " + id));
+            .orElseThrow(() -> BusinessException.notFound("Listing", id));
 
         if (!listing.getOwner().getEmail().equals(ownerEmail)) {
-            throw new AccessDeniedException("You do not own listing " + id);
+            throw BusinessException.forbidden("You do not own listing " + id);
         }
 
         listing.setIsAvailable(isAvailable);
@@ -259,18 +258,18 @@ public class ListingService {
      */
     /**
      * BUG-21 FIX: refuse deletion if any active bookings exist for the listing.
-     * Active = PENDING, ACCEPTED, CONFIRMED, or IN_PROGRESS.
+     * Active = PENDING_PAYMENT, CONFIRMED, or IN_USE.
      */
     @Transactional
     public void deleteListing(UUID id, String userEmail) {
         Listing listing = listingRepository.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
+            .orElseThrow(() -> BusinessException.notFound("Listing", id));
 
         User user = userRepository.findByEmail(userEmail)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            .orElseThrow(() -> BusinessException.notFound("User", userEmail));
 
         if (!listing.getOwner().getId().equals(user.getId())) {
-            throw new AccessDeniedException("You are not authorized to delete this listing");
+            throw BusinessException.forbidden("You are not authorized to delete this listing");
         }
 
         // BUG-21 FIX: block deletion if active bookings exist
@@ -279,9 +278,11 @@ public class ListingService {
             .filter(b -> ACTIVE_BOOKING_STATUSES.contains(b.getBookingStatus()))
             .count();
         if (activeCount > 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
+            throw BusinessException.conflict(
                 "Cannot delete listing with " + activeCount + " active booking(s). "
-                + "Cancel all bookings first.");
+                + "Cancel all bookings first.",
+                "ACTIVE_BOOKINGS_EXIST"
+            );
         }
 
         listingRepository.delete(listing);
@@ -293,11 +294,11 @@ public class ListingService {
      */
     public PagedResponse<ListingResponse> getListingsByOwner(String userEmail, Pageable pageable) {
         User user = userRepository.findByEmail(userEmail)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            .orElseThrow(() -> BusinessException.notFound("User", userEmail));
 
         if (user.getUserType() != User.UserType.OWNER
             && user.getUserType() != User.UserType.ADMIN) {
-            throw new AccessDeniedException("User is not an owner");
+            throw BusinessException.forbidden("User is not an owner");
         }
 
         Page<Listing> listings = listingRepository.findByOwnerId(user.getId(), pageable);
@@ -309,18 +310,15 @@ public class ListingService {
      */
     public PagedResponse<ListingResponse> getPublishedListingsByOwner(String userEmail, Pageable pageable) {
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            .orElseThrow(() -> BusinessException.notFound("User", userEmail));
         
         Page<Listing> listings = listingRepository.findByOwnerIdAndIsPublished(user.getId(), true, pageable);
         return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
     }
 
-    /**
-     * Get draft listings by owner
-     */
     public PagedResponse<ListingResponse> getDraftListingsByOwner(String userEmail, Pageable pageable) {
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            .orElseThrow(() -> BusinessException.notFound("User", userEmail));
         
         Page<Listing> listings = listingRepository.findByOwnerIdAndIsPublished(user.getId(), false, pageable);
         return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
@@ -365,10 +363,10 @@ public class ListingService {
     @Transactional
     public void blockDates(UUID listingId, java.time.LocalDate startDate, java.time.LocalDate endDate, String ownerEmail) {
         Listing listing = listingRepository.findById(listingId)
-            .orElseThrow(() -> new RuntimeException("Listing not found"));
+            .orElseThrow(() -> BusinessException.notFound("Listing", listingId));
 
         if (!listing.getOwner().getEmail().equals(ownerEmail)) {
-            throw new AccessDeniedException("You do not own this listing");
+            throw BusinessException.forbidden("You do not own this listing");
         }
 
         BlockedDate blockedDate = new BlockedDate();
@@ -383,17 +381,17 @@ public class ListingService {
     @Transactional
     public void unblockDates(UUID listingId, UUID blockId, String ownerEmail) {
         Listing listing = listingRepository.findById(listingId)
-            .orElseThrow(() -> new RuntimeException("Listing not found"));
+            .orElseThrow(() -> BusinessException.notFound("Listing", listingId));
 
         if (!listing.getOwner().getEmail().equals(ownerEmail)) {
-            throw new AccessDeniedException("You do not own this listing");
+            throw BusinessException.forbidden("You do not own this listing");
         }
 
         BlockedDate blockedDate = blockedDateRepository.findById(blockId)
-            .orElseThrow(() -> new RuntimeException("Blocked date not found"));
+            .orElseThrow(() -> BusinessException.notFound("Blocked date", blockId));
 
         if (!blockedDate.getListing().getId().equals(listingId)) {
-            throw new IllegalArgumentException("Blocked date does not belong to this listing");
+            throw BusinessException.badRequest("Blocked date does not belong to this listing", "INVALID_BLOCK_ID");
         }
 
         blockedDateRepository.delete(blockedDate);

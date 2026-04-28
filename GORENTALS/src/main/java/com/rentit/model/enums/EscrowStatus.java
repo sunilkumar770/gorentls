@@ -32,5 +32,6 @@ public enum EscrowStatus {
     REFUNDED,          // full or partial refund sent back to renter
     ON_HOLD,           // dispute open — funds frozen, no payout until resolved
     READY_FOR_PAYOUT,  // all conditions met, payout engine will pick up
-    PAID_OUT           // RazorpayX transfer initiated to owner
+    PAID_OUT,          // RazorpayX transfer initiated to owner
+    CANCELLED          // booking cancelled before capture or manually voided
 }

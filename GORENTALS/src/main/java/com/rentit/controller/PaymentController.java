@@ -18,8 +18,9 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/payments")
+@RequestMapping("/api/payments/legacy")
 @RequiredArgsConstructor
+@Deprecated(since = "2026-04-27", forRemoval = true)
 public class PaymentController {
 
     private final PaymentService paymentService;
@@ -43,7 +44,7 @@ public class PaymentController {
         return ResponseEntity.ok(Map.of("status", "success", "message", "Payment verified and booking confirmed"));
     }
 
-    @PostMapping("/webhook")
+    @PostMapping("/legacy/webhook")
     public ResponseEntity<Map<String, String>> handleWebhook(
             @RequestBody String rawBody,
             @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature) {

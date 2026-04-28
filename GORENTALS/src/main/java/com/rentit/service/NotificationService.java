@@ -1,8 +1,9 @@
 package com.rentit.service;
 
+import com.rentit.exception.BusinessException;
 import com.rentit.model.Notification;
 import com.rentit.repository.NotificationRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -11,10 +12,10 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class NotificationService {
 
-    @Autowired
-    private NotificationRepository notificationRepository;
+    private final NotificationRepository notificationRepository;
 
     // ─── SEND ────────────────────────────────────────────────────────────────
 
@@ -48,9 +49,9 @@ public class NotificationService {
     @Transactional
     public void markAsRead(UUID notificationId, UUID userId) {
         Notification n = notificationRepository.findById(notificationId)
-            .orElseThrow(() -> new RuntimeException("Notification not found"));
+            .orElseThrow(() -> BusinessException.notFound("Notification", notificationId));
         if (!n.getUserId().equals(userId)) {
-            throw new RuntimeException("Access denied");
+            throw BusinessException.forbidden("Access denied to notification " + notificationId);
         }
         n.setIsRead(true);
         notificationRepository.save(n);
@@ -70,9 +71,9 @@ public class NotificationService {
     @Transactional
     public void deleteNotification(UUID notificationId, UUID userId) {
         Notification n = notificationRepository.findById(notificationId)
-            .orElseThrow(() -> new RuntimeException("Notification not found"));
+            .orElseThrow(() -> BusinessException.notFound("Notification", notificationId));
         if (!n.getUserId().equals(userId)) {
-            throw new RuntimeException("Access denied");
+            throw BusinessException.forbidden("Access denied to notification " + notificationId);
         }
         notificationRepository.delete(n);
     }

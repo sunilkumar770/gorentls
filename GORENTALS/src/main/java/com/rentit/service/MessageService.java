@@ -1,13 +1,13 @@
 package com.rentit.service;
 
 import com.rentit.dto.messaging.*;
+import com.rentit.exception.BusinessException;
 import com.rentit.model.*;
 import com.rentit.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
@@ -42,16 +42,16 @@ public class MessageService {
     @Transactional
     public void processIncomingMessage(WsSendMessageRequest request, String senderEmail) {
         User sender = userRepository.findByEmail(senderEmail)
-            .orElseThrow(() -> new RuntimeException("Sender not found: " + senderEmail));
+            .orElseThrow(() -> BusinessException.notFound("Sender", senderEmail));
         UUID convId = UUID.fromString(request.getConversationId());
         Conversation conv = conversationRepository.findById(convId)
-            .orElseThrow(() -> new RuntimeException("Conversation not found: " + convId));
+            .orElseThrow(() -> BusinessException.notFound("Conversation", convId));
 
         boolean isParticipant =
             conv.getOwner().getId().equals(sender.getId()) ||
             conv.getRenter().getId().equals(sender.getId());
         if (!isParticipant)
-            throw new AccessDeniedException("Not a participant in " + convId);
+            throw BusinessException.forbidden("Not a participant in " + convId);
 
         // schema alignment: message_text (DB) mapped to messageText (Entity)
         ChatMessage msg = new ChatMessage();
@@ -93,7 +93,7 @@ public class MessageService {
     @Transactional(readOnly = true)
     public List<ConversationResponse> getUserConversations(String userEmail) {
         User user = userRepository.findByEmail(userEmail)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+            .orElseThrow(() -> BusinessException.notFound("User", userEmail));
         return conversationRepository.findAllByParticipantWithMessages(user)
             .stream().map(this::mapToConversationResponse).collect(Collectors.toList());
     }
@@ -101,12 +101,12 @@ public class MessageService {
     @Transactional(readOnly = true)
     public ConversationResponse getConversation(UUID id, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+            .orElseThrow(() -> BusinessException.notFound("User", userEmail));
         Conversation conv = conversationRepository.findByIdWithMessages(id)
-            .orElseThrow(() -> new RuntimeException("Conversation not found"));
+            .orElseThrow(() -> BusinessException.notFound("Conversation", id));
         if (!conv.getOwner().getId().equals(user.getId()) &&
             !conv.getRenter().getId().equals(user.getId()))
-            throw new AccessDeniedException("Access denied");
+            throw BusinessException.forbidden("Access denied to conversation " + id);
         return mapToConversationResponse(conv);
     }
 
@@ -114,9 +114,9 @@ public class MessageService {
     public ConversationResponse startConversation(StartConversationRequest request,
                                                    String renterEmail) {
         User renter = userRepository.findByEmail(renterEmail)
-            .orElseThrow(() -> new RuntimeException("Renter not found"));
+            .orElseThrow(() -> BusinessException.notFound("Renter", renterEmail));
         Listing listing = listingRepository.findById(request.getListingId())
-            .orElseThrow(() -> new RuntimeException("Listing not found"));
+            .orElseThrow(() -> BusinessException.notFound("Listing", request.getListingId()));
 
         return conversationRepository
             .findByListingIdAndRenterId(listing.getId(), renter.getId())
@@ -142,12 +142,12 @@ public class MessageService {
     public List<MessageResponse> getMessages(UUID conversationId, String userEmail,
                                               int page, int size) {
         User user = userRepository.findByEmail(userEmail)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+            .orElseThrow(() -> BusinessException.notFound("User", userEmail));
         Conversation conv = conversationRepository.findById(conversationId)
-            .orElseThrow(() -> new RuntimeException("Conversation not found"));
+            .orElseThrow(() -> BusinessException.notFound("Conversation", conversationId));
         if (!conv.getOwner().getId().equals(user.getId()) &&
             !conv.getRenter().getId().equals(user.getId()))
-            throw new AccessDeniedException("Access denied");
+            throw BusinessException.forbidden("Access denied to messages in " + conversationId);
         return messageRepository
             .findByConversationIdOrderByCreatedAtAsc(conversationId, PageRequest.of(page, size))
             .stream().map(this::mapToMessageResponse).collect(Collectors.toList());
@@ -156,17 +156,17 @@ public class MessageService {
     @Transactional
     public void markConversationRead(UUID conversationId, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
-            .orElseThrow(() -> new RuntimeException("User not found: " + userEmail));
+            .orElseThrow(() -> BusinessException.notFound("User", userEmail));
 
         Conversation conv = conversationRepository.findById(conversationId)
-            .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+            .orElseThrow(() -> BusinessException.notFound("Conversation", conversationId));
 
         // SECURITY GATE: user MUST be owner or renter — no other path
         boolean isOwner  = conv.getOwner().getId().equals(user.getId());
         boolean isRenter = conv.getRenter().getId().equals(user.getId());
 
         if (!isOwner && !isRenter) {
-            throw new AccessDeniedException(
+            throw BusinessException.forbidden(
                 "Access denied: user " + userEmail + " is not a participant in " + conversationId);
         }
 

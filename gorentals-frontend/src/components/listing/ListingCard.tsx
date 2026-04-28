@@ -34,7 +34,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
   const [hovered, setHovered] = useState(false);
 
   const imgSrc = !imgError
-    ? (listing.listing_images?.[0]?.image_url || null)
+    ? (listing.images?.[0] || listing.listing_images?.[0]?.image_url || null)
     : null;
 
   const city         = listing.stores?.store_city || null;

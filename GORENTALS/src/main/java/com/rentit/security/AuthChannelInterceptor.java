@@ -2,6 +2,7 @@ package com.rentit.security;
 
 import com.rentit.config.UserDetailsServiceImpl;
 import com.rentit.util.JwtUtil;
+import com.rentit.util.LogUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,9 +45,9 @@ public class AuthChannelInterceptor implements ChannelInterceptor {
                         // Sets principal.getName() = email in ChatWebSocketController
                         accessor.setUser(new UsernamePasswordAuthenticationToken(
                             ud, null, ud.getAuthorities()));
-                        log.info("[WS-AUTH] ✓ Authenticated: {}", email);
+                        log.info("[WS-AUTH] ✓ Authenticated: {}", LogUtils.maskEmail(email));
                     } else {
-                        log.warn("[WS-AUTH] ✗ Token invalid for: {}", email);
+                        log.warn("[WS-AUTH] ✗ Token invalid for: {}", LogUtils.maskEmail(email));
                         throw new IllegalArgumentException("WS token validation failed");
                     }
                 } catch (IllegalArgumentException e) {

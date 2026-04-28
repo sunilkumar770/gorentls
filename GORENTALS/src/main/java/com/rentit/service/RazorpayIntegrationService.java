@@ -7,9 +7,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import com.rentit.exception.BusinessException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.UUID;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * Single integration point for ALL Razorpay API calls.
@@ -30,6 +37,7 @@ import java.util.UUID;
 public class RazorpayIntegrationService {
 
     private static final Logger log = LoggerFactory.getLogger(RazorpayIntegrationService.class);
+    private static final String HMAC_ALGO = "HmacSHA256";
 
     @Value("${razorpay.key-id}")
     private String keyId;
@@ -45,6 +53,8 @@ public class RazorpayIntegrationService {
 
     // ── PG: Order creation ────────────────────────────────────────────────────
 
+    @CircuitBreaker(name = "razorpay", fallbackMethod = "createOrderFallback")
+    @Retry(name = "razorpay")
     public JSONObject createOrder(
         BigDecimal amountINR,
         UUID bookingId,
@@ -81,6 +91,8 @@ public class RazorpayIntegrationService {
 
     // ── PG: Signature verification ────────────────────────────────────────────
 
+    @CircuitBreaker(name = "razorpay")
+    @Retry(name = "razorpay")
     public boolean verifyPaymentSignature(
         String orderId,
         String paymentId,
@@ -106,6 +118,8 @@ public class RazorpayIntegrationService {
 
     // ── PG: Refunds ───────────────────────────────────────────────────────────
 
+    @CircuitBreaker(name = "razorpay")
+    @Retry(name = "razorpay")
     public String createRefund(
         String razorpayPaymentId,
         BigDecimal amountINR,
@@ -157,6 +171,8 @@ public class RazorpayIntegrationService {
         return contactId;
     }
 
+    @CircuitBreaker(name = "razorpay")
+    @Retry(name = "razorpay")
     public String createFundAccount(
         String contactId,
         String accountNumber,
@@ -227,15 +243,61 @@ public class RazorpayIntegrationService {
     // ── Webhook signature verification ────────────────────────────────────────
 
     public void verifyWebhookSignature(String rawBody, String signature) {
+        if (signature == null || signature.isBlank()) {
+            throw new IllegalArgumentException("Missing signature");
+        }
         try {
-            boolean valid = Utils.verifyWebhookSignature(rawBody, signature, webhookSecret);
-            if (!valid) {
+            Mac mac = Mac.getInstance(HMAC_ALGO);
+            mac.init(new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), HMAC_ALGO));
+            byte[] expected = mac.doFinal(rawBody.getBytes(StandardCharsets.UTF_8));
+            String expectedHex = bytesToHex(expected);
+
+            // CONSTANT-TIME comparison — prevents timing side-channel attacks
+            if (!MessageDigest.isEqual(expectedHex.getBytes(StandardCharsets.UTF_8), 
+                                       signature.getBytes(StandardCharsets.UTF_8))) {
                 log.warn("Webhook signature mismatch — rejecting request");
                 throw new IllegalArgumentException("Invalid Razorpay webhook signature");
             }
-        } catch (RazorpayException e) {
-            log.warn("Webhook signature verification threw: {}", e.getMessage());
+        } catch (Exception e) {
+            log.warn("Webhook signature verification failed: {}", e.getMessage());
             throw new IllegalArgumentException("Webhook signature verification failed: " + e.getMessage(), e);
+        }
+    }
+
+    private JSONObject createOrderFallback(BigDecimal amountINR, UUID bookingId, 
+                                           String paymentKind, String currency, Exception ex) {
+        log.error("Razorpay circuit breaker OPEN for booking {}: {}", bookingId, ex.getMessage());
+        throw new BusinessException("Payment gateway temporarily unavailable. Please retry.", 
+                                    "RAZORPAY_UNAVAILABLE");
+    }
+
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
+
+    // ── Connectivity Check ────────────────────────────────────────────────────
+
+    /**
+     * Lightweight connectivity check. Returns true if Razorpay API is reachable.
+     */
+    public boolean ping() {
+        try {
+            // A simple initialization check. Real connectivity checks might hit an endpoint,
+            // but simply checking if the client instantiates properly without exception
+            // helps verify keys aren't totally broken.
+            // For a true network ping, one could list customers limit 1: client().customers.fetchAll(new JSONObject().put("count", 1));
+            // We'll do a simple list orders with count 1 to verify network + auth.
+            JSONObject options = new JSONObject();
+            options.put("count", 1);
+            client().orders.fetchAll(options);
+            return true;
+        } catch (Exception e) {
+            log.warn("Razorpay ping failed: {}", e.getMessage());
+            return false;
         }
     }
 

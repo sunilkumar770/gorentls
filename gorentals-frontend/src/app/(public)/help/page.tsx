@@ -10,7 +10,7 @@ const FAQ_SECTIONS = [
     icon: Package,
     title: 'How It Works',
     color: 'var(--primary)',
-    bg: 'var(--primary-light)',
+    bg: 'rgba(1, 105, 111, 0.1)',
     faqs: [
       { q: 'What is GoRentals?', a: 'GoRentals is a peer-to-peer rental marketplace where you can rent professional-grade gear, equipment, and electronics from KYC-verified owners near you in Hyderabad and other major cities.' },
       { q: 'How do I rent an item?', a: 'Browse the directory, select your item, choose your rental dates, and click "Reserve." The owner will confirm your booking within 24 hours.' },
@@ -21,8 +21,8 @@ const FAQ_SECTIONS = [
   {
     icon: CreditCard,
     title: 'Payments & Pricing',
-    color: '#1e40af',
-    bg: '#dbeafe',
+    color: 'var(--primary)',
+    bg: 'rgba(1, 105, 111, 0.08)',
     faqs: [
       { q: 'How does payment work?', a: 'We use Razorpay for secure payments. You pay the rental cost upfront, and the security deposit is held in escrow until you return the item in good condition.' },
       { q: 'What is the platform fee?', a: 'GoRentals charges a 10% platform fee on the total rental cost. This covers our escrow protection and support services.' },
@@ -33,8 +33,8 @@ const FAQ_SECTIONS = [
   {
     icon: ShieldCheck,
     title: 'Safety & Trust',
-    color: '#047857',
-    bg: '#d1fae5',
+    color: 'var(--primary)',
+    bg: 'rgba(1, 105, 111, 0.12)',
     faqs: [
       { q: 'Are owners verified?', a: 'Yes. All owners complete KYC (Know Your Customer) identity verification before they can publish any listings.' },
       { q: 'What if an item is damaged?', a: 'All rentals include deposit protection. Security deposits are held in escrow to cover any damage claims assessed by the owner.' },
@@ -44,8 +44,8 @@ const FAQ_SECTIONS = [
   {
     icon: MessageCircle,
     title: 'Account & Support',
-    color: '#6d28d9',
-    bg: '#ede9fe',
+    color: 'var(--primary)',
+    bg: 'rgba(1, 105, 111, 0.06)',
     faqs: [
       { q: 'How do I become an owner?', a: 'Choose "List Equipment" when signing up, or switch roles from your dashboard settings after completing KYC verification.' },
       { q: 'How do I contact support?', a: 'Email us at support@gorentals.in. We respond within 4 hours during business hours (9am–6pm IST, Monday–Saturday).' },

@@ -202,8 +202,8 @@ export default function DashboardPage() {
                   
                   {/* Thumbnail */}
                   <div className="w-full sm:w-28 h-32 sm:h-24 bg-[var(--bg-subtle)] rounded-[var(--r-lg)] flex-shrink-0 overflow-hidden relative">
-                    {booking.listing?.listing_images?.[0]?.image_url ? (
-                      <img src={booking.listing.listing_images[0].image_url}
+                    {booking.listing?.images?.[0] || booking.listing?.listing_images?.[0]?.image_url ? (
+                      <img src={booking.listing.images?.[0] || booking.listing.listing_images?.[0]?.image_url}
                            alt={booking.listing?.title}
                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (

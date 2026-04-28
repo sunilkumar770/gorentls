@@ -81,13 +81,23 @@ export default function ListingGrid({
   );
 
   if (items.length === 0) return (
-    <div className="text-center py-20 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)]">
-      <div className="w-16 h-16 bg-[var(--primary-light)] rounded-2xl flex items-center justify-center mx-auto mb-4">
-        <Package className="w-8 h-8 text-[var(--primary)]" strokeWidth={1.5} />
+    <div className="text-center py-24 bg-[var(--bg-card)] rounded-[var(--r-xl)] border border-[var(--border)] max-w-2xl mx-auto my-10 shadow-card">
+      <div className="w-20 h-20 bg-[var(--primary-light)] rounded-[var(--r-xl)] flex items-center justify-center mx-auto mb-6 transform -rotate-2">
+        <Package className="w-10 h-10 text-[var(--primary)]" strokeWidth={1.5} />
       </div>
-      <h3 className="text-lg font-semibold text-[var(--text)] mb-2">{emptyTitle}</h3>
-      <p className="text-[var(--text-muted)] text-sm max-w-xs mx-auto mb-5">{emptyBody}</p>
-      {emptyAction && <div>{emptyAction}</div>}
+      <h3 className="text-3xl font-display font-bold text-[var(--text)] mb-3">{emptyTitle}</h3>
+      <p className="text-[var(--text-muted)] text-lg max-w-sm mx-auto mb-8 leading-relaxed">
+        {emptyBody}
+      </p>
+      {emptyAction ? (
+        <div className="flex justify-center">{emptyAction}</div>
+      ) : (
+        <Link href="/search">
+          <Button variant="secondary" size="md" className="font-bold uppercase tracking-widest text-xs">
+            Clear all filters
+          </Button>
+        </Link>
+      )}
     </div>
   );
 

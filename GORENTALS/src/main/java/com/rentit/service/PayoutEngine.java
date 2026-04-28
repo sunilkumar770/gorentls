@@ -10,6 +10,8 @@ import com.rentit.pricing.PricingCalculator;
 import com.rentit.repository.BookingRepository;
 import com.rentit.repository.OwnerPayoutAccountRepository;
 import com.rentit.repository.PayoutRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,24 +50,29 @@ public class PayoutEngine {
     private final BookingRepository            bookingRepo;
     private final PayoutRepository             payoutRepo;
     private final OwnerPayoutAccountRepository ownerAccountRepo;
-    private final BookingEscrowService         escrowService;
-    private final RazorpayIntegrationService   razorpay;
-    private final LedgerService                ledger;
+    private final PayoutTaskService            payoutTaskService;
+    private final Counter payoutsInitiatedCounter;
+    private final Counter payoutsFailedCounter;
+    private final Counter payoutsSucceededCounter;
 
     public PayoutEngine(
         BookingRepository            bookingRepo,
         PayoutRepository             payoutRepo,
         OwnerPayoutAccountRepository ownerAccountRepo,
-        BookingEscrowService         escrowService,
-        RazorpayIntegrationService   razorpay,
-        LedgerService                ledger
+        PayoutTaskService            payoutTaskService,
+        MeterRegistry                meterRegistry
     ) {
         this.bookingRepo      = bookingRepo;
         this.payoutRepo       = payoutRepo;
         this.ownerAccountRepo = ownerAccountRepo;
-        this.escrowService    = escrowService;
-        this.razorpay         = razorpay;
-        this.ledger           = ledger;
+        this.payoutTaskService = payoutTaskService;
+
+        this.payoutsInitiatedCounter = Counter.builder("payouts.initiated")
+            .register(meterRegistry);
+        this.payoutsFailedCounter = Counter.builder("payouts.failed")
+            .register(meterRegistry);
+        this.payoutsSucceededCounter = Counter.builder("payouts.succeeded")
+            .register(meterRegistry);
     }
 
     // ── Job 1: Expire dispute windows and schedule payouts ────────────────────
@@ -84,75 +91,14 @@ public class PayoutEngine {
 
         for (Booking booking : readyBookings) {
             try {
-                processOneBookingForPayout(booking);
+                BigDecimal annualRunning = ownerYtdPayouts(booking.getListing().getOwner().getId());
+                payoutTaskService.processOneBookingForPayout(booking, annualRunning);
+                payoutsInitiatedCounter.increment();
             } catch (Exception e) {
                 log.error("PayoutEngine: error processing booking={} error={}",
                     booking.getId(), e.getMessage(), e);
             }
         }
-    }
-
-    @Transactional
-    protected void processOneBookingForPayout(Booking booking) {
-        if (booking.getEscrowStatus() == EscrowStatus.READY_FOR_PAYOUT
-            || booking.getEscrowStatus() == EscrowStatus.PAID_OUT) {
-            log.debug("PayoutEngine: booking={} already processed, skipping", booking.getId());
-            return;
-        }
-
-        if (payoutRepo.existsByBookingId(booking.getId())) {
-            log.debug("PayoutEngine: payout record already exists for booking={}", booking.getId());
-            return;
-        }
-
-        UUID ownerId = booking.getListing().getOwner().getId();
-
-        Optional<OwnerPayoutAccount> accountOpt = ownerAccountRepo
-            .findByOwnerIdAndStatus(ownerId, PayoutOnboardingStatus.VERIFIED);
-
-        if (accountOpt.isEmpty()) {
-            log.warn("PayoutEngine: owner={} has no verified payout account — holding booking={}",
-                ownerId, booking.getId());
-            return;
-        }
-
-        OwnerPayoutAccount account = accountOpt.get();
-        BigDecimal ownerAnnualRunning = ownerYtdPayouts(ownerId);
-
-        escrowService.scheduleForPayout(booking, ownerAnnualRunning);
-
-        BigDecimal ownerEscrowBalance = ledger.netBalance(
-            booking.getId(),
-            com.rentit.model.enums.LedgerAccount.OWNER_ESCROW
-        );
-
-        if (ownerEscrowBalance.compareTo(BigDecimal.ZERO) <= 0) {
-            log.warn("PayoutEngine: owner escrow balance is zero for booking={}, no payout created",
-                booking.getId());
-            return;
-        }
-
-        BigDecimal grossAmount = booking.getAdvanceAmount()
-            .add(booking.getRemainingAmount())
-            .subtract(booking.getPlatformFee())
-            .subtract(booking.getGstAmount())
-            .setScale(2, RoundingMode.HALF_UP);
-
-        BigDecimal tdsAmount  = PricingCalculator.tds(grossAmount, ownerAnnualRunning);
-        BigDecimal netAmount  = ownerEscrowBalance;
-
-        Payout payout = new Payout(
-            booking.getId(),
-            ownerId,
-            grossAmount,
-            tdsAmount,
-            netAmount,
-            account.getFundAccountId()
-        );
-        payoutRepo.save(payout);
-
-        log.info("PayoutEngine: payout record created payoutId={} bookingId={} net=₹{} scheduledAt={}",
-            payout.getId(), booking.getId(), netAmount, payout.getScheduledAt());
     }
 
     // ── Job 2: Execute pending payouts via RazorpayX ──────────────────────────
@@ -169,8 +115,10 @@ public class PayoutEngine {
 
         for (Payout payout : duePending) {
             try {
-                executeOnePayout(payout);
+                payoutTaskService.executeOnePayout(payout);
+                payoutsSucceededCounter.increment();
             } catch (Exception e) {
+                payoutsFailedCounter.increment();
                 log.error("PayoutEngine: error executing payoutId={} error={}",
                     payout.getId(), e.getMessage(), e);
             }
@@ -179,70 +127,15 @@ public class PayoutEngine {
         List<Payout> failedForRetry = payoutRepo.findFailedForRetry(
             now.minusSeconds(30 * 60)
         );
-        log.info("PayoutEngine: {} failed payouts eligible for retry", failedForRetry.size());
-
         for (Payout payout : failedForRetry) {
             try {
-                executeOnePayout(payout);
+                payoutTaskService.executeOnePayout(payout);
+                payoutsSucceededCounter.increment();
             } catch (Exception e) {
+                payoutsFailedCounter.increment();
                 log.error("PayoutEngine: retry failed for payoutId={} error={}",
                     payout.getId(), e.getMessage(), e);
             }
-        }
-    }
-
-    @Transactional
-    protected void executeOnePayout(Payout payout) {
-        if (payout.getStatus() == PayoutStatus.INITIATED
-            || payout.getStatus() == PayoutStatus.SUCCESS) {
-            log.debug("PayoutEngine: payoutId={} already {} — skipping",
-                payout.getId(), payout.getStatus());
-            return;
-        }
-
-        if (payout.getStatus() == PayoutStatus.ON_HOLD) {
-            log.info("PayoutEngine: payoutId={} is ON_HOLD — skipping until cleared",
-                payout.getId());
-            return;
-        }
-
-        OwnerPayoutAccount account = ownerAccountRepo
-            .findByFundAccountId(payout.getFundAccountId())
-            .orElseThrow(() -> new IllegalStateException(
-                "Fund account not found for payout: " + payout.getId()));
-
-        if (!account.isVerified()) {
-            payout.markFailed("Owner payout account is no longer verified: " + account.getStatus());
-            payoutRepo.save(payout);
-            log.warn("PayoutEngine: payoutId={} failed — account not verified", payout.getId());
-            return;
-        }
-
-        boolean isUpi = "UPI".equalsIgnoreCase(account.getAccountType());
-        String narration = "GoRentals " + payout.getBookingId().toString().substring(0, 8);
-
-        try {
-            String rpPayoutId = razorpay.initiatePayout(
-                payout.getFundAccountId(),
-                payout.getNetAmount(),
-                payout.getId().toString(),
-                narration,
-                isUpi
-            );
-
-            payout.markInitiated(rpPayoutId);
-            payoutRepo.save(payout);
-
-            ledger.postPayoutTransfer(payout.getBookingId(), payout.getNetAmount(), rpPayoutId);
-
-            log.info("PayoutEngine: payout INITIATED payoutId={} rpPayoutId={} net=₹{}",
-                payout.getId(), rpPayoutId, payout.getNetAmount());
-
-        } catch (RuntimeException e) {
-            payout.markFailed(truncate(e.getMessage(), 255));
-            payoutRepo.save(payout);
-            log.error("PayoutEngine: payout FAILED payoutId={} error={}",
-                payout.getId(), e.getMessage());
         }
     }
 

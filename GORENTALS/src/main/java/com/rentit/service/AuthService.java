@@ -3,10 +3,10 @@ package com.rentit.service;
 import com.rentit.dto.*;
 import com.rentit.model.*;
 import com.rentit.repository.*;
+import com.rentit.exception.BusinessException;
 import com.rentit.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -15,7 +15,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Handles registration, login, and token management.
@@ -47,10 +46,8 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        // BUG-11 FIX: 409 Conflict, not 500
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                "An account with this email already exists");
+            throw BusinessException.conflict("An account with this email already exists");
         }
 
         User user = new User();
@@ -100,10 +97,8 @@ public class AuthService {
      */
     @Transactional
     public AuthResponse registerOwner(OwnerRegistrationRequest request) {
-        // BUG-11 FIX (also applies here): 409 on duplicate email
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                "An account with this email already exists");
+            throw BusinessException.conflict("An account with this email already exists");
         }
 
         // Create user as OWNER from the start (no intermediate RENTER state)
@@ -170,17 +165,14 @@ public class AuthService {
                     request.getEmail(), request.getPassword()));
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (BadCredentialsException ex) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                "Invalid email or password");
+            throw BusinessException.unauthorized("Invalid email or password");
         }
 
         User user = userRepository.findByEmail(request.getEmail())
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                "Invalid email or password"));
+            .orElseThrow(() -> BusinessException.unauthorized("Invalid email or password"));
 
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                "Your account has been deactivated. Contact support.");
+            throw BusinessException.forbidden("Your account has been deactivated. Contact support.");
         }
 
         String accessToken  = jwtUtil.generateToken(user.getEmail(), user.getUserType().name());
@@ -205,24 +197,19 @@ public class AuthService {
      */
     @Transactional(readOnly = true)
     public AuthResponse adminLogin(LoginRequest request) {
-        // Run through Spring Security's authentication chain first
         try {
             authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                     request.getEmail(), request.getPassword()));
         } catch (BadCredentialsException ex) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                "Invalid credentials");
+            throw BusinessException.unauthorized("Invalid credentials");
         }
 
         User user = userRepository.findByEmail(request.getEmail())
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                "Invalid credentials"));
+            .orElseThrow(() -> BusinessException.unauthorized("Invalid credentials"));
 
-        // Verify admin row exists
         adminUserRepository.findByUser(user)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN,
-                "Access denied: not an admin account"));
+            .orElseThrow(() -> BusinessException.forbidden("Access denied: not an admin account"));
 
         String accessToken  = jwtUtil.generateToken(user.getEmail(), "ADMIN");
         String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
@@ -248,13 +235,11 @@ public class AuthService {
         String email = jwtUtil.extractUsername(refreshToken);
 
         if (!jwtUtil.validateToken(refreshToken, email)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                "Refresh token is expired or invalid");
+            throw BusinessException.unauthorized("Refresh token is expired or invalid");
         }
 
         User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                "User not found for refresh token"));
+            .orElseThrow(() -> BusinessException.unauthorized("User not found for refresh token"));
 
         String newAccessToken  = jwtUtil.generateToken(email, user.getUserType().name());
         String newRefreshToken = jwtUtil.generateRefreshToken(email);

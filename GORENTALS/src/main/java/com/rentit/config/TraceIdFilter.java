@@ -1,0 +1,36 @@
+package com.rentit.config;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.UUID;
+
+@Component
+public class TraceIdFilter extends OncePerRequestFilter {
+
+    private static final String TRACE_ID_HEADER = "X-Trace-Id";
+    private static final String TRACE_ID_MDC = "traceId";
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    jakarta.servlet.http.HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
+        String traceId = request.getHeader(TRACE_ID_HEADER);
+        if (traceId == null || traceId.isBlank()) {
+            traceId = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        }
+        MDC.put(TRACE_ID_MDC, traceId);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            MDC.remove(TRACE_ID_MDC);
+        }
+    }
+}

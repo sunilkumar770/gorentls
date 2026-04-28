@@ -1,8 +1,7 @@
 package com.rentit.model;
 
-import lombok.Data;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.*;
@@ -11,14 +10,17 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import com.rentit.model.enums.PaymentKind;
 
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Entity
 @Table(name = "payments")
 public class Payment {
     
     @Id
-    @GeneratedValue(generator = "UUID")
-    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(updatable = false, nullable = false)
     private UUID id;
     
@@ -60,108 +62,4 @@ public class Payment {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-	public UUID getId() {
-		return id;
-	}
-
-	public void setId(UUID id) {
-		this.id = id;
-	}
-
-	public Booking getBooking() {
-		return booking;
-	}
-
-	public void setBooking(Booking booking) {
-		this.booking = booking;
-	}
-
-	public BigDecimal getAmount() {
-		return amount;
-	}
-
-	public void setAmount(BigDecimal amount) {
-		this.amount = amount;
-	}
-
-	public PaymentKind getKind() {
-		return kind;
-	}
-
-	public void setKind(PaymentKind kind) {
-		this.kind = kind;
-	}
-
-	public String getPaymentType() {
-		return paymentType;
-	}
-
-	public void setPaymentType(String paymentType) {
-		this.paymentType = paymentType;
-	}
-
-	public String getRazorpayOrderId() {
-		return razorpayOrderId;
-	}
-
-	public void setRazorpayOrderId(String razorpayOrderId) {
-		this.razorpayOrderId = razorpayOrderId;
-	}
-
-	public String getRazorpayPaymentId() {
-		return razorpayPaymentId;
-	}
-
-	public void setRazorpayPaymentId(String razorpayPaymentId) {
-		this.razorpayPaymentId = razorpayPaymentId;
-	}
-
-	public String getStatus() {
-		return status;
-	}
-
-	public void setStatus(String status) {
-		this.status = status;
-	}
-
-	public String getPaymentMethod() {
-		return paymentMethod;
-	}
-
-	public void setPaymentMethod(String paymentMethod) {
-		this.paymentMethod = paymentMethod;
-	}
-
-	public String getRefundId() {
-		return refundId;
-	}
-
-	public void setRefundId(String refundId) {
-		this.refundId = refundId;
-	}
-
-	public String getRefundStatus() {
-		return refundStatus;
-	}
-
-	public void setRefundStatus(String refundStatus) {
-		this.refundStatus = refundStatus;
-	}
-
-	public LocalDateTime getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(LocalDateTime createdAt) {
-		this.createdAt = createdAt;
-	}
-
-	public LocalDateTime getUpdatedAt() {
-		return updatedAt;
-	}
-
-	public void setUpdatedAt(LocalDateTime updatedAt) {
-		this.updatedAt = updatedAt;
-	}
 }

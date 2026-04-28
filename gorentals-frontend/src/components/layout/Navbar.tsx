@@ -43,6 +43,7 @@ export function Navbar() {
   useEffect(() => {
     if (!user) {
       setUnreadNotifications(0);
+      setUnreadCount(0);
       return;
     }
 
@@ -50,6 +51,7 @@ export function Navbar() {
       try {
         const count = await notificationService.getUnreadCount();
         setUnreadNotifications(count);
+        setUnreadCount(count);
       } catch (err) {
         console.error('[Navbar] Failed to fetch unread count', err);
       }
@@ -67,27 +69,6 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Poll for unread notifications every 30s
-  useEffect(() => {
-    if (!user) {
-      setUnreadCount(0);
-      return;
-    }
-
-    const fetchCount = async () => {
-      try {
-        const count = await notificationService.getUnreadCount();
-        setUnreadCount(count);
-      } catch (err) {
-        console.error('Failed to fetch unread notification count:', err);
-      }
-    };
-
-    fetchCount();
-    const interval = setInterval(fetchCount, 30000);
-    return () => clearInterval(interval);
-  }, [user]);
-
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node))
@@ -97,7 +78,7 @@ export function Navbar() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const hiddenRoutes = ['/login', '/signup', '/forgot-password', '/admin/login'];
+  const hiddenRoutes = ['/login', '/signup', '/forgot-password', '/auth/admin-login'];
   if (hiddenRoutes.includes(pathname)) return null;
 
   const handleLogout = () => {
@@ -257,16 +238,6 @@ export function Navbar() {
                           </Link>
 
                           {/* Notifications with live badge in dropdown */}
-                          <Link href="/notifications" onClick={() => setMenuOpen(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f9fafb] hover:text-[#111827] transition-colors">
-                            <Bell className="w-4 h-4 text-[#6b7280]" />
-                            <span className="flex-1">Notifications</span>
-                            {unreadNotifications > 0 && (
-                              <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">
-                                {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                              </span>
-                            )}
-                          </Link>
 
                           {isAdmin && (
                             <Link href="/admin" onClick={() => setMenuOpen(false)}

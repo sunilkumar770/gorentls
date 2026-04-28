@@ -3,7 +3,9 @@ package com.rentit.service;
 import com.rentit.dto.*;
 import com.rentit.model.*;
 import com.rentit.model.enums.BookingStatus;
+import com.rentit.exception.BusinessException;
 import com.rentit.repository.*;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,31 +20,17 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class AdminService {
 
-        @Autowired
-        private UserRepository userRepository;
-
-        @Autowired
-        private UserProfileRepository userProfileRepository;
-
-        @Autowired
-        private BusinessOwnerRepository businessOwnerRepository;
-
-        @Autowired
-        private AdminUserRepository adminUserRepository;
-
-        @Autowired
-        private ListingRepository listingRepository;
-
-        @Autowired
-        private BookingRepository bookingRepository;
-
-        @Autowired
-        private PaymentRepository paymentRepository;
-
-        @Autowired
-        private NotificationService notificationService;
+        private final UserRepository userRepository;
+        private final UserProfileRepository userProfileRepository;
+        private final BusinessOwnerRepository businessOwnerRepository;
+        private final AdminUserRepository adminUserRepository;
+        private final ListingRepository listingRepository;
+        private final BookingRepository bookingRepository;
+        private final PaymentRepository paymentRepository;
+        private final NotificationService notificationService;
 
         // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -67,8 +55,8 @@ public class AdminService {
                 long pendingListings = listingRepository.countByIsPublishedFalse();
 
                 long totalBookings = bookingRepository.count();
-                long activeBookings = bookingRepository.countByStatus(BookingStatus.CONFIRMED);
-                long completedBookings = bookingRepository.countByStatus(BookingStatus.COMPLETED);
+                long activeBookings = bookingRepository.countByBookingStatus(BookingStatus.CONFIRMED);
+                long completedBookings = bookingRepository.countByBookingStatus(BookingStatus.COMPLETED);
 
                 BigDecimal totalRevenue = paymentRepository.sumCompletedPayments();
                 if (totalRevenue == null) totalRevenue = BigDecimal.ZERO;
@@ -135,7 +123,7 @@ public class AdminService {
         @Transactional
         public UserResponse verifyUser(UUID userId) {
                 User user = userRepository.findById(userId)
-                                .orElseThrow(() -> new RuntimeException("User not found"));
+                                .orElseThrow(() -> BusinessException.notFound("User", userId));
 
                 UserProfile profile = userProfileRepository.findByUserId(userId)
                                 .orElseGet(() -> {
@@ -152,7 +140,7 @@ public class AdminService {
         @Transactional
         public BusinessOwnerResponse verifyBusinessOwner(UUID ownerId) {
                 BusinessOwner owner = businessOwnerRepository.findById(ownerId)
-                                .orElseThrow(() -> new RuntimeException("Business owner not found"));
+                                .orElseThrow(() -> BusinessException.notFound("Business owner", ownerId));
 
                 owner.setIsVerified(true);
                 businessOwnerRepository.save(owner);
@@ -170,7 +158,7 @@ public class AdminService {
         @Transactional
         public UserResponse suspendUser(UUID userId) {
                 User user = userRepository.findById(userId)
-                                .orElseThrow(() -> new RuntimeException("User not found"));
+                                .orElseThrow(() -> BusinessException.notFound("User", userId));
                 user.setIsActive(false);
                 userRepository.save(user);
                 return mapToUserResponse(user);
@@ -179,7 +167,7 @@ public class AdminService {
         @Transactional
         public UserResponse unsuspendUser(UUID userId) {
                 User user = userRepository.findById(userId)
-                                .orElseThrow(() -> new RuntimeException("User not found"));
+                                .orElseThrow(() -> BusinessException.notFound("User", userId));
                 user.setIsActive(true);
                 userRepository.save(user);
                 return mapToUserResponse(user);
@@ -201,7 +189,7 @@ public class AdminService {
         @Transactional
         public ListingResponse approveListing(UUID listingId) {
                 Listing listing = listingRepository.findById(listingId)
-                                .orElseThrow(() -> new RuntimeException("Listing not found"));
+                                .orElseThrow(() -> BusinessException.notFound("Listing", listingId));
 
                 listing.setIsPublished(true);
                 listing.setUpdatedAt(LocalDateTime.now());
@@ -219,7 +207,7 @@ public class AdminService {
         @Transactional
         public void rejectListing(UUID listingId) {
                 Listing listing = listingRepository.findById(listingId)
-                                .orElseThrow(() -> new RuntimeException("Listing not found: " + listingId));
+                                .orElseThrow(() -> BusinessException.notFound("Listing", listingId));
 
                 // Soft delete — deactivate; preserves FK integrity
                 listing.setIsPublished(false);
@@ -266,9 +254,9 @@ public class AdminService {
                                 .verifiedUsers(verifiedUsers).build();
 
                 long totalBookings     = bookingRepository.count();
-                long completedBookings = bookingRepository.countByStatus(BookingStatus.COMPLETED);
-                long cancelledBookings = bookingRepository.countByStatus(BookingStatus.CANCELLED);
-                long activeBookings    = bookingRepository.countByStatus(BookingStatus.CONFIRMED);
+                long completedBookings = bookingRepository.countByBookingStatus(BookingStatus.COMPLETED);
+                long cancelledBookings = bookingRepository.countByBookingStatus(BookingStatus.CANCELLED);
+                long activeBookings    = bookingRepository.countByBookingStatus(BookingStatus.CONFIRMED);
                 Double avgBookingValue = bookingRepository.getAverageBookingValue();
                 Double avgRentalDays   = bookingRepository.getAverageRentalDays();
 

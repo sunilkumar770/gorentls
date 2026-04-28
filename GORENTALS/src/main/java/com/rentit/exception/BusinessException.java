@@ -82,8 +82,28 @@ public class BusinessException extends RuntimeException {
         );
     }
 
+    public static BusinessException badRequest(String message) {
+        return new BusinessException(message, HttpStatus.BAD_REQUEST, "BAD_REQUEST");
+    }
+
+    public static BusinessException badRequest(String message, String errorCode) {
+        return new BusinessException(message, HttpStatus.BAD_REQUEST, errorCode);
+    }
+
+    public static BusinessException conflict(String message) {
+        return new BusinessException(message, HttpStatus.CONFLICT, "CONFLICT");
+    }
+
     public static BusinessException conflict(String message, String errorCode) {
         return new BusinessException(message, HttpStatus.CONFLICT, errorCode);
+    }
+
+    public static BusinessException internalError(String message) {
+        return new BusinessException(message, HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR");
+    }
+
+    public static BusinessException unauthorized(String message) {
+        return new BusinessException(message, HttpStatus.UNAUTHORIZED, "UNAUTHORIZED");
     }
 
     public static BusinessException forbidden(String message) {

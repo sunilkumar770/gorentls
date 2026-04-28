@@ -6,23 +6,17 @@ import { LogoMark } from '@/components/ui/Logo';
 
 const FOOTER_LINKS = {
   Discover: [
-    { href: '/search',  label: 'Browse all items'  },
-    { href: '/stores',  label: 'Owner stores'       },
-    { href: '/about',   label: 'About us'           },
-    { href: '/blog',    label: 'Blog'               },
-    { href: '/contact', label: 'Contact'            },
+    { href: '/search',  label: 'Browse all items' },
+    { href: '/stores',  label: 'Owner stores'      },
   ],
   Earn: [
-    { href: '/signup?role=OWNER', label: 'List your item'   },
-    { href: '/how-it-works',      label: 'How it works'     },
-    { href: '/pricing',           label: 'Owner pricing'    },
-    { href: '/owner/dashboard',   label: 'Owner dashboard'  },
+    { href: '/signup?role=OWNER', label: 'List your item' },
+    { href: '/pricing',           label: 'Owner pricing'  },
   ],
   Support: [
-    { href: '/help',    label: 'Help Center'      },
-    { href: '/terms',   label: 'Terms of Service' },
-    { href: '/privacy', label: 'Privacy Policy'   },
-    { href: '/sitemap', label: 'Sitemap'          },
+    { href: '/help',    label: 'Help Center'    },
+    { href: '/terms',   label: 'Terms'          },
+    { href: '/privacy', label: 'Privacy'        },
   ],
 };
 
@@ -55,7 +49,7 @@ function LinkedInIcon() {
 
 export function Footer() {
   const pathname = usePathname();
-  const hiddenRoutes = ['/login', '/signup', '/forgot-password', '/admin/login'];
+  const hiddenRoutes = ['/login', '/signup', '/forgot-password', '/auth/admin-login'];
   if (hiddenRoutes.includes(pathname)) return null;
 
   return (

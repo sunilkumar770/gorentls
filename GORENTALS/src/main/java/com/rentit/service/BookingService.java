@@ -4,6 +4,7 @@ import com.rentit.dto.BookingRequest;
 import com.rentit.dto.BookingResponse;
 import com.rentit.dto.ListingResponse;
 import com.rentit.dto.UserResponse;
+import com.rentit.exception.BusinessException;
 import com.rentit.model.*;
 import com.rentit.model.enums.BookingStatus;
 import com.rentit.pricing.PricingCalculator;
@@ -12,11 +13,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -53,19 +51,17 @@ public class BookingService {
     public BookingResponse createBooking(BookingRequest request, String userEmail) {
 
         User renter = userRepository.findByEmail(userEmail)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Renter not found"));
+            .orElseThrow(() -> BusinessException.notFound("Renter", userEmail));
 
         Listing listing = listingRepository.findById(request.getListingId())
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
+            .orElseThrow(() -> BusinessException.notFound("Listing", request.getListingId()));
 
         if (!listing.getIsAvailable() || !listing.getIsPublished()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                "This item is currently unavailable for booking");
+            throw BusinessException.conflict("This item is currently unavailable for booking");
         }
 
         if (listing.getOwner().getId().equals(renter.getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "You cannot book your own listing");
+            throw BusinessException.badRequest("You cannot book your own listing");
         }
 
         // ── Date validation ──────────────────────────────────────────────────
@@ -75,13 +71,11 @@ public class BookingService {
 
         // BUG-02: start must be today or in the future
         if (startDate.isBefore(today)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "Start date cannot be in the past");
+            throw BusinessException.badRequest("Start date cannot be in the past");
         }
         // BUG-03: end must be strictly after start (prevent 0-day bookings)
         if (!endDate.isAfter(startDate)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "End date must be after start date");
+            throw BusinessException.badRequest("End date must be after start date");
         }
 
         // ── Availability check ───────────────────────────────────────────────
@@ -92,8 +86,7 @@ public class BookingService {
             listing.getId(), startDate, endDate);
 
         if (hasOverlap || isBlocked) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                "This item is already booked for the selected dates");
+            throw BusinessException.conflict("This item is already booked for the selected dates");
         }
 
         // ── Pricing ──────────────────────────────────────────────────────────
@@ -145,10 +138,10 @@ public class BookingService {
     @Transactional(readOnly = true)
     public BookingResponse getBookingById(UUID bookingId, String callerEmail) {
         Booking booking = bookingRepository.findById(bookingId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+            .orElseThrow(() -> BusinessException.notFound("Booking", bookingId));
 
         User caller = userRepository.findByEmail(callerEmail)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            .orElseThrow(() -> BusinessException.notFound("User", callerEmail));
 
         boolean isRenter = booking.getRenter() != null
             && booking.getRenter().getEmail().equals(callerEmail);
@@ -158,8 +151,7 @@ public class BookingService {
         boolean isAdmin  = caller.getUserType() == User.UserType.ADMIN;
 
         if (!isRenter && !isOwner && !isAdmin) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                "Not authorized to view this booking");
+            throw BusinessException.forbidden("Not authorized to view this booking");
         }
 
         return mapToBookingResponse(booking);
@@ -169,7 +161,7 @@ public class BookingService {
     @Transactional(readOnly = true)
     public Page<BookingResponse> getBookingsByUser(String userEmail, Pageable pageable) {
         User user = userRepository.findByEmail(userEmail)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            .orElseThrow(() -> BusinessException.notFound("User", userEmail));
         return bookingRepository.findByRenterId(user.getId(), pageable)
                                 .map(this::mapToBookingResponse);
     }
@@ -178,11 +170,11 @@ public class BookingService {
     @Transactional(readOnly = true)
     public Page<BookingResponse> getBookingsForOwner(String ownerEmail, Pageable pageable) {
         User owner = userRepository.findByEmail(ownerEmail)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Owner not found"));
+            .orElseThrow(() -> BusinessException.notFound("Owner", ownerEmail));
 
         if (owner.getUserType() != User.UserType.OWNER
             && owner.getUserType() != User.UserType.ADMIN) {
-            throw new AccessDeniedException("User is not an owner");
+            throw BusinessException.forbidden("User is not an owner");
         }
 
         return bookingRepository.findByOwnerId(owner.getId(), pageable)
@@ -193,7 +185,7 @@ public class BookingService {
     @Transactional(readOnly = true)
     public List<BookingResponse> getUpcomingBookingsForRenter(String userEmail) {
         User user = userRepository.findByEmail(userEmail)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            .orElseThrow(() -> BusinessException.notFound("User", userEmail));
         return bookingRepository.findUpcomingBookingsByRenter(user.getId(), LocalDate.now())
             .stream().map(this::mapToBookingResponse).collect(Collectors.toList());
     }
@@ -202,7 +194,7 @@ public class BookingService {
     @Transactional(readOnly = true)
     public List<BookingResponse> getUpcomingBookingsForOwner(String ownerEmail) {
         User owner = userRepository.findByEmail(ownerEmail)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Owner not found"));
+            .orElseThrow(() -> BusinessException.notFound("Owner", ownerEmail));
         return bookingRepository.findUpcomingBookingsByOwner(owner.getId(), LocalDate.now())
             .stream().map(this::mapToBookingResponse).collect(Collectors.toList());
     }
@@ -222,11 +214,11 @@ public class BookingService {
      *
      * BUG-04 FIX: removed duplicate cancelBooking() method; all cancellation
      *             goes through this method which handles blocked-date cleanup.
-     * BUG-05 FIX: acceptBooking set status to CONFIRMED (wrong); ACCEPTED
-     *             is now correctly mapped from the PENDING→ACCEPTED transition.
-     * BUG-06 FIX: completeBooking guard now allows IN_PROGRESS as valid prior state.
-     * BUG-09 FIX: IN_PROGRESS added to the owner-action authorization matrix so
-     *             owner can transition CONFIRMED→IN_PROGRESS (mark handover).
+     * BUG-05 FIX: acceptBooking set status to CONFIRMED (wrong); CONFIRMED
+     *             is now correctly mapped from the PENDING_PAYMENT→CONFIRMED transition.
+     * BUG-06 FIX: completeBooking guard now allows IN_USE as valid prior state.
+     * BUG-09 FIX: IN_USE added to the owner-action authorization matrix so
+     *             owner can transition CONFIRMED→IN_USE (mark handover).
      * BUG-10 FIX: single notification per cancellation; refund notification
      *             only sent if payment was actually completed (still TODO for
      *             actual refund processing, but notification is correct).
@@ -235,12 +227,10 @@ public class BookingService {
     public BookingResponse updateStatus(UUID bookingId, BookingStatus newStatus, String callerEmail) {
 
         Booking booking = bookingRepository.findById(bookingId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                "Booking not found: " + bookingId));
+            .orElseThrow(() -> BusinessException.notFound("Booking", bookingId));
 
         User caller = userRepository.findByEmail(callerEmail)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                "User not found: " + callerEmail));
+            .orElseThrow(() -> BusinessException.notFound("User", callerEmail));
 
         boolean isOwner  = booking.getListing().getOwner().getEmail().equals(callerEmail);
         boolean isRenter = booking.getRenter().getEmail().equals(callerEmail);
@@ -251,11 +241,11 @@ public class BookingService {
         switch (newStatus) {
             case IN_USE, RETURNED, COMPLETED, NO_SHOW, DISPUTED -> {
                 if (!isOwner && !isAdmin)
-                    throw new AccessDeniedException("Only the listing owner or admin can perform this action.");
+                    throw BusinessException.forbidden("Only the listing owner or admin can perform this action.");
             }
             case CANCELLED -> {
                 if (!isOwner && !isRenter && !isAdmin)
-                    throw new AccessDeniedException("Not authorized to cancel this booking.");
+                    throw BusinessException.forbidden("Not authorized to cancel this booking.");
             }
             default -> throw new IllegalArgumentException(
                 "Unsupported direct status transition to: " + newStatus);

@@ -26,6 +26,10 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -67,17 +71,35 @@ public class BookingPaymentController {
     private final BookingEscrowService       escrowService;
     private final BookingRepository          bookingRepo;
     private final PaymentRepository          paymentRepo;
+    private final Counter orderCreatedCounter;
+    private final Counter paymentConfirmedCounter;
+    private final Counter paymentFailedCounter;
+    private final Timer razorpayApiTimer;
 
     public BookingPaymentController(
         RazorpayIntegrationService razorpay,
         BookingEscrowService       escrowService,
         BookingRepository          bookingRepo,
-        PaymentRepository          paymentRepo
+        PaymentRepository          paymentRepo,
+        MeterRegistry              meterRegistry
     ) {
         this.razorpay      = razorpay;
         this.escrowService = escrowService;
         this.bookingRepo   = bookingRepo;
         this.paymentRepo   = paymentRepo;
+
+        this.orderCreatedCounter = Counter.builder("payments.orders.created")
+            .description("Total Razorpay orders created")
+            .register(meterRegistry);
+        this.paymentConfirmedCounter = Counter.builder("payments.confirmed")
+            .description("Total payments applied to escrow")
+            .register(meterRegistry);
+        this.paymentFailedCounter = Counter.builder("payments.failed")
+            .description("Total failed payment confirmations")
+            .register(meterRegistry);
+        this.razorpayApiTimer = Timer.builder("payments.razorpay.api.latency")
+            .description("Razorpay API call latency")
+            .register(meterRegistry);
     }
 
     // ── POST /api/payments/order ──────────────────────────────────────────────
@@ -139,12 +161,16 @@ public class BookingPaymentController {
             );
         }
 
-        JSONObject order = razorpay.createOrder(
-            amount,
-            booking.getId(),
-            kind,
-            "INR"
-        );
+        JSONObject order;
+        try {
+            order = razorpayApiTimer.recordCallable(() -> 
+                razorpay.createOrder(amount, booking.getId(), kind, "INR")
+            );
+        } catch (Exception e) {
+            throw new BusinessException("Razorpay API failed: " + e.getMessage(), "RAZORPAY_ERROR");
+        }
+
+        orderCreatedCounter.increment();
 
         log.info("Order created: bookingId={} kind={} amount=₹{} userId={}",
             booking.getId(), kind, amount, userId);
@@ -198,6 +224,7 @@ public class BookingPaymentController {
         );
 
         if (!valid) {
+            paymentFailedCounter.increment();
             log.warn("Invalid payment signature: bookingId={} userId={}",
                 req.bookingId(), userId);
             throw new BusinessException(
@@ -242,6 +269,7 @@ public class BookingPaymentController {
 
         // ── Apply to escrow state machine ──────────────────────────────────────
         escrowService.applyPayment(booking, payment);
+        paymentConfirmedCounter.increment();
 
         log.info("Payment confirmed: bookingId={} kind={} userId={}",
             booking.getId(), kind, userId);

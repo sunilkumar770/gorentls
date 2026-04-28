@@ -73,9 +73,10 @@ export default function LoginPage() {
     }
   };
 
-  const subtitles: Record<'RENTER' | 'OWNER', string> = {
+  const subtitles: Record<'RENTER' | 'OWNER' | 'ADMIN', string> = {
     RENTER: 'Sign in to access your rentals and bookings.',
     OWNER: 'Sign in to manage your listings and incoming requests.',
+    ADMIN: 'Sign in to the GoRentals admin control centre.',
   };
 
   if (!mounted) {

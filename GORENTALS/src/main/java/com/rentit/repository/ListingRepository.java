@@ -94,7 +94,7 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
      * Get top cities by listing count and bookings
      */
     @Query("SELECT l.city, COUNT(DISTINCT l), COUNT(b), COALESCE(SUM(b.totalAmount), 0) " +
-           "FROM Listing l LEFT JOIN Booking b ON b.listing = l AND b.status = 'COMPLETED' " +
+           "FROM Listing l LEFT JOIN Booking b ON b.listing = l AND b.bookingStatus = 'COMPLETED' " +
            "WHERE l.isPublished = true AND l.city IS NOT NULL " +
            "GROUP BY l.city ORDER BY COUNT(b) DESC")
     List<Object[]> getTopCities();
@@ -119,7 +119,7 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
      * Get owner's listings with stats
      */
     @Query("SELECT l, COUNT(b), COALESCE(SUM(b.totalAmount), 0) " +
-           "FROM Listing l LEFT JOIN Booking b ON b.listing = l AND b.status = 'COMPLETED' " +
+           "FROM Listing l LEFT JOIN Booking b ON b.listing = l AND b.bookingStatus = 'COMPLETED' " +
            "WHERE l.owner.id = :ownerId GROUP BY l")
     List<Object[]> findListingsWithStatsByOwner(@Param("ownerId") UUID ownerId);
     

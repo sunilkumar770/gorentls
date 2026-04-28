@@ -9,17 +9,17 @@ spring:
     driver-class-name: org.postgresql.Driver
 
     hikari:
-      maximum-pool-size: 10          # safe for free-tier Neon/Render (max 20 on paid)
+      maximum-pool-size: 10
       minimum-idle: 2
-      connection-timeout: 30000      # 30s — fail fast rather than hang under load
-      idle-timeout: 600000           # 10m — release unused connections
-      max-lifetime: 1800000          # 30m — rotate before DB kills them
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
       pool-name: GoRentalsHikariPool
 
   jpa:
     hibernate:
-      ddl-auto: ${DDL_AUTO:update}   # override to "validate" in production
-    show-sql: false                  # never true in prod — leaks schema + data
+      ddl-auto: ${DDL_AUTO:update}
+    show-sql: false
     open-in-view: false
     properties:
       hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -32,52 +32,58 @@ spring:
       max-request-size: 10MB
 
   flyway:
-    enabled: false
+    enabled: ${FLYWAY_ENABLED:false}
+    repair-on-migrate: true
 
   jackson:
+    default-property-inclusion: NON_NULL
     serialization:
       write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+    time-zone: UTC
 
 razorpay:
-  key-id: ${RAZORPAY_KEY:rzp_test_xxx}
-  key-secret: ${RAZORPAY_SECRET:xxx}
-  webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:whsec_xxx}
-  account-number: ${RAZORPAY_ACCOUNT_NUMBER:XXXXXXXXXXXX}
+  key-id: ${RAZORPAY_KEY_ID:rzp_test_demo}
+  key-secret: ${RAZORPAY_KEY_SECRET:demo_secret}
+  webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:demo_webhook}
+  account-number: ${RAZORPAY_ACCOUNT_NUMBER:70070707070707}
 
 app:
   admin:
     email: ${APP_ADMIN_EMAIL:admin@gorentals.com}
-    password: ${APP_ADMIN_PASSWORD:Admin@GoRentals2025!}
-    name: ${APP_ADMIN_NAME:GoRentals Admin}
+    password: ${APP_ADMIN_PASSWORD:Admin@123}
+    name: ${APP_ADMIN_NAME:Admin User}
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  api:
+    server-url: ${APP_SERVER_URL:http://localhost:8080}
+    version: ${APP_VERSION:1.0.0}
 
-# JWT — all values from environment, no fallback in prod
 jwt:
   secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
   expiration: ${JWT_EXPIRATION:86400000}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
-# Cloudinary — image uploads
 cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME:demo}
   api-key: ${CLOUDINARY_API_KEY:demo}
   api-secret: ${CLOUDINARY_API_SECRET:demo}
 
-# CORS origins — comma-separated list from environment
 cors:
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
-# Logging — production levels
 logging:
   level:
     root: WARN
-    com.rentit: INFO                 # your own code stays INFO
+    com.rentit: INFO
+    com.rentit.service.PayoutEngine: INFO
+    com.rentit.service.LedgerReconciliationService: INFO
     org.springframework.web: WARN
-    org.springframework.messaging: WARN   # silences WS handshake noise
+    org.springframework.messaging: WARN
     org.springframework.security: WARN
-    org.hibernate.SQL: WARN         # change to DEBUG only for local troubleshooting
+    org.hibernate.SQL: WARN
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "{\"timestamp\":\"%d{yyyy-MM-dd'T'HH:mm:ss.SSS'Z'}\",\"level\":\"%level\",\"logger\":\"%logger{36}\",\"trace\":\"%X{traceId}\",\"span\":\"%X{spanId}\",\"message\":\"%replace(%msg){'\\\"','\\\\\"'}\"}%n"
 
 server:
   port: ${PORT:8080}
@@ -85,7 +91,6 @@ server:
     enabled: true
     mime-types: application/json,application/xml,text/html,text/plain
 
-# SpringDoc OpenAPI
 springdoc:
   api-docs:
     path: /v3/api-docs
@@ -94,24 +99,16 @@ springdoc:
     path: /swagger-ui.html
     operationsSorter: method
     tagsSorter: alpha
-    tryItOutEnabled: true           # allow test calls from Swagger UI
-    filter: true                    # search box in Swagger UI
+    tryItOutEnabled: true
+    filter: true
     displayRequestDuration: true
-  show-actuator: false              # keep actuator out of public API docs
+  show-actuator: false
   default-produces-media-type: application/json
 
-# App metadata (injected into OpenAPI info)
-app:
-  api:
-    server-url: ${APP_SERVER_URL:http://localhost:8080}
-    version: ${APP_VERSION:1.0.0}
-
-# Scheduling — disable in test profile via application-test.yml
 gorentals:
   scheduling:
     enabled: ${SCHEDULING_ENABLED:true}
 
-# Actuator — expose only health and info publicly; all others require ADMIN
 management:
   endpoints:
     web:
@@ -125,13 +122,3 @@ management:
   info:
     env:
       enabled: true
-
-# Jackson — consistent serialization
-spring:
-  jackson:
-    default-property-inclusion: NON_NULL
-    serialization:
-      write-dates-as-timestamps: false
-    deserialization:
-      fail-on-unknown-properties: false
-    time-zone: UTC

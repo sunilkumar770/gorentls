@@ -9,6 +9,7 @@ import com.rentit.pricing.PricingCalculator;
 import com.rentit.repository.BookingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,15 +44,18 @@ public class BookingEscrowService {
     /** Dispute window: 24 hours after item return. Owner has 24h to raise a dispute. */
     private static final long DISPUTE_WINDOW_HOURS = 24L;
 
-    private final BookingRepository bookingRepo;
-    private final LedgerService     ledger;
+    private final BookingRepository       bookingRepo;
+    private final LedgerService           ledger;
+    private final SimpMessagingTemplate   broker;
 
     public BookingEscrowService(
-        BookingRepository bookingRepo,
-        LedgerService     ledger
+        BookingRepository       bookingRepo,
+        LedgerService           ledger,
+        SimpMessagingTemplate   broker
     ) {
         this.bookingRepo = bookingRepo;
         this.ledger      = ledger;
+        this.broker      = broker;
     }
 
     // ── Payment application ───────────────────────────────────────────────────
@@ -80,6 +84,7 @@ public class BookingEscrowService {
         }
 
         bookingRepo.save(booking);
+        broadcastEscrowUpdate(booking);
         log.info("Escrow updated: booking={} bookingStatus={} escrowStatus={}",
             booking.getId(), booking.getBookingStatus(), booking.getEscrowStatus());
     }
@@ -142,7 +147,7 @@ public class BookingEscrowService {
 
         booking.setHandoverAt(Instant.now());
         bookingRepo.save(booking);
-
+        broadcastEscrowUpdate(booking);
         log.info("Handover recorded: booking={} at={}", booking.getId(), booking.getHandoverAt());
     }
 
@@ -165,7 +170,7 @@ public class BookingEscrowService {
         booking.setDisputeWindowEndsAt(disputeWindowEnds);
         booking.setBookingStatus(BookingStatus.RETURNED);
         bookingRepo.save(booking);
-
+        broadcastEscrowUpdate(booking);
         log.info("Return recorded: booking={} disputeWindowEnds={}",
             booking.getId(), disputeWindowEnds);
     }
@@ -234,7 +239,7 @@ public class BookingEscrowService {
         booking.setBookingStatus(BookingStatus.COMPLETED);
         booking.setEscrowStatus(EscrowStatus.READY_FOR_PAYOUT);
         bookingRepo.save(booking);
-
+        broadcastEscrowUpdate(booking);
         log.info("Payout split posted and booking COMPLETED: booking={} base=₹{} tds=₹{}",
             booking.getId(), base, tdsAmount);
     }
@@ -254,7 +259,7 @@ public class BookingEscrowService {
         booking.setBookingStatus(BookingStatus.DISPUTED);
         booking.setEscrowStatus(EscrowStatus.ON_HOLD);
         bookingRepo.save(booking);
-
+        broadcastEscrowUpdate(booking);
         log.info("Escrow frozen for dispute: booking={}", booking.getId());
     }
 
@@ -279,7 +284,7 @@ public class BookingEscrowService {
         booking.setEscrowStatus(EscrowStatus.REFUNDED);
         booking.setBookingStatus(BookingStatus.CANCELLED);
         bookingRepo.save(booking);
-
+        broadcastEscrowUpdate(booking);
         log.info("Full refund processed: booking={} amount=₹{} rpRefund={}",
             booking.getId(), refundAmount, rpRefundId);
     }
@@ -343,7 +348,7 @@ public class BookingEscrowService {
         booking.setEscrowStatus(EscrowStatus.PARTIAL_RELEASED);
         booking.setBookingStatus(BookingStatus.COMPLETED);
         bookingRepo.save(booking);
-
+        broadcastEscrowUpdate(booking);
         log.info("Split resolution posted: booking={} owner=₹{} renter=₹{}",
             booking.getId(), ownerAmount, renterAmount);
     }
@@ -416,11 +421,32 @@ public class BookingEscrowService {
         booking.setBookingStatus(BookingStatus.NO_SHOW);
         booking.setEscrowStatus(EscrowStatus.PARTIAL_RELEASED);
         bookingRepo.save(booking);
-
+        broadcastEscrowUpdate(booking);
         log.info("No-show processed: booking={} ownerShare=₹{}", booking.getId(), ownerShare);
     }
 
     // ── Guards ────────────────────────────────────────────────────────────────
+
+    /**
+     * Broadcast the updated escrow status to any connected frontend clients.
+     * Topic: /topic/bookings/{bookingId}/escrow
+     * Payload: { bookingId, bookingStatus, escrowStatus }
+     */
+    private void broadcastEscrowUpdate(Booking booking) {
+        String topic = "/topic/bookings/" + booking.getId() + "/escrow";
+        try {
+            broker.convertAndSend(topic, java.util.Map.of(
+                "bookingId",    booking.getId().toString(),
+                "bookingStatus", booking.getBookingStatus().name(),
+                "escrowStatus",  booking.getEscrowStatus().name()
+            ));
+        } catch (Exception e) {
+            // Never fail the main transaction due to a WebSocket broadcast failure
+            log.warn("Failed to broadcast escrow update for booking {}: {}",
+                booking.getId(), e.getMessage());
+        }
+    }
+
 
     /**
      * Assert that the booking is in the expected status.

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rentit.dto.InitiatePaymentResponse;
 import com.rentit.dto.VerifyPaymentRequest;
+import com.rentit.exception.BusinessException;
 import com.rentit.model.Booking;
 import com.rentit.model.enums.BookingStatus;
 import com.rentit.repository.BookingRepository;
@@ -14,7 +15,6 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.server.ResponseStatusException;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -39,6 +39,7 @@ import java.util.Set;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Deprecated(since = "2026-04-27", forRemoval = true)
 public class PaymentService {
 
     private final BookingRepository bookingRepository;
@@ -69,23 +70,25 @@ public class PaymentService {
     public InitiatePaymentResponse initiatePayment(String bookingId, String username) {
         Booking booking = findOrThrow(bookingId);
 
-        // Security Check: Only the renter of the booking can initiate payment
         if (!booking.getRenter().getEmail().equals(username)) {
             log.warn("User {} attempted to initiate payment for booking {} owned by {}", 
                 username, bookingId, booking.getRenter().getEmail());
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to pay for this booking.");
+            throw BusinessException.forbidden("You do not have permission to pay for this booking.");
         }
 
-        // BUG-15 FIX: reject terminal states before talking to Razorpay
         if (UNPAYABLE_STATUSES.contains(booking.getBookingStatus())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                "Cannot initiate payment for a booking in status: " + booking.getBookingStatus());
+            throw BusinessException.conflict(
+                "Cannot initiate payment for a booking in status: " + booking.getBookingStatus(),
+                "PAYMENT_INELIGIBLE_STATUS"
+            );
         }
 
         String ps = booking.getPaymentStatus();
         if (ps != null && !ps.equals("PENDING") && !ps.equals("INITIATED")) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                "Cannot initiate payment. Current payment status: " + ps);
+            throw BusinessException.conflict(
+                "Cannot initiate payment. Current payment status: " + ps,
+                "PAYMENT_ALREADY_PROCESSED"
+            );
         }
 
         long amountPaise = booking.getTotalAmount()
@@ -125,8 +128,7 @@ public class PaymentService {
                 RAZORPAY_ORDERS_API, entity, String.class);
 
             if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                    "Razorpay responded with: " + resp.getStatusCode());
+                throw BusinessException.badRequest("Razorpay responded with: " + resp.getStatusCode(), "RAZORPAY_API_ERROR");
             }
 
             JsonNode order          = objectMapper.readTree(resp.getBody());
@@ -146,12 +148,11 @@ public class PaymentService {
                 .bookingId(bookingId)
                 .build();
 
-        } catch (ResponseStatusException rse) {
-            throw rse;
+        } catch (BusinessException be) {
+            throw be;
         } catch (Exception ex) {
             log.error("Razorpay order creation failed for {}: {}", bookingId, ex.getMessage(), ex);
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                "Payment initiation failed — please retry.");
+            throw BusinessException.internalError("Payment initiation failed — please retry.");
         }
     }
 
@@ -161,11 +162,10 @@ public class PaymentService {
     public void verifyAndConfirmPayment(VerifyPaymentRequest req, String username) {
         Booking booking = findOrThrow(req.getBookingId());
 
-        // Security Check: Only the renter of the booking can verify payment
         if (!booking.getRenter().getEmail().equals(username)) {
             log.warn("User {} attempted to verify payment for booking {} owned by {}", 
                 username, req.getBookingId(), booking.getRenter().getEmail());
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to verify this booking.");
+            throw BusinessException.forbidden("You do not have permission to verify this booking.");
         }
 
         String sigPayload = req.getRazorpayOrderId() + "|" + req.getRazorpayPaymentId();
@@ -173,11 +173,8 @@ public class PaymentService {
 
         if (!computed.equals(req.getRazorpaySignature())) {
             log.warn("Signature mismatch for booking {}", req.getBookingId());
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "Payment signature verification failed.");
+            throw BusinessException.badRequest("Payment signature verification failed.", "SIGNATURE_MISMATCH");
         }
-
-        Booking booking = findOrThrow(req.getBookingId());
 
         // BUG-16 FIX: idempotency check covers all terminal/already-confirmed states.
         // Previously only checked COMPLETED paymentStatus — a CANCELLED booking
@@ -252,17 +249,13 @@ public class PaymentService {
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
 
-    private Booking findOrThrow(String bookingId) {
-        java.util.UUID bookingUuid;
+    private Booking findOrThrow(String id) {
         try {
-            bookingUuid = java.util.UUID.fromString(bookingId);
-        } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "Invalid booking ID format");
+            return bookingRepository.findById(java.util.UUID.fromString(id))
+                .orElseThrow(() -> BusinessException.notFound("Booking", id));
+        } catch (IllegalArgumentException ex) {
+            throw BusinessException.badRequest("Invalid booking ID format: " + id, "INVALID_ID_FORMAT");
         }
-        return bookingRepository.findById(bookingUuid)
-            .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND, "Booking not found: " + bookingId));
     }
 
     private String hmacSha256Hex(String data, String secret) {

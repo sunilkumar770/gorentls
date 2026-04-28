@@ -27,8 +27,8 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
         SELECT COUNT(b) > 0 FROM Booking b
         WHERE b.listing.id = :listingId
         AND (
-            b.status IN ('CONFIRMED', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED')
-            OR (b.status = 'PENDING' AND b.createdAt > :cutoff)
+            b.bookingStatus IN ('CONFIRMED', 'IN_USE', 'COMPLETED')
+            OR (b.bookingStatus = 'PENDING_PAYMENT' AND b.createdAt > :cutoff)
         )
         AND b.startDate < :endDate
         AND b.endDate > :startDate
@@ -59,29 +59,29 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     /**
      * Find bookings by status
      */
-    Page<Booking> findByStatus(BookingStatus status, Pageable pageable);
+    Page<Booking> findByBookingStatus(BookingStatus status, Pageable pageable);
     
     /**
      * Count bookings by status
      */
-    long countByStatus(BookingStatus status);
+    long countByBookingStatus(BookingStatus status);
     
     /**
      * Find bookings by renter and status
      */
-    Page<Booking> findByRenterIdAndStatus(UUID renterId, BookingStatus status, Pageable pageable);
+    Page<Booking> findByRenterIdAndBookingStatus(UUID renterId, BookingStatus status, Pageable pageable);
     
     /**
      * Find bookings by owner and status
      */
-    @Query("SELECT b FROM Booking b WHERE b.listing.owner.id = :ownerId AND b.status = :status ORDER BY b.createdAt DESC")
-    Page<Booking> findByOwnerIdAndStatus(@Param("ownerId") UUID ownerId, @Param("status") BookingStatus status, Pageable pageable);
+    @Query("SELECT b FROM Booking b WHERE b.listing.owner.id = :ownerId AND b.bookingStatus = :status ORDER BY b.createdAt DESC")
+    Page<Booking> findByOwnerIdAndBookingStatus(@Param("ownerId") UUID ownerId, @Param("status") BookingStatus status, Pageable pageable);
     
     /**
      * Check if listing is available for given dates
      */
     @Query("SELECT COUNT(b) > 0 FROM Booking b WHERE b.listing.id = :listingId " +
-           "AND b.status IN ('CONFIRMED', 'IN_PROGRESS') " +
+           "AND b.bookingStatus IN ('CONFIRMED', 'IN_USE') " +
            "AND ((b.startDate <= :endDate AND b.endDate >= :startDate))")
     boolean isListingBooked(@Param("listingId") UUID listingId, 
                            @Param("startDate") LocalDate startDate, 
@@ -91,7 +91,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * Find conflicting bookings for a listing
      */
     @Query("SELECT b FROM Booking b WHERE b.listing.id = :listingId " +
-           "AND b.status IN ('CONFIRMED', 'IN_PROGRESS') " +
+           "AND b.bookingStatus IN ('CONFIRMED', 'IN_USE') " +
            "AND ((b.startDate <= :endDate AND b.endDate >= :startDate))")
     List<Booking> findConflictingBookings(@Param("listingId") UUID listingId,
                                          @Param("startDate") LocalDate startDate,
@@ -112,19 +112,19 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     /**
      * Get average booking value (total amount)
      */
-    @Query("SELECT AVG(b.totalAmount) FROM Booking b WHERE b.status = 'COMPLETED'")
+    @Query("SELECT AVG(b.totalAmount) FROM Booking b WHERE b.bookingStatus = 'COMPLETED'")
     Double getAverageBookingValue();
     
     /**
      * Get average rental days
      */
-    @Query("SELECT AVG(b.totalDays) FROM Booking b WHERE b.status = 'COMPLETED'")
+    @Query("SELECT AVG(b.totalDays) FROM Booking b WHERE b.bookingStatus = 'COMPLETED'")
     Double getAverageRentalDays();
     
     /**
      * Get total revenue from completed bookings
      */
-    @Query("SELECT SUM(b.totalAmount) FROM Booking b WHERE b.status = 'COMPLETED'")
+    @Query("SELECT SUM(b.totalAmount) FROM Booking b WHERE b.bookingStatus = 'COMPLETED'")
     Double getTotalRevenue();
     
     /**
@@ -138,7 +138,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * Get upcoming bookings for a user (renter)
      */
     @Query("SELECT b FROM Booking b WHERE b.renter.id = :renterId " +
-           "AND b.status IN ('CONFIRMED', 'IN_PROGRESS') " +
+           "AND b.bookingStatus IN ('CONFIRMED', 'IN_USE') " +
            "AND b.startDate >= :currentDate ORDER BY b.startDate ASC")
     List<Booking> findUpcomingBookingsByRenter(@Param("renterId") UUID renterId,
                                                @Param("currentDate") LocalDate currentDate);
@@ -147,7 +147,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * Get upcoming bookings for an owner
      */
     @Query("SELECT b FROM Booking b WHERE b.listing.owner.id = :ownerId " +
-           "AND b.status IN ('CONFIRMED', 'IN_PROGRESS') " +
+           "AND b.bookingStatus IN ('CONFIRMED', 'IN_USE') " +
            "AND b.startDate >= :currentDate ORDER BY b.startDate ASC")
     List<Booking> findUpcomingBookingsByOwner(@Param("ownerId") UUID ownerId,
                                              @Param("currentDate") LocalDate currentDate);
@@ -170,7 +170,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * Get bookings by listing for availability calendar
      */
     @Query("SELECT b FROM Booking b WHERE b.listing.id = :listingId " +
-           "AND b.status IN ('CONFIRMED', 'IN_PROGRESS') " +
+           "AND b.bookingStatus IN ('CONFIRMED', 'IN_USE') " +
            "ORDER BY b.startDate ASC")
     List<Booking> findBookedDatesForListing(@Param("listingId") UUID listingId);
 
@@ -178,4 +178,27 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * Find bookings by status and where dispute window has ended
      */
     List<Booking> findByBookingStatusAndDisputeWindowEndsAtBefore(com.rentit.model.enums.BookingStatus bookingStatus, java.time.Instant now);
+
+    /**
+     * Count bookings past dispute window but not yet paid out, refunded, or cancelled.
+     */
+    @Query("""
+        SELECT COUNT(b) FROM Booking b
+        WHERE b.disputeWindowEndsAt < :now
+          AND b.escrowStatus NOT IN (
+              com.rentit.model.enums.EscrowStatus.PAID_OUT,
+              com.rentit.model.enums.EscrowStatus.REFUNDED,
+              com.rentit.model.enums.EscrowStatus.CANCELLED
+          )
+        """)
+    long countByDisputeWindowExpiredAndNotResolved(@Param("now") java.time.Instant now);
+
+    /**
+     * Find bookings with any ledger entries for reconciliation
+     */
+    @Query("""
+        SELECT DISTINCT b FROM Booking b
+        WHERE EXISTS (SELECT 1 FROM LedgerTransaction l WHERE l.bookingId = b.id)
+        """)
+    List<Booking> findBookingsWithLedgerEntries();
 }

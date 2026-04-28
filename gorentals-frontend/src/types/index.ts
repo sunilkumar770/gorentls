@@ -77,6 +77,7 @@ export interface Listing {
   created_at: string;
   updated_at?: string;
   owner_id?: string;
+  images?: string[] | null;
   listing_images: { id: string; image_url: string }[];
   stores?: {
     id: string;

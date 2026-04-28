@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
-CREATE TABLE conversations (
+CREATE TABLE IF NOT EXISTS conversations (
     id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     listing_id        UUID        NOT NULL REFERENCES listings(id)  ON DELETE CASCADE,
     booking_id        UUID                 REFERENCES bookings(id)  ON DELETE SET NULL,
@@ -16,7 +16,7 @@ CREATE TABLE conversations (
     CONSTRAINT chk_participants_differ CHECK (renter_id <> owner_id)
 );
 
-CREATE TABLE messages (
+CREATE TABLE IF NOT EXISTS messages (
     id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     conversation_id  UUID        NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
     sender_id        UUID        NOT NULL REFERENCES users(id),
@@ -30,12 +30,12 @@ CREATE TABLE messages (
     CONSTRAINT uq_message_temp_id UNIQUE (conversation_id, temp_id)
 );
 
-CREATE INDEX idx_conversations_renter  ON conversations(renter_id);
-CREATE INDEX idx_conversations_owner   ON conversations(owner_id);
-CREATE INDEX idx_conversations_listing ON conversations(listing_id);
-CREATE INDEX idx_messages_conversation ON messages(conversation_id);
-CREATE INDEX idx_messages_created      ON messages(conversation_id, created_at DESC);
-CREATE INDEX idx_messages_sender       ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_renter  ON conversations(renter_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_owner   ON conversations(owner_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_listing ON conversations(listing_id);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created      ON messages(conversation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_sender       ON messages(sender_id);
 
 CREATE OR REPLACE FUNCTION update_conversations_updated_at()
 RETURNS TRIGGER AS $$

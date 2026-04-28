@@ -94,14 +94,23 @@ export default function StoresPage() {
             ))}
           </div>
         ) : stores.length === 0 ? (
-          <div className="bg-[var(--bg-card)] rounded-[var(--r-xl)] p-20 text-center shadow-card border border-[var(--border)]">
-            <div className="w-16 h-16 bg-[var(--bg-subtle)] rounded-full flex items-center justify-center mx-auto mb-5">
-              <MapPin className="h-8 w-8 text-[var(--text-faint)]" />
+          <div className="bg-[var(--bg-card)] rounded-[var(--r-xl)] p-24 text-center shadow-card border border-[var(--border)] max-w-2xl mx-auto mt-10">
+            <div className="w-20 h-20 bg-[var(--primary-light)] rounded-[var(--r-xl)] flex items-center justify-center mx-auto mb-6 transform rotate-3">
+              <MapPin className="h-10 w-10 text-[var(--primary)]" strokeWidth={1.5} />
             </div>
-            <h3 className="text-2xl font-display font-bold text-[var(--text)] mb-2">No Stores Found</h3>
-            <p className="text-[var(--text-muted)]">
-              {selectedCity !== 'All Cities' ? `No owners in ${selectedCity} yet. Try another city.` : 'Try searching by a different name.'}
+            <h3 className="text-3xl font-display font-bold text-[var(--text)] mb-3">No Owners Discovered</h3>
+            <p className="text-[var(--text-muted)] text-lg max-w-md mx-auto leading-relaxed">
+              {selectedCity !== 'All Cities' 
+                ? `We haven't launched verified owners in ${selectedCity} yet. Be the first to list!` 
+                : "No owners match your current search. Try a broader term."}
             </p>
+            {selectedCity !== 'All Cities' && (
+              <Link href="/signup?role=OWNER">
+                <button className="mt-8 px-8 py-3 gradient-teal text-white rounded-[var(--r-md)] font-bold uppercase tracking-widest text-xs hover:scale-105 transition-all shadow-card">
+                  Become an Owner
+                </button>
+              </Link>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">

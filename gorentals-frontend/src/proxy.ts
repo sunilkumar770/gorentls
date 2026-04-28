@@ -43,7 +43,7 @@ export async function proxy(request: NextRequest) {
     pathname.includes('.') ||
     pathname === '/login' ||
     pathname === '/signup' ||
-    pathname === '/admin/login' ||
+    pathname === '/auth/admin-login' ||
     pathname === '/'
   ) {
     return NextResponse.next();

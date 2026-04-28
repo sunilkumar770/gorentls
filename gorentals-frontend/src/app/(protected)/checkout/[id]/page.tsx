@@ -3,17 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import api from '@/lib/axios';
-import { initiatePayment, verifyPayment } from '@/services/payments';
-import { Shield, MapPin, Calendar, Loader2, ChevronLeft, AlertCircle } from 'lucide-react';
+import { RazorpayCheckout } from '@/components/payment/RazorpayCheckout';
+import { useEscrow } from '@/hooks/useEscrow';
+import { PriceBreakdown } from '@/components/bookings/PriceBreakdown';
+import { Shield, MapPin, Calendar, ChevronLeft, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
 import type { Booking } from '@/types';
-import type { RazorpayPaymentFailedResponse } from '@/types/razorpay';
 import { calcQuotePhase1 } from '@/lib/pricing';
-import { PriceBreakdown } from '@/components/bookings/PriceBreakdown';
-
-
 
 export default function CheckoutPage() {
   const { id: bookingId } = useParams<{ id: string }>();
@@ -22,92 +19,19 @@ export default function CheckoutPage() {
   const [booking,  setBooking]  = useState<Booking | null>(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
-  const [paying,   setPaying]   = useState(false);
-  const [sdkReady, setSdkReady] = useState(false);
+  const { escrow, refresh: refreshEscrow } = useEscrow(bookingId as string);
 
   // Load booking details
   useEffect(() => {
-    api.get<Booking>(`/bookings/${bookingId}`)
-      .then(r  => { setBooking(r.data); setLoading(false); })
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'}/bookings/${bookingId}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+      .then(r => r.json())
+      .then(data => { setBooking(data); setLoading(false); })
       .catch(() => { setError('Could not load booking details.'); setLoading(false); });
   }, [bookingId]);
-
-  // Inject Razorpay SDK once
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (window.Razorpay) { setSdkReady(true); return; }
-    const existing = document.getElementById('rzp-sdk');
-    if (existing) { existing.addEventListener('load', () => setSdkReady(true)); return; }
-    const s    = document.createElement('script');
-    s.id       = 'rzp-sdk';
-    s.src      = 'https://checkout.razorpay.com/v1/checkout.js';
-    s.async    = true;
-    s.onload   = () => setSdkReady(true);
-    s.onerror  = () => toast.error('Failed to load payment SDK. Please refresh.');
-    document.body.appendChild(s);
-  }, []);
-
-  async function handlePayNow() {
-    if (!booking || paying) return;
-    setPaying(true);
-    try {
-      // Step 1 — create Razorpay order on backend
-      const order = await initiatePayment(booking.id);
-
-      // Step 2 — open Razorpay modal (window.Razorpay typed via razorpay.d.ts)
-      const rzp = new window.Razorpay({
-        key:         order.keyId,
-        amount:      order.amount,
-        currency:    order.currency,
-        order_id:    order.orderId,
-        name:        'GoRentals',
-        description: booking.listing?.title ?? 'Rental Booking',
-        prefill: {
-          name:  booking.renter?.fullName ?? '',
-          email: booking.renter?.email   ?? '',
-        },
-        theme: { color: '#16a34a' },
-
-        handler: async (response: {
-          razorpay_order_id:    string;
-          razorpay_payment_id:  string;
-          razorpay_signature:   string;
-        }) => {
-          try {
-            // Step 3 — verify payment signature on backend
-            await verifyPayment({
-              bookingId:          booking.id,
-              razorpayOrderId:    response.razorpay_order_id,
-              razorpayPaymentId:  response.razorpay_payment_id,
-              razorpaySignature:  response.razorpay_signature,
-            });
-            // Step 4 — redirect to success page
-            router.replace(`/payment/success?bookingId=${booking.id}`);
-          } catch {
-            toast.error('Payment verification failed. Contact support if amount was deducted.');
-            setPaying(false);
-          }
-        },
-
-        modal: {
-          ondismiss: () => {
-            toast('Payment cancelled.', { icon: '↩️' });
-            setPaying(false);
-          },
-        },
-      });
-
-      rzp.on('payment.failed', (resp: RazorpayPaymentFailedResponse) => {
-        toast.error(`Payment failed: ${resp.error?.description ?? 'Unknown error'}`);
-        setPaying(false);
-      });
-
-      rzp.open();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Could not initiate payment. Please try again.');
-      setPaying(false);
-    }
-  }
 
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -232,13 +156,27 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        <button onClick={handlePayNow} disabled={paying || !sdkReady}
-                className="w-full h-14 bg-[#16a34a] text-white font-bold text-base rounded-2xl
-                           flex items-center justify-center gap-2 hover:bg-[#15803d] shadow-sm
-                           disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
-          {paying && <Loader2 className="w-5 h-5 animate-spin" />}
-          {!sdkReady ? 'Loading…' : paying ? 'Opening Razorpay…' : `Pay ₹${booking.totalAmount.toLocaleString('en-IN')}`}
-        </button>
+        {/* Real-time Escrow Status Display */}
+        {escrow && (
+          <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-4 mb-6">
+            <p className="text-sm text-emerald-800 font-medium">Escrow Status: {escrow.escrowStatus}</p>
+          </div>
+        )}
+
+        <RazorpayCheckout
+          bookingId={booking.id}
+          paymentKind="ADVANCE"
+          amountToPay={booking.totalAmount}
+          onSuccess={() => {
+            toast.success('Payment successful!');
+            refreshEscrow();
+            router.replace(`/payment/success?bookingId=${booking.id}`);
+          }}
+          onError={(err) => {
+            toast.error(`Payment failed: ${err}`);
+          }}
+          className="w-full h-14 bg-[#16a34a] text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 hover:bg-[#15803d] shadow-sm disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+        />
 
         <p className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-4">
           <Shield className="w-3.5 h-3.5" /> 256-bit SSL · Secured by Razorpay

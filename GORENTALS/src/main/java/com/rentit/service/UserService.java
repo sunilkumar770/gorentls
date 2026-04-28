@@ -11,6 +11,7 @@ import com.rentit.model.UserProfile;
 import com.rentit.repository.UserProfileRepository;
 import com.rentit.repository.UserRepository;
 import com.rentit.util.JwtUtil;
+import com.rentit.util.LogUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -108,7 +109,7 @@ public class UserService {
      */
     @Transactional
     public UserProfileResponse updateSettings(String email, UpdateSettingsRequest request) {
-        log.warn("updateSettings called for {} but settings persistence is not yet implemented", email);
+        log.warn("updateSettings called for {} but settings persistence is not yet implemented", LogUtils.maskEmail(email));
         // TODO: persist notification preferences, timezone, etc. into a settings table
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
@@ -138,7 +139,7 @@ public class UserService {
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
-        log.info("Password changed for user: {}", email);
+        log.info("Password changed for user: {}", LogUtils.maskEmail(email));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -170,7 +171,7 @@ public class UserService {
         profile.setKycStatus(UserProfile.KYCStatus.SUBMITTED);
 
         userProfileRepository.save(profile);
-        log.info("KYC submitted for user: {} (doc type: {})", email, request.getDocumentType());
+        log.info("KYC submitted for user: {} (doc type: {})", LogUtils.maskEmail(email), request.getDocumentType());
         return mapToProfileResponse(user, profile);
     }
 

@@ -191,5 +191,11 @@ COMMENT ON TABLE owner_payout_accounts IS
 
 COMMENT ON TABLE disputes IS
   'Dispute records raised by renters or owners during the 24–48h post-return window.';
-C R E A T E   T A B L E   I F   N O T   E X I S T S   s h e d l o c k ( n a m e   V A R C H A R ( 6 4 )   N O T   N U L L ,   l o c k _ u n t i l   T I M E S T A M P   N O T   N U L L ,   l o c k e d _ a t   T I M E S T A M P   N O T   N U L L ,   l o c k e d _ b y   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   P R I M A R Y   K E Y   ( n a m e ) ) ;  
- 
+
+CREATE TABLE IF NOT EXISTS shedlock(
+  name VARCHAR(64) NOT NULL,
+  lock_until TIMESTAMP NOT NULL,
+  locked_at TIMESTAMP NOT NULL,
+  locked_by VARCHAR(255) NOT NULL,
+  PRIMARY KEY (name)
+);

@@ -1,39 +1,40 @@
 import api from '@/lib/axios';
 
-export interface InitiatePaymentResponse {
-  orderId:   string;   // Razorpay order ID  — "order_XXXX"
-  amount:    number;   // in PAISE (₹1 = 100 paise)
-  currency:  string;   // "INR"
-  keyId:     string;   // public Razorpay key
+export interface CreateOrderRequest {
   bookingId: string;
+  paymentKind: 'ADVANCE' | 'FINAL' | 'SECURITY_DEPOSIT';
 }
 
-export interface VerifyPaymentRequest {
-  bookingId:           string;
-  razorpayOrderId:     string;
-  razorpayPaymentId:   string;
-  razorpaySignature:   string;
+export interface CreateOrderResponse {
+  id: string;              // Razorpay order_id
+  amount: number;            // in paise
+  currency: string;          // INR
+  receipt: string;
+  notes?: Record<string, string>;
 }
 
-export interface VerifyPaymentResponse {
-  success:   boolean;
-  message:   string;
-  bookingId: string;
-}
-
-export async function initiatePayment(
+export async function createOrder(
   bookingId: string,
-): Promise<InitiatePaymentResponse> {
-  const res = await api.post<InitiatePaymentResponse>(
-    '/payments/initiate',
-    { bookingId },
-  );
+  paymentKind: 'ADVANCE' | 'FINAL' | 'SECURITY_DEPOSIT' = 'ADVANCE'
+): Promise<CreateOrderResponse> {
+  const res = await api.post<CreateOrderResponse>('/payments/order', {
+    bookingId,
+    paymentKind,
+  });
   return res.data;
 }
 
-export async function verifyPayment(
-  data: VerifyPaymentRequest,
-): Promise<VerifyPaymentResponse> {
-  const res = await api.post<VerifyPaymentResponse>('/payments/verify', data);
+export interface ConfirmPaymentRequest {
+  bookingId: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+  paymentKind: 'ADVANCE' | 'FINAL' | 'SECURITY_DEPOSIT';
+}
+
+export async function confirmPayment(
+  data: ConfirmPaymentRequest
+): Promise<{ status: string; bookingId: string; escrowStatus: string }> {
+  const res = await api.post('/payments/confirm', data);
   return res.data;
 }
