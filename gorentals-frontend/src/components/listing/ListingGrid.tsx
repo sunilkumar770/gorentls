@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Package } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 import type { Listing, PagedResponse } from '@/types';
 import { ListingCard } from '@/components/listing/ListingCard';
 import { useListings } from '@/hooks/useListings';
