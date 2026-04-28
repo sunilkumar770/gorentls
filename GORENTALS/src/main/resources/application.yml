@@ -3,9 +3,9 @@ spring:
     name: gorentals
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/gorentals}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
     hikari:
@@ -44,15 +44,15 @@ spring:
     time-zone: UTC
 
 razorpay:
-  key-id: ${RAZORPAY_KEY_ID:rzp_test_demo}
-  key-secret: ${RAZORPAY_KEY_SECRET:demo_secret}
-  webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:demo_webhook}
+  key-id: ${RAZORPAY_KEY_ID}
+  key-secret: ${RAZORPAY_KEY_SECRET}
+  webhook-secret: ${RAZORPAY_WEBHOOK_SECRET}
   account-number: ${RAZORPAY_ACCOUNT_NUMBER:70070707070707}
 
 app:
   admin:
-    email: ${APP_ADMIN_EMAIL:admin@gorentals.com}
-    password: ${APP_ADMIN_PASSWORD:Admin@123}
+    email: ${APP_ADMIN_EMAIL}
+    password: ${APP_ADMIN_PASSWORD}
     name: ${APP_ADMIN_NAME:Admin User}
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   api:
@@ -60,7 +60,7 @@ app:
     version: ${APP_VERSION:1.0.0}
 
 jwt:
-  secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+  secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:86400000}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 

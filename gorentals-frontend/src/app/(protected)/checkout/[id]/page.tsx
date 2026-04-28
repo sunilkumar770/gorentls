@@ -50,7 +50,11 @@ export default function CheckoutPage() {
   );
 
   // Guard: block double payment
-  if (booking.paymentStatus === 'COMPLETED' || booking.paymentStatus === 'PAID') return (
+  const isFullyPaid = escrow?.escrowStatus === 'FULL_HELD' ||
+                     escrow?.escrowStatus === 'READY_FOR_PAYOUT' ||
+                     escrow?.escrowStatus === 'PAID_OUT';
+
+  if (isFullyPaid || booking.paymentStatus === 'COMPLETED' || booking.paymentStatus === 'PAID') return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 px-4">
       <div className="text-6xl">✅</div>
       <h2 className="text-xl font-bold text-gray-900">Already paid</h2>

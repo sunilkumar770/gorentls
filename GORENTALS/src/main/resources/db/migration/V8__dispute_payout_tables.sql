@@ -39,7 +39,7 @@ END $$;
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'escrow_status') THEN
         CREATE TYPE escrow_status AS ENUM (
-            'PENDING',
+            'NONE',
             'ADVANCE_HELD',
             'FULL_HELD',
             'ON_HOLD',
@@ -213,7 +213,7 @@ BEGIN
         AND column_name = 'escrow_status'
     ) THEN
         ALTER TABLE bookings 
-            ADD COLUMN escrow_status escrow_status NOT NULL DEFAULT 'PENDING';
+            ADD COLUMN escrow_status escrow_status NOT NULL DEFAULT 'NONE';
     END IF;
 END $$;
 
