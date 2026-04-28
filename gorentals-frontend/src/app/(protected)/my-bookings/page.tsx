@@ -211,6 +211,15 @@ export default function MyBookingsPage() {
                         Pay Now
                       </Link>
                     )}
+                    
+                    {(booking.status === 'CONFIRMED' || booking.status === 'IN_PROGRESS') && (
+                      <Link
+                        href={`/checkout/${booking.id}`}
+                        className="inline-flex items-center justify-center px-4 py-2 font-bold rounded-lg text-sm text-[#16a34a] border border-[#16a34a] hover:bg-[#f0fdf4] transition-colors shadow-sm"
+                      >
+                        Pay Remaining
+                      </Link>
+                    )}
 
                     <Link
                       href={`/listing/${booking.listing?.id}`}

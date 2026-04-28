@@ -6,7 +6,7 @@ import { createOrderAction, confirmPaymentAction } from '@/app/actions/payments'
 interface RazorpayCheckoutProps {
   bookingId: string;
   paymentKind: 'ADVANCE' | 'FINAL' | 'SECURITY_DEPOSIT';
-  amountToPay: number; // For display purposes
+  amountToPay: number;
   onSuccess?: () => void;
   onError?: (error: string) => void;
   className?: string;
@@ -22,7 +22,7 @@ export function RazorpayCheckout({
 }: RazorpayCheckoutProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const loadRazorpayScript = () => {
+  const loadRazorpayScript = (): Promise<boolean> => {
     return new Promise((resolve) => {
       if (typeof window !== 'undefined' && (window as any).Razorpay) {
         resolve(true);
@@ -37,29 +37,49 @@ export function RazorpayCheckout({
   };
 
   const handlePayment = async () => {
-    try {
-      setIsProcessing(true);
+    // ── Double-click guard ────────────────────────────────────
+    if (isProcessing) return;
+    setIsProcessing(true);
 
-      // 1. Load the SDK
-      const res = await loadRazorpayScript();
-      if (!res) {
-        throw new Error('Razorpay SDK failed to load');
+    try {
+      // ── Step 1: Load Razorpay SDK ─────────────────────────
+      const sdkLoaded = await loadRazorpayScript();
+      if (!sdkLoaded) {
+        throw new Error(
+          'Payment gateway failed to load. Check your internet connection and try again.'
+        );
       }
 
-      // 2. Create the Order on the backend via Server Action
+      // ── Step 2: Validate Razorpay Key ─────────────────────
+      // CRITICAL: If this env var is missing, Razorpay silently rejects
+      // the payment with no user-visible error. We surface it immediately.
+      const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!razorpayKey || razorpayKey.trim() === '' || razorpayKey === 'rzp_test_YOUR_KEY_ID_HERE') {
+        throw new Error(
+          'Payment system is not configured. Please contact support. (Error: missing payment key)'
+        );
+      }
+
+      // ── Step 3: Create order on backend ──────────────────
       const order = await createOrderAction({ bookingId, paymentKind });
 
-      // 3. Initialize Razorpay options
+      // ── Step 4: Open Razorpay modal ───────────────────────
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, // Safe to expose public key
-        amount: order.amount, // Amount in paise
-        currency: order.currency,
+        key: razorpayKey,
+        amount: order.amount,
+        currency: order.currency ?? 'INR',
         name: 'GoRentals',
         description: `Payment for Booking #${bookingId}`,
         order_id: order.id,
+        modal: {
+          ondismiss: () => {
+            // User closed the modal without paying — reset state cleanly
+            setIsProcessing(false);
+          },
+        },
         handler: async function (response: any) {
+          // ── Step 5: Confirm payment on backend ───────────
           try {
-            // 4. Confirm the payment via Server Action
             await confirmPaymentAction({
               bookingId,
               paymentKind,
@@ -67,60 +87,75 @@ export function RazorpayCheckout({
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
             });
-            
             if (onSuccess) onSuccess();
           } catch (confirmError: any) {
-            console.error('Payment confirmation failed:', confirmError);
-            if (onError) onError(confirmError.message || 'Payment confirmation failed');
+            if (onError) onError(confirmError.message ?? 'Payment confirmation failed');
+          } finally {
+            setIsProcessing(false);
           }
         },
-        prefill: {
-          name: '', // We could prefill from user profile
-          email: '',
-          contact: '',
-        },
-        theme: {
-          color: '#10B981', // Emerald theme color
-        },
-        // Force display all methods in test mode to help debug UPI missing issues
+        prefill: { name: '', email: '', contact: '' },
+        theme: { color: '#10B981' },
         config: {
           display: {
             hide: [],
-            preferences: {
-              show_default_blocks: true,
-            },
+            preferences: { show_default_blocks: true },
           },
         },
       };
 
       const paymentObject = new (window as any).Razorpay(options);
-      
+
       paymentObject.on('payment.failed', function (response: any) {
-        console.error('Payment failed in Razorpay:', response.error);
-        if (onError) onError(response.error.description);
+        if (onError) onError(response.error.description ?? 'Payment failed');
+        setIsProcessing(false);
       });
 
       paymentObject.open();
+      // NOTE: do NOT set isProcessing=false here.
+      // State resets in: handler (success), modal.ondismiss (cancel),
+      // payment.failed (failure). All paths covered.
+
     } catch (err: any) {
-      console.error('Failed to initiate payment:', err);
-      if (onError) onError(err.message || 'Payment initiation failed');
-    } finally {
+      if (onError) onError(err.message ?? 'Payment initiation failed');
       setIsProcessing(false);
     }
   };
 
+  const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+
   return (
-    <button
-      onClick={handlePayment}
-      disabled={isProcessing}
-      className={`px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50 transition-colors ${className}`}
-    >
-      {isProcessing ? 'Processing...' : `Pay ₹${amountToPay.toFixed(2)}`}
-      {process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.startsWith('rzp_test') && (
-        <span className="block text-[10px] opacity-60 mt-1 font-normal">
-          Test Mode: UPI may require dashboard activation
-        </span>
-      )}
-    </button>
+    <div>
+      <button
+        onClick={handlePayment}
+        disabled={isProcessing}
+        className={`inline-flex items-center justify-center px-6 py-3 font-semibold rounded-lg 
+          transition-all duration-200
+          ${isProcessing
+            ? 'bg-gray-400 cursor-not-allowed opacity-70'
+            : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
+          } ${className}`}
+      >
+        {isProcessing ? (
+          <span className="flex items-center gap-2">
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            Processing...
+          </span>
+        ) : (
+          `Pay ₹${amountToPay.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+        )}
+      </button>
+
+      {/* Test mode warning — visible only in development */}
+      {process.env.NODE_ENV === 'development' &&
+        razorpayKey?.startsWith('rzp_test') && (
+          <p className="mt-2 text-xs text-amber-600">
+            Test Mode: Use Razorpay test card 4111 1111 1111 1111
+          </p>
+        )}
+    </div>
   );
 }

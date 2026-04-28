@@ -34,14 +34,29 @@ export function buildProfile(data: any): Profile {
   } as Profile;
 }
 
-// Helper: sync token to BOTH storage locations
-function setToken(token: string) {
+/** Cookie max-age = 7 days in seconds */
+const TOKEN_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+
+/**
+ * Write the JWT to BOTH localStorage and a cookie so that:
+ *  - Client-side Axios interceptor can read from localStorage
+ *  - Next.js middleware (proxy.ts) can read from the cookie
+ *
+ * The Secure flag is applied in production to prevent cookie
+ * transmission over HTTP (required for HTTPS deployments).
+ */
+export function setToken(token: string): void {
   localStorage.setItem('gr_token', token);
-  // Ensure the cookie name matches what middleware (proxy.ts) expects
-  document.cookie = `token=${token}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  document.cookie = `token=${token}; path=/; SameSite=Lax; max-age=${TOKEN_COOKIE_MAX_AGE}${secure}`;
 }
 
-function clearToken() {
+/**
+ * Remove the JWT from all storage locations.
+ * Call this on logout, 401, or session expiry.
+ */
+export function clearToken(): void {
   localStorage.removeItem('gr_token');
   localStorage.removeItem('gr_user');
   document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';

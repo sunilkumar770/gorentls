@@ -79,6 +79,12 @@ export interface Listing {
   owner_id?: string;
   images?: string[] | null;
   listing_images: { id: string; image_url: string }[];
+  owner?: {
+    id: string;
+    fullName: string;
+    email: string;
+    kycStatus: string;
+  };
   stores?: {
     id: string;
     store_name: string;

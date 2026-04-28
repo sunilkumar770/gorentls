@@ -179,6 +179,25 @@ public class MessageService {
         log.info("[MSG] Read cleared for {} in conv={}", userEmail, conversationId);
     }
 
+    @Transactional
+    public void markMessageDelivered(UUID messageId, String userEmail) {
+        ChatMessage msg = messageRepository.findById(messageId)
+            .orElseThrow(() -> BusinessException.notFound("Message", messageId));
+
+        // Security: only the recipient can mark a message as delivered
+        if (msg.getSender().getEmail().equals(userEmail)) return;
+
+        if (msg.getStatus() == ChatMessage.MessageStatus.SENT) {
+            msg.setStatus(ChatMessage.MessageStatus.DELIVERED);
+            messageRepository.save(msg);
+            
+            // Broadcast the update back to the conversation so the sender sees the checkmark
+            MessageResponse response = mapToMessageResponse(msg);
+            messagingTemplate.convertAndSend("/topic/conversation." + msg.getConversation().getId(), response);
+            log.info("[MSG] Marked delivered id={} conv={}", messageId, msg.getConversation().getId());
+        }
+    }
+
     // ── Mappers ───────────────────────────────────────────────────────────────
     private ConversationResponse mapToConversationResponse(Conversation conv) {
         String lastText = null;

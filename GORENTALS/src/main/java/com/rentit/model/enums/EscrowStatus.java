@@ -34,5 +34,6 @@ public enum EscrowStatus {
     ON_HOLD,           // dispute open — funds frozen, no payout until resolved
     READY_FOR_PAYOUT,  // all conditions met, payout engine will pick up
     PAID_OUT,          // RazorpayX transfer initiated to owner
+    RETURNED,          // Item returned, in dispute window
     CANCELLED          // booking cancelled before capture or manually voided
 }

@@ -7,6 +7,7 @@ import com.rentit.dto.UserResponse;
 import com.rentit.exception.BusinessException;
 import com.rentit.model.*;
 import com.rentit.model.enums.BookingStatus;
+import com.rentit.model.enums.EscrowStatus;
 import com.rentit.pricing.PricingCalculator;
 import com.rentit.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,8 @@ public class BookingService {
     private final PaymentRepository     paymentRepository;
     private final BlockedDateRepository blockedDateRepository;
     private final NotificationService   notificationService;
+    private final BookingEscrowService  escrowService;
+    private final RazorpayIntegrationService razorpayService;
 
     // ─────────────────────────────────────────────────────────────────────────
     // CREATE
@@ -206,6 +209,77 @@ public class BookingService {
     @Transactional(readOnly = true)
     public boolean isListingAvailable(UUID listingId, LocalDate startDate, LocalDate endDate) {
         return !bookingRepository.isListingBooked(listingId, startDate, endDate);
+    }
+
+    /**
+     * Owner confirms a booking request or item handover.
+     * Logic:
+     * 1. If PENDING_PAYMENT -> CONFIRMED (Accepting the request)
+     * 2. If CONFIRMED and ADVANCE_HELD -> IN_USE (Handover confirmed)
+     */
+    @Transactional
+    public BookingResponse confirmBooking(UUID bookingId, String ownerEmail) {
+        Booking booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> BusinessException.notFound("Booking", bookingId));
+
+        validateOwner(booking, ownerEmail);
+
+        BookingStatus current = booking.getBookingStatus();
+        EscrowStatus escrow  = booking.getEscrowStatus();
+
+        if (current == BookingStatus.PENDING_PAYMENT) {
+            return updateStatus(bookingId, BookingStatus.CONFIRMED, ownerEmail);
+        } else if (current == BookingStatus.CONFIRMED && escrow == EscrowStatus.ADVANCE_HELD) {
+            return updateStatus(bookingId, BookingStatus.IN_USE, ownerEmail);
+        } else {
+            throw BusinessException.badRequest("Cannot confirm booking in current state: " + current + " / " + escrow);
+        }
+    }
+
+    /**
+     * Owner rejects a booking request.
+     * Logic:
+     * 1. Update to CANCELLED.
+     * 2. If money is held (ADVANCE_HELD), trigger automated refund.
+     */
+    @Transactional
+    public BookingResponse rejectBooking(UUID bookingId, String ownerEmail) {
+        Booking booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> BusinessException.notFound("Booking", bookingId));
+
+        validateOwner(booking, ownerEmail);
+
+        EscrowStatus escrow = booking.getEscrowStatus();
+        
+        // If money is held, we must refund
+        if (escrow != EscrowStatus.PENDING && escrow != EscrowStatus.CANCELLED) {
+            if (booking.getRazorpayPaymentId() == null) {
+                log.error("Cannot refund booking {}: missing Razorpay payment ID", bookingId);
+            } else {
+                try {
+                    String refundId = razorpayService.createRefund(
+                        booking.getRazorpayPaymentId(),
+                        booking.getAdvanceAmount(),
+                        "Owner rejected booking request",
+                        bookingId
+                    );
+                    escrowService.cancelAndRefund(booking, booking.getAdvanceAmount(), 
+                        "Owner rejected", refundId);
+                    log.info("Refund initiated for rejected booking {}: {}", bookingId, refundId);
+                } catch (Exception e) {
+                    log.error("Automated refund failed for rejected booking {}: {}", bookingId, e.getMessage());
+                    // We still cancel the booking in our DB, but mark the failure
+                }
+            }
+        }
+
+        return updateStatus(bookingId, BookingStatus.CANCELLED, ownerEmail);
+    }
+
+    private void validateOwner(Booking booking, String email) {
+        if (!booking.getListing().getOwner().getEmail().equals(email)) {
+            throw BusinessException.forbidden("Only the listing owner can perform this action");
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -402,6 +476,7 @@ public class BookingService {
             .gstAmount(Objects.requireNonNullElse(booking.getGstAmount(),  BigDecimal.ZERO))
             .platformFee(Objects.requireNonNullElse(booking.getPlatformFee(), BigDecimal.ZERO))
             .status(booking.getBookingStatus() != null ? booking.getBookingStatus().name() : "PENDING_PAYMENT")
+            .escrowStatus(booking.getEscrowStatus() != null ? booking.getEscrowStatus().name() : "PENDING")
             .paymentStatus(booking.getPaymentStatus() != null ? booking.getPaymentStatus() : "PENDING")
             .razorpayOrderId(booking.getRazorpayOrderId())
             .razorpayPaymentId(booking.getRazorpayPaymentId())

@@ -18,6 +18,7 @@ import { DayPicker, DateRange } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { calcRentalQuote, formatINR } from '@/lib/pricing';
 import { PriceBreakdown } from '@/components/bookings/PriceBreakdown';
+import { VerifiedBadge } from '@/components/ui/VerifiedBadge';
 
 export default function ItemDetailPage() {
   const { id }   = useParams<{ id: string }>();
@@ -228,9 +229,15 @@ export default function ItemDetailPage() {
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest mb-1">Managed By</h3>
-                  <p className="font-semibold text-[var(--text)] text-lg">{listing.stores?.store_name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-[var(--text)] text-lg">{listing.stores?.store_name || listing.owner?.fullName}</p>
+                    {listing.owner?.kycStatus === 'APPROVED' && (
+                      <VerifiedBadge size="md" />
+                    )}
+                  </div>
                   <p className="text-sm text-[var(--text-faint)] flex items-center gap-1 mt-0.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[var(--primary)]" /> Verified Partner
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[var(--primary)]" /> 
+                    {listing.owner?.kycStatus === 'APPROVED' ? 'Verified Platform Partner' : 'Registered Partner'}
                   </p>
                 </div>
               </div>

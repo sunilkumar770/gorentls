@@ -28,6 +28,7 @@ public class BookingResponse {
     private BigDecimal gstAmount;
     private BigDecimal platformFee;
     private String status;
+    private String escrowStatus;
     private String paymentStatus;
     private String razorpayOrderId;
     private String razorpayPaymentId;

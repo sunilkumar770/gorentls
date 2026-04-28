@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { Profile } from '@/types';
-import { buildProfile } from '@/services/auth';
+import { buildProfile, setToken, clearToken } from '@/services/auth';
 import api from '@/lib/axios';
 
 interface AuthContextType {
@@ -18,7 +18,7 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Set token immediately for axios interceptors
-        setToken(storedToken);
+        setTokenState(storedToken);
 
         // 2. Load cached user for instant UI response
         const storedUser = localStorage.getItem('gr_user');
@@ -71,10 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const status = err?.response?.status;
           if (status === 401 || status === 403) {
             console.warn('[AuthContext] Session expired/invalid. Clearing...');
-            localStorage.removeItem('gr_token');
-            localStorage.removeItem('gr_user');
-            document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
-            setToken(null);
+            clearToken();
+            setTokenState(null);
             setUser(null);
           } else {
             console.warn('[AuthContext] Backend unreachable, using cached session if available');
@@ -92,10 +90,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const handleWsAuthFailure = () => {
-      localStorage.removeItem('gr_token');
-      localStorage.removeItem('gr_user');
-      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
-      setToken(null);
+      clearToken();
+      setTokenState(null);
       setUser(null);
       window.location.href = '/login?reason=ws_auth_failure';
     };
@@ -104,18 +100,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = (newToken: string, newUser: Profile) => {
-    localStorage.setItem('gr_token', newToken);
-    localStorage.setItem('gr_user', JSON.stringify(newUser));
-    document.cookie = `token=${newToken}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`;
     setToken(newToken);
+    localStorage.setItem('gr_user', JSON.stringify(newUser));
+    setTokenState(newToken);
     setUser(newUser);
   };
 
   const logout = () => {
-    localStorage.removeItem('gr_token');
-    localStorage.removeItem('gr_user');
-    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
-    setToken(null);
+    clearToken();
+    setTokenState(null);
     setUser(null);
   };
 

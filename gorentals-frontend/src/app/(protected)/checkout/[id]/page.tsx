@@ -159,24 +159,75 @@ export default function CheckoutPage() {
         {/* Real-time Escrow Status Display */}
         {escrow && (
           <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-4 mb-6">
-            <p className="text-sm text-emerald-800 font-medium">Escrow Status: {escrow.escrowStatus}</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-emerald-600 font-bold uppercase tracking-wider mb-1">Escrow Status</p>
+                <p className="text-sm text-emerald-900 font-semibold">{escrow.escrowStatus.replace(/_/g, ' ')}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-emerald-600 font-bold uppercase tracking-wider mb-1">Collected</p>
+                <p className="text-sm text-emerald-900 font-semibold">₹{escrow.totalCollected.toFixed(2)}</p>
+              </div>
+            </div>
           </div>
         )}
 
-        <RazorpayCheckout
-          bookingId={booking.id}
-          paymentKind="ADVANCE"
-          amountToPay={booking.totalAmount}
-          onSuccess={() => {
-            toast.success('Payment successful!');
-            refreshEscrow();
-            router.replace(`/payment/success?bookingId=${booking.id}`);
-          }}
-          onError={(err) => {
-            toast.error(`Payment failed: ${err}`);
-          }}
-          className="w-full h-14 bg-[#16a34a] text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 hover:bg-[#15803d] shadow-sm disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-        />
+        {(() => {
+          if (!escrow) return null;
+          
+          // Terminal state: fully funded
+          if (escrow.escrowStatus === 'FULL_HELD' || escrow.escrowStatus === 'RETURNED' || escrow.escrowStatus === 'PAID_OUT') {
+            return (
+              <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Escrow Fully Funded</h3>
+                <p className="text-gray-500 text-sm mb-6">The total booking amount has been successfully collected and is being held in escrow.</p>
+                <Link href="/my-bookings" className="inline-flex items-center justify-center px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors">
+                  View My Bookings
+                </Link>
+              </div>
+            );
+          }
+
+          // Determine kind and amount based on what's missing
+          const isAdvanceNeeded = escrow.escrowStatus === 'PENDING';
+          const kind = isAdvanceNeeded ? 'ADVANCE' : 'FINAL';
+          const amount = isAdvanceNeeded ? escrow.advanceAmount : escrow.remainingAmount;
+
+          return (
+            <div className="space-y-4">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <h3 className="font-bold text-gray-900 mb-1">
+                  {isAdvanceNeeded ? '1. Pay Advance & Deposit' : '2. Pay Remaining Balance'}
+                </h3>
+                <p className="text-sm text-gray-500 leading-relaxed mb-4">
+                  {isAdvanceNeeded 
+                    ? 'Pay the initial amount to confirm your booking. This includes the security deposit which is held in escrow.'
+                    : 'The item has been handed over. Please pay the remaining balance to complete the escrow funding.'}
+                </p>
+                <div className="flex items-center justify-between py-3 border-t border-gray-50">
+                  <span className="text-sm font-medium text-gray-600">Amount due now</span>
+                  <span className="text-lg font-bold text-emerald-600">₹{amount.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <RazorpayCheckout
+                bookingId={booking.id}
+                paymentKind={kind}
+                amountToPay={amount}
+                onSuccess={() => {
+                  toast.success('Payment successful!');
+                  refreshEscrow();
+                  router.replace(`/payment/success?bookingId=${booking.id}`);
+                }}
+                onError={(err) => {
+                  toast.error(`Payment failed: ${err}`);
+                }}
+                className="w-full h-14 bg-[#16a34a] text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 hover:bg-[#15803d] shadow-sm disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              />
+            </div>
+          );
+        })()}
 
         <p className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-4">
           <Shield className="w-3.5 h-3.5" /> 256-bit SSL · Secured by Razorpay

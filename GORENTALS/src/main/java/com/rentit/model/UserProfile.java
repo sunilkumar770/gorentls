@@ -52,6 +52,9 @@ public class UserProfile {
     
     @Column(name = "kyc_document_url")
     private String kycDocumentUrl;
+
+    @Column(name = "kyc_rejection_reason")
+    private String kycRejectionReason;
     
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -159,6 +162,14 @@ public class UserProfile {
 
 	public void setKycDocumentUrl(String kycDocumentUrl) {
 		this.kycDocumentUrl = kycDocumentUrl;
+	}
+
+	public String getKycRejectionReason() {
+		return kycRejectionReason;
+	}
+
+	public void setKycRejectionReason(String kycRejectionReason) {
+		this.kycRejectionReason = kycRejectionReason;
 	}
 
 	public LocalDateTime getCreatedAt() {

@@ -148,7 +148,7 @@ class BookingEscrowServiceIntegrationTest extends IntegrationTestBase {
         Booking b = new Booking();
         b.setId(id);
         b.setBookingStatus(BookingStatus.PENDING_PAYMENT);
-        b.setEscrowStatus(EscrowStatus.NONE);
+        b.setEscrowStatus(EscrowStatus.PENDING);
         b.setAdvanceAmount(new BigDecimal("600.00"));
         b.setRemainingAmount(new BigDecimal("1400.00"));
         b.setSecurityDeposit(new BigDecimal("500.00"));

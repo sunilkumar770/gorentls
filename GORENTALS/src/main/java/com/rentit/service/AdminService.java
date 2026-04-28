@@ -133,8 +133,37 @@ public class AdminService {
                                 });
 
                 profile.setKycStatus(UserProfile.KYCStatus.APPROVED);
+                profile.setKycRejectionReason(null); // Clear any previous rejection reason
                 userProfileRepository.save(profile);
                 return mapToUserResponse(user);
+        }
+
+        @Transactional
+        public UserResponse rejectUserKYC(UUID userId, String reason) {
+                User user = userRepository.findById(userId)
+                                .orElseThrow(() -> BusinessException.notFound("User", userId));
+
+                UserProfile profile = userProfileRepository.findByUserId(userId)
+                                .orElseThrow(() -> BusinessException.notFound("Profile", userId));
+
+                profile.setKycStatus(UserProfile.KYCStatus.REJECTED);
+                profile.setKycRejectionReason(reason);
+                userProfileRepository.save(profile);
+                
+                notificationService.sendNotification(
+                    userId,
+                    "KYC Rejected",
+                    "Your identity verification was not approved. Reason: " + reason,
+                    "KYC_REJECTED"
+                );
+
+                return mapToUserResponse(user);
+        }
+
+        @Transactional(readOnly = true)
+        public Page<UserResponse> getPendingKYCUsers(Pageable pageable) {
+                return userProfileRepository.findByKycStatus(UserProfile.KYCStatus.SUBMITTED, pageable)
+                                .map(profile -> mapToUserResponse(profile.getUser()));
         }
 
         @Transactional
@@ -362,6 +391,8 @@ public class AdminService {
                                 .kycStatus(profile != null ? profile.getKycStatus().name() : "PENDING")
                                 .kycDocumentType(profile != null ? profile.getKycDocumentType() : null)
                                 .kycDocumentId(profile != null ? profile.getKycDocumentId() : null)
+                                .kycDocumentUrl(profile != null ? profile.getKycDocumentUrl() : null)
+                                .kycRejectionReason(profile != null ? profile.getKycRejectionReason() : null)
                                 .createdAt(user.getCreatedAt())
                                 .build();
         }

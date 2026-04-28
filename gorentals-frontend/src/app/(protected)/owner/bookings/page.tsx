@@ -1,196 +1,282 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import api from '@/lib/axios';
-
-interface BookingListing { id: string; title: string; city?: string; }
-interface BookingUser { id: string; fullName: string; email: string; phone?: string; }
+import { useState, useEffect } from 'react';
+import { api } from '@/lib/api';
+import { handleApiError } from '@/lib/apiError';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { 
+  CheckCircle2, 
+  XCircle, 
+  Clock, 
+  Package, 
+  User as UserIcon, 
+  Calendar,
+  AlertCircle,
+  MoreHorizontal,
+  ChevronRight,
+  HandHelping
+} from 'lucide-react';
+import { format } from 'date-fns';
+import Image from 'next/image';
+import Link from 'next/link';
 
 interface OwnerBooking {
   id: string;
-  listing: BookingListing;
-  renter: BookingUser;
+  listing: {
+    id: string;
+    title: string;
+    images: string[];
+    pricePerDay: number;
+    city: string;
+  };
+  renter: {
+    fullName: string;
+    email: string;
+    phone: string;
+  };
   startDate: string;
   endDate: string;
-  totalDays: number;
-  rentalAmount: number;
-  securityDeposit: number;
+  status: string;
+  escrowStatus: string;
   totalAmount: number;
-  // ⚠️ All 8 real backend enum values — never use 'ACTIVE' (does not exist)
-  status:
-    | 'PENDING' | 'ACCEPTED' | 'CONFIRMED' | 'IN_PROGRESS'
-    | 'COMPLETED' | 'RETURNED' | 'CANCELLED' | 'REJECTED';
-  paymentStatus: string;
-  createdAt: string;
-}
-
-const STATUS_CONFIG: Record<OwnerBooking['status'], { label: string; bg: string; text: string }> = {
-  PENDING:     { label: 'Pending',     bg: 'bg-yellow-100', text: 'text-yellow-800' },
-  ACCEPTED:    { label: 'Accepted',    bg: 'bg-green-100',  text: 'text-green-800'  },
-  CONFIRMED:   { label: 'Confirmed',   bg: 'bg-blue-100',   text: 'text-blue-800'   },
-  IN_PROGRESS: { label: 'In Progress', bg: 'bg-indigo-100', text: 'text-indigo-800' },
-  COMPLETED:   { label: 'Completed',   bg: 'bg-gray-100',   text: 'text-gray-700'   },
-  RETURNED:    { label: 'Returned',    bg: 'bg-gray-100',   text: 'text-gray-700'   },
-  CANCELLED:   { label: 'Cancelled',   bg: 'bg-red-100',    text: 'text-red-700'    },
-  REJECTED:    { label: 'Rejected',    bg: 'bg-red-100',    text: 'text-red-700'    },
-};
-
-const TERMINAL: OwnerBooking['status'][] = [
-  'COMPLETED', 'RETURNED', 'CANCELLED', 'REJECTED',
-];
-
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString('en-IN', {
-    day: 'numeric', month: 'short', year: 'numeric',
-  });
-}
-
-function inr(n: number) {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency', currency: 'INR', maximumFractionDigits: 0,
-  }).format(n);
-}
-
-function Skeleton() {
-  return (
-    <div className="space-y-4">
-      {[1, 2, 3].map(i => (
-        <div key={i} className="h-36 bg-gray-200 rounded-2xl animate-pulse" />
-      ))}
-    </div>
-  );
+  advanceAmount: number;
 }
 
 export default function OwnerBookingsPage() {
-  const [bookings,       setBookings]       = useState<OwnerBooking[]>([]);
-  const [loading,        setLoading]        = useState(true);
-  const [error,          setError]          = useState<string | null>(null);
-  const [actionLoading,  setActionLoading]  = useState<string | null>(null);
+  const [bookings, setBookings] = useState<OwnerBooking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const fetchBookings = useCallback(async () => {
+  const fetchBookings = async () => {
     try {
-      setLoading(true);
-      setError(null);
-      const res = await api.get('/bookings/owner/bookings');
-      const data: OwnerBooking[] = Array.isArray(res.data)
-        ? res.data : (res.data?.content ?? []);
-      setBookings(data);
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Could not load bookings.');
+      const response = await api.get('/bookings/owner/bookings');
+      setBookings(response.data.content);
+    } catch (error) {
+      handleApiError(error, 'Failed to fetch bookings');
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchBookings();
   }, []);
 
-  useEffect(() => { fetchBookings(); }, [fetchBookings]);
-
-  async function act(bookingId: string, action: 'accept' | 'reject' | 'complete') {
+  const handleAction = async (bookingId: string, action: 'confirm' | 'reject') => {
     setActionLoading(`${bookingId}-${action}`);
     try {
-      await api.patch(`/bookings/${bookingId}/${action}`);
+      await api.post(`/bookings/${bookingId}/${action}`);
       await fetchBookings();
-    } catch (err: any) {
-      alert(err?.response?.data?.message ?? `Failed to ${action} booking.`);
+    } catch (error) {
+      handleApiError(error, `Failed to ${action} booking`);
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const getStatusBadge = (status: string, escrowStatus: string) => {
+    switch (status) {
+      case 'PENDING_PAYMENT':
+        return <Badge variant="warning" className="bg-amber-100 text-amber-700 border-amber-200">Pending Payment</Badge>;
+      case 'CONFIRMED':
+        if (escrowStatus === 'ADVANCE_HELD') {
+          return <Badge variant="success" className="bg-emerald-100 text-emerald-700 border-emerald-200">Ready for Handover</Badge>;
+        }
+        return <Badge variant="success" className="bg-emerald-100 text-emerald-700 border-emerald-200">Confirmed</Badge>;
+      case 'IN_USE':
+        return <Badge variant="info" className="bg-blue-100 text-blue-700 border-blue-200">With Renter</Badge>;
+      case 'RETURNED':
+        return <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200">Returned</Badge>;
+      case 'COMPLETED':
+        return <Badge variant="success" className="bg-emerald-50 text-emerald-600 border-emerald-100">Completed</Badge>;
+      case 'CANCELLED':
+        return <Badge variant="destructive" className="bg-rose-100 text-rose-700 border-rose-200">Cancelled</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="w-12 h-12 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin mb-4" />
+        <p className="text-slate-500 font-medium">Loading your bookings...</p>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Booking Requests</h1>
-          {!loading && !error && (
-            <p className="text-gray-500 mt-1 text-sm">
-              {bookings.length} booking{bookings.length !== 1 ? 's' : ''} received
-            </p>
-          )}
+    <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
+        <div>
+          <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight mb-2">
+            Booking <span className="text-emerald-600">Management</span>
+          </h1>
+          <p className="text-slate-500 text-lg">
+            Manage your rental requests, handovers, and track item status.
+          </p>
         </div>
+        <div className="flex items-center gap-2 text-sm text-slate-500 font-medium bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
+          <AlertCircle className="w-4 h-4 text-emerald-500" />
+          <span>{bookings.length} Total Bookings</span>
+        </div>
+      </div>
 
-        {loading && <Skeleton />}
-
-        {!loading && error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center justify-between">
-            <span>{error}</span>
-            <button onClick={fetchBookings} className="underline font-medium ml-4">Retry</button>
+      {bookings.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-slate-100 p-20 text-center shadow-sm">
+          <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Package className="w-10 h-10 text-emerald-500" />
           </div>
-        )}
-
-        {!loading && !error && bookings.length === 0 && (
-          <div className="text-center py-20">
-            <div className="text-5xl mb-4">📭</div>
-            <h3 className="text-lg font-semibold text-gray-800">No booking requests yet</h3>
-            <p className="text-gray-500 mt-2 text-sm max-w-sm mx-auto">
-              When renters request your listings, they will appear here.
-            </p>
-          </div>
-        )}
-
-        {!loading && !error && bookings.length > 0 && (
-          <div className="space-y-4">
-            {bookings.map(b => {
-              const cfg         = STATUS_CONFIG[b.status];
-              const isPending   = b.status === 'PENDING';
-              // Accept / confirm / in-progress → owner can mark complete
-              const canComplete =
-                b.status === 'ACCEPTED' ||
-                b.status === 'CONFIRMED' ||
-                b.status === 'IN_PROGRESS';
-              const isTerminal  = TERMINAL.includes(b.status);
-
-              return (
-                <div key={b.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-gray-900 truncate">{b.listing?.title ?? '—'}</h3>
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.text}`}>
-                          {cfg.label}
-                        </span>
+          <h3 className="text-2xl font-bold text-slate-900 mb-2">No bookings yet</h3>
+          <p className="text-slate-500 max-w-sm mx-auto mb-8">
+            When users start booking your items, you'll see them listed here for management.
+          </p>
+          <Button variant="outline" className="rounded-full px-8" asChild>
+            <Link href="/listings">View My Listings</Link>
+          </Button>
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/50 border-b border-slate-100">
+                  <th className="px-6 py-5 text-sm font-semibold text-slate-600">Item Details</th>
+                  <th className="px-6 py-5 text-sm font-semibold text-slate-600">Renter Information</th>
+                  <th className="px-6 py-5 text-sm font-semibold text-slate-600">Rental Period</th>
+                  <th className="px-6 py-5 text-sm font-semibold text-slate-600">Status</th>
+                  <th className="px-6 py-5 text-sm font-semibold text-slate-600 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {bookings.map((booking) => (
+                  <tr key={booking.id} className="hover:bg-slate-50/30 transition-colors group">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className="relative w-14 h-14 rounded-2xl overflow-hidden shadow-sm border border-slate-100">
+                          <Image
+                            src={booking.listing.images[0] || '/placeholder-item.jpg'}
+                            alt={booking.listing.title}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-900 leading-tight mb-0.5">{booking.listing.title}</div>
+                          <div className="text-xs text-slate-500 flex items-center gap-1 font-medium">
+                            <span className="text-emerald-600 font-bold">₹{booking.listing.pricePerDay}</span> / day
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Renter: <span className="text-gray-700 font-medium">{b.renter?.fullName ?? '—'}</span>
-                        {b.renter?.phone && <span className="ml-2 text-gray-400">· {b.renter.phone}</span>}
-                      </p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {fmt(b.startDate)} → {fmt(b.endDate)}
-                        <span className="ml-2 text-gray-400">({b.totalDays} day{b.totalDays !== 1 ? 's' : ''})</span>
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-lg font-bold text-gray-900">{inr(b.totalAmount)}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">+{inr(b.securityDeposit)} deposit</p>
-                    </div>
-                  </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-800 text-sm mb-0.5">{booking.renter.fullName}</span>
+                        <span className="text-xs text-slate-500 font-medium">{booking.renter.email}</span>
+                        <span className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-wider">{booking.renter.phone}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
+                            <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                          </div>
+                          <span className="text-sm font-bold text-slate-700">
+                            {format(new Date(booking.startDate), 'MMM d')} – {format(new Date(booking.endDate), 'MMM d, yyyy')}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest pl-9">
+                          {Math.ceil((new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 3600 * 24))} Days Rental
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      {getStatusBadge(booking.status, booking.escrowStatus)}
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* Case 1: Booking is pending payment, owner can accept/reject the request */}
+                        {booking.status === 'PENDING_PAYMENT' && (
+                          <>
+                            <Button
+                              size="sm"
+                              className="rounded-full bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-200"
+                              onClick={() => handleAction(booking.id, 'confirm')}
+                              disabled={!!actionLoading}
+                            >
+                              {actionLoading === `${booking.id}-confirm` ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              ) : (
+                                <><CheckCircle2 className="w-4 h-4 mr-1.5" /> Accept</>
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="rounded-full text-slate-500 hover:text-rose-600 hover:bg-rose-50"
+                              onClick={() => handleAction(booking.id, 'reject')}
+                              disabled={!!actionLoading}
+                            >
+                              {actionLoading === `${booking.id}-reject` ? (
+                                <div className="w-4 h-4 border-2 border-slate-200 border-t-rose-500 rounded-full animate-spin" />
+                              ) : (
+                                <><XCircle className="w-4 h-4 mr-1.5" /> Reject</>
+                              )}
+                            </Button>
+                          </>
+                        )}
 
-                  {!isTerminal && (
-                    <div className="mt-4 pt-4 border-t border-gray-100 flex gap-3 flex-wrap">
-                      {isPending && (
-                        <>
-                          <button disabled={!!actionLoading} onClick={() => act(b.id, 'accept')}
-                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors">
-                            {actionLoading === `${b.id}-accept` ? 'Accepting…' : '✓ Accept'}
-                          </button>
-                          <button disabled={!!actionLoading} onClick={() => act(b.id, 'reject')}
-                            className="px-4 py-2 bg-white text-red-700 border border-red-200 text-sm font-medium rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors">
-                            {actionLoading === `${b.id}-reject` ? 'Rejecting…' : '✕ Reject'}
-                          </button>
-                        </>
-                      )}
-                      {canComplete && (
-                        <button disabled={!!actionLoading} onClick={() => act(b.id, 'complete')}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors">
-                          {actionLoading === `${b.id}-complete` ? 'Completing…' : '✔ Mark Complete'}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                        {/* Case 2: Booking is confirmed and advance is paid, owner marks handover */}
+                        {booking.status === 'CONFIRMED' && booking.escrowStatus === 'ADVANCE_HELD' && (
+                          <Button
+                            size="sm"
+                            className="rounded-full bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-200"
+                            onClick={() => handleAction(booking.id, 'confirm')}
+                            disabled={!!actionLoading}
+                          >
+                            {actionLoading === `${booking.id}-confirm` ? (
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                              <><HandHelping className="w-4 h-4 mr-1.5" /> Mark Handover</>
+                            )}
+                          </Button>
+                        )}
+
+                        {/* Fallback View Details */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full border-slate-200 text-slate-600"
+                          asChild
+                        >
+                          <Link href={`/bookings/${booking.id}`}>
+                            Details <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                          </Link>
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
+        </div>
+      )}
+      
+      <div className="mt-10 p-6 bg-amber-50 rounded-2xl border border-amber-100 flex gap-4">
+        <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+          <Clock className="w-6 h-6 text-amber-600" />
+        </div>
+        <div>
+          <h4 className="font-bold text-amber-900 mb-1">Payment Protection Note</h4>
+          <p className="text-sm text-amber-800 leading-relaxed">
+            Funds are held securely in escrow. When you <span className="font-bold">Accept</span> a request, the renter is notified to pay. 
+            Once they pay the advance, the status moves to <span className="font-bold italic text-emerald-700">Ready for Handover</span>. 
+            After you handover the item, click <span className="font-bold italic text-blue-700">Mark Handover</span> to proceed.
+          </p>
+        </div>
       </div>
     </div>
   );

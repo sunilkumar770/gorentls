@@ -58,6 +58,22 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.getBookingsForOwner(userDetails.getUsername(), pageable));
     }
 
+    @PostMapping("/{id}/confirm")
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<BookingResponse> confirmBooking(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(bookingService.confirmBooking(id, userDetails.getUsername()));
+    }
+
+    @PostMapping("/{id}/reject")
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<BookingResponse> rejectBooking(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(bookingService.rejectBooking(id, userDetails.getUsername()));
+    }
+
     @PatchMapping("/{id}/cancel")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BookingResponse> cancelBooking(

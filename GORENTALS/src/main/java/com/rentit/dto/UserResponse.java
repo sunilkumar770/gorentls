@@ -23,5 +23,7 @@ public class UserResponse {
     private String kycStatus;
     private String kycDocumentType;
     private String kycDocumentId;
+    private String kycDocumentUrl;
+    private String kycRejectionReason;
     private LocalDateTime createdAt;
 }

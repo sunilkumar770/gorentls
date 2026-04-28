@@ -88,7 +88,9 @@ class WebSocketService {
     this.client = new Client({
       webSocketFactory: () => new SockJS(this.getWsUrl()),
       connectHeaders:   { Authorization: `Bearer ${token}` },
-      reconnectDelay:   5000,
+      reconnectDelay:   3000,
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000,
 
       debug: (str) => {
         if (process.env.NODE_ENV === 'development') console.debug('[WS]', str);
@@ -177,6 +179,14 @@ class WebSocketService {
     this.client.publish({
       destination: '/app/chat.read',
       body: JSON.stringify({ conversationId }),
+    });
+  }
+
+  sendDeliveryAck(messageId: string): void {
+    if (!this.client?.connected) return;
+    this.client.publish({
+      destination: '/app/chat.delivered',
+      body: JSON.stringify(messageId),
     });
   }
 

@@ -61,6 +61,25 @@ public class AdminController {
         return ResponseEntity.ok(resp);
     }
 
+    @PatchMapping("/users/{userId}/reject-kyc")
+    public ResponseEntity<UserResponse> rejectKYC(@PathVariable UUID userId,
+                                                   @RequestBody KYCRejectionRequest request,
+                                                   Authentication auth,
+                                                   HttpServletRequest req) {
+        UserResponse resp = adminService.rejectUserKYC(userId, request.getReason());
+        audit(auth, "REJECT_KYC", "USER", userId,
+              "Rejected KYC for user " + userId + ". Reason: " + request.getReason(), req);
+        return ResponseEntity.ok(resp);
+    }
+
+    @GetMapping("/users/pending-kyc")
+    public ResponseEntity<Page<UserResponse>> getPendingKYC(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").ascending());
+        return ResponseEntity.ok(adminService.getPendingKYCUsers(pageable));
+    }
+
     @PatchMapping("/users/{userId}/suspend")
     public ResponseEntity<UserResponse> suspendUser(@PathVariable UUID userId,
                                                     Authentication auth,

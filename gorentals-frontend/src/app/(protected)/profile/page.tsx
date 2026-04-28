@@ -180,34 +180,40 @@ export default function ProfileSettingsPage() {
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                       kycStatus === 'APPROVED' ? 'bg-[#f0fdf4] text-[#16a34a]' :
-                      kycStatus === 'PENDING' ? 'bg-amber-50 text-amber-500' : 'bg-gray-100 text-gray-500'
+                      kycStatus === 'SUBMITTED' ? 'bg-blue-50 text-blue-500' : 
+                      kycStatus === 'REJECTED' ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-500'
                     }`}>
                       {kycStatus === 'APPROVED' ? <CheckCircle2 className="w-6 h-6" /> :
-                       kycStatus === 'PENDING' ? <Clock className="w-6 h-6" /> :
+                       kycStatus === 'SUBMITTED' ? <Clock className="w-6 h-6" /> :
+                       kycStatus === 'REJECTED' ? <AlertTriangle className="w-6 h-6" /> :
                        <Shield className="w-6 h-6" />}
                     </div>
                     <div>
                       <h3 className="font-bold text-[#111827]">
                         {kycStatus === 'APPROVED' ? 'Identity Verified' :
-                         kycStatus === 'PENDING' ? 'Verification Pending' : 'Action Required'}
+                         kycStatus === 'SUBMITTED' ? 'Verification Pending' : 
+                         kycStatus === 'REJECTED' ? 'Verification Rejected' : 'Action Required'}
                       </h3>
                       <p className="text-sm text-[#6b7280]">
                         {kycStatus === 'APPROVED'
                           ? 'You can now rent and list items freely.'
-                          : kycStatus === 'PENDING'
+                          : kycStatus === 'SUBMITTED'
                           ? 'We are reviewing your documents.'
+                          : kycStatus === 'REJECTED'
+                          ? 'Please re-submit your documents.'
                           : 'Verify your ID to unlock renting.'}
                       </p>
                     </div>
                   </div>
                   {kycStatus !== 'APPROVED' && (
                     <Button 
-                      variant="primary"
+                      variant={kycStatus === 'REJECTED' ? 'danger' : 'primary'}
                       size="sm"
-                      onClick={() => setRequestingKYC(true)}
-                      disabled={kycStatus === 'PENDING'}
+                      onClick={() => router.push('/profile/kyc')}
+                      disabled={kycStatus === 'SUBMITTED'}
                     >
-                      {kycStatus === 'PENDING' ? 'Submitted' : 'Verify Now'}
+                      {kycStatus === 'SUBMITTED' ? 'Under Review' : 
+                       kycStatus === 'REJECTED' ? 'Re-verify' : 'Verify Now'}
                     </Button>
                   )}
                 </div>

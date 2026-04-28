@@ -10,7 +10,7 @@ import {
 } from '@/services/messages';
 import websocketService, { type IncomingMessage } from '@/services/websocketService';
 import { parseISO, formatDistanceToNow } from 'date-fns';
-import { ArrowLeft, Send, Loader2, AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, AlertCircle, Wifi, WifiOff, Check, CheckCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 function toMessage(m: IncomingMessage): Message {
@@ -62,6 +62,13 @@ export default function ChatPage() {
         // Sequence: load first, then mark read, then update badge
         await markConversationRead(conversationId);
         refreshUnread();
+
+        // Phase 2: Send ACKs for all recent SENT messages from other party
+        msgs.forEach(m => {
+          if (m.senderId !== user.id && m.status === 'SENT') {
+            websocketService.sendDeliveryAck(m.id);
+          }
+        });
       } catch (err: any) {
         setError(err?.response?.data?.message ?? 'Failed to load conversation.');
       } finally {
@@ -80,21 +87,31 @@ export default function ChatPage() {
 
     websocketService.subscribeToConversation(conversationId, (incoming: IncomingMessage) => {
       setMessages(prev => {
-        // Optimistic swap: replace temp entry with confirmed server message
+        // 1. Check if this is a status update for an existing message (ACK or READ update)
+        const existingIdx = prev.findIndex(m => m.id === incoming.id);
+        if (existingIdx !== -1 && incoming.id) {
+          const updated = [...prev];
+          updated[existingIdx] = toMessage(incoming);
+          return updated;
+        }
+
+        // 2. Optimistic swap: replace temp entry with confirmed server message
         if (incoming.tempId) {
-          const idx = prev.findIndex(m => m.tempId === incoming.tempId);
-          if (idx !== -1) {
+          const tempIdx = prev.findIndex(m => m.tempId === incoming.tempId);
+          if (tempIdx !== -1) {
             const updated = [...prev];
-            updated[idx]  = toMessage(incoming);
+            updated[tempIdx] = toMessage(incoming);
             return updated;
           }
         }
-        // Deduplicate by DB id (handles WS reconnect replay)
+
+        // 3. Deduplicate by DB id (handles WS reconnect replay)
         if (incoming.id && prev.some(m => m.id === incoming.id)) return prev;
 
-        // Message from other party → mark read + refresh badge
+        // 4. Message from other party → mark read + send delivery ACK
         if (incoming.senderId !== user.id) {
           websocketService.markAsRead(conversationId);
+          websocketService.sendDeliveryAck(incoming.id);
           refreshUnread();
         }
         return [...prev, toMessage(incoming)];
@@ -219,14 +236,22 @@ export default function ChatPage() {
                   : 'bg-[var(--bg-card)] text-[var(--text)] border-[var(--border)] rounded-tl-sm'
               }`}>
                 <p className="text-sm leading-relaxed break-words">{m.messageText}</p>
-                <div className={`flex items-center justify-end gap-1 mt-1.5 text-[10px] font-medium ${
+                <div className={`flex items-center justify-end gap-1.5 mt-1.5 text-[10px] font-medium ${
                   isMe ? 'text-white/80' : 'text-[var(--text-faint)]'
                 }`}>
                   {isPending
                     ? <Loader2 className="w-3 h-3 animate-spin" />
-                    : m.createdAt
-                      ? formatDistanceToNow(parseISO(m.createdAt), { addSuffix: true })
-                      : null
+                    : <>
+                        {m.createdAt && formatDistanceToNow(parseISO(m.createdAt), { addSuffix: true })}
+                        {isMe && (
+                          <span className="flex ml-0.5">
+                            {m.status === 'SENT' && <Check className="w-3 h-3 opacity-70" />}
+                            {(m.status === 'DELIVERED' || m.status === 'READ') && (
+                              <CheckCheck className={`w-3 h-3 ${m.status === 'READ' ? 'text-emerald-300' : 'opacity-90'}`} />
+                            )}
+                          </span>
+                        )}
+                      </>
                   }
                 </div>
               </div>

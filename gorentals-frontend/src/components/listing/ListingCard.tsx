@@ -6,6 +6,7 @@ import type { Listing } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import { useState } from 'react';
 import { MapPin, Camera, Gamepad2, Wrench, Tent, Music, Package, ArrowRight, Star, Bike, Laptop } from 'lucide-react';
+import { VerifiedBadge } from '@/components/ui/VerifiedBadge';
 
 // ── Category icon map — teal palette only ─────────────────────
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -130,6 +131,9 @@ export function ListingCard({ listing }: { listing: Listing }) {
                 <span className="text-[9px] font-bold text-[#01696f]">{ownerInitial}</span>
               </div>
               <span className="text-xs text-[#9b9b93] font-medium line-clamp-1">{ownerName}</span>
+              {listing.owner?.kycStatus === 'APPROVED' && (
+                <VerifiedBadge size="sm" />
+              )}
             </div>
           )}
 

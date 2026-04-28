@@ -21,7 +21,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/topic", "/queue");
+        // Enable heartbeats (10s ping, 10s pong) to detect half-open connections
+        // significantly faster than default OS TCP timeouts.
+        config.enableSimpleBroker("/topic", "/queue")
+            .setHeartbeatValue(new long[]{10000, 10000});
+            
         config.setApplicationDestinationPrefixes("/app");
         config.setUserDestinationPrefix("/user");
     }
@@ -30,7 +34,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws/chat")
             .setAllowedOrigins(allowedOrigins)
-            .withSockJS();
+            .withSockJS()
+            .setDisconnectDelay(30000)
+            .setHeartbeatTime(10000);
     }
 
     @Override

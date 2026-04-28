@@ -14,6 +14,7 @@ import com.rentit.model.UserProfile;
 import com.rentit.repository.BlockedDateRepository;
 import com.rentit.repository.BookingRepository;
 import com.rentit.repository.ListingRepository;
+import com.rentit.repository.UserProfileRepository;
 import com.rentit.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +56,7 @@ public class ListingService {
     private final UserRepository        userRepository;
     private final BlockedDateRepository blockedDateRepository;
     private final BookingRepository     bookingRepository;
+    private final UserProfileRepository userProfileRepository;
     private final NotificationService   notificationService;
 
     public PagedResponse<ListingResponse> getAllListings(int page, int size, 
@@ -127,15 +129,20 @@ public class ListingService {
         listing.setImages(request.getImages());
         listing.setIsAvailable(request.getIsAvailable()  != null ? request.getIsAvailable()  : Boolean.TRUE);
 
-        // Soft block: Force isPublished=false if KYC is not APPROVED
+        // KYC Guard: Force isPublished=false and throw error if explicitly requested true
         boolean isKycApproved = owner.getProfile() != null &&
                                 owner.getProfile().getKycStatus() == UserProfile.KYCStatus.APPROVED;
 
-        if (!isKycApproved) {
-            listing.setIsPublished(false);
-        } else {
-            listing.setIsPublished(request.getIsPublished() != null ? request.getIsPublished() : Boolean.TRUE);
+        boolean requestedPublish = request.getIsPublished() != null ? request.getIsPublished() : Boolean.TRUE;
+
+        if (requestedPublish && !isKycApproved) {
+            throw BusinessException.badRequest(
+                "Your identity verification (KYC) must be APPROVED before you can publish listings. Please complete your profile verification.",
+                "KYC_NOT_APPROVED"
+            );
         }
+
+        listing.setIsPublished(requestedPublish);
 
         listing.setTotalRatings(BigDecimal.ZERO);
         listing.setRatingCount(0);
@@ -178,18 +185,16 @@ public class ListingService {
         listing.setSpecifications(request.getSpecifications());
         listing.setImages(request.getImages());
         if (request.getIsAvailable() != null) listing.setIsAvailable(request.getIsAvailable());
-
-        // BUG-20 FIX: re-apply KYC gate when caller tries to publish
+        
         if (request.getIsPublished() != null) {
-            if (Boolean.TRUE.equals(request.getIsPublished())) {
-                boolean kycApproved = user.getProfile() != null
-                    && user.getProfile().getKycStatus() == UserProfile.KYCStatus.APPROVED;
-                if (!kycApproved) {
-                    throw BusinessException.unprocessable(
-                        "KYC verification must be approved before publishing a listing",
-                        "KYC_REQUIRED"
-                    );
-                }
+            boolean isKycApproved = user.getProfile() != null &&
+                                    user.getProfile().getKycStatus() == UserProfile.KYCStatus.APPROVED;
+            
+            if (request.getIsPublished() && !isKycApproved) {
+                throw BusinessException.badRequest(
+                    "You cannot publish this listing because your identity verification is not APPROVED.",
+                    "KYC_NOT_APPROVED"
+                );
             }
             listing.setIsPublished(request.getIsPublished());
         }
@@ -427,6 +432,9 @@ public class ListingService {
                         .fullName(owner.getFullName())
                         .email(owner.getEmail())
                         .phone(owner.getPhone())
+                        .kycStatus(userProfileRepository.findByUserId(owner.getId())
+                                .map(p -> p.getKycStatus().name())
+                                .orElse("PENDING"))
                         .build())
                 .title(listing.getTitle())
                 .description(listing.getDescription())

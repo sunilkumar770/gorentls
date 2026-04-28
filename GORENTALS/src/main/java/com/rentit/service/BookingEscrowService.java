@@ -265,6 +265,32 @@ public class BookingEscrowService {
     }
 
     /**
+     * Refund to renter because booking was cancelled (e.g. owner rejected or renter cancelled).
+     */
+    @Transactional
+    public void cancelAndRefund(
+        Booking booking,
+        BigDecimal refundAmount,
+        String reason,
+        String rpRefundId
+    ) {
+        // Can only refund if money was actually held
+        if (booking.getEscrowStatus() != EscrowStatus.ADVANCE_HELD && 
+            booking.getEscrowStatus() != EscrowStatus.FULL_HELD) {
+            throw new BusinessException("Cannot refund booking: No funds held in escrow", "NO_FUNDS_IN_ESCROW");
+        }
+
+        ledger.postRefund(booking.getId(), refundAmount, reason, rpRefundId);
+
+        booking.setEscrowStatus(EscrowStatus.REFUNDED);
+        booking.setBookingStatus(BookingStatus.CANCELLED);
+        bookingRepo.save(booking);
+        broadcastEscrowUpdate(booking);
+        log.info("Cancellation refund processed: booking={} amount=₹{} rpRefund={}",
+            booking.getId(), refundAmount, rpRefundId);
+    }
+
+    /**
      * Full refund to renter — dispute resolved in renter's favour.
      *
      * @param refundAmount  total amount to refund (advance + remaining + deposit)

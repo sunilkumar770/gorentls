@@ -46,4 +46,14 @@ public class ChatWebSocketController {
             log.error("[WS] chat.read error: {}", e.getMessage());
         }
     }
+
+    @MessageMapping("/chat.delivered")
+    public void handleDelivered(@Payload String messageId, Principal principal) {
+        if (principal == null || messageId == null) return;
+        try {
+            messageService.markMessageDelivered(UUID.fromString(messageId.replace("\"", "")), principal.getName());
+        } catch (Exception e) {
+            log.error("[WS] chat.delivered error: {}", e.getMessage());
+        }
+    }
 }
