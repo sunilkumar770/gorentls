@@ -7,3 +7,8 @@ cors:
 server:
   # Disable server fingerprinting headers for security
   server-header: ""
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate

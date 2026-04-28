@@ -3,6 +3,7 @@ package com.rentit.service;
 import com.rentit.exception.BusinessException;
 import com.rentit.model.Notification;
 import com.rentit.repository.NotificationRepository;
+import com.rentit.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +17,7 @@ import java.util.UUID;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final UserRepository         userRepository;
 
     // ─── SEND ────────────────────────────────────────────────────────────────
 
@@ -28,6 +30,13 @@ public class NotificationService {
         n.setIsRead(false);
         n.setCreatedAt(LocalDateTime.now());
         notificationRepository.save(n);
+    }
+
+    @Transactional
+    public void broadcastNotification(String title, String message, String type) {
+        userRepository.findAll().forEach(user -> {
+            sendNotification(user.getId(), title, message, type);
+        });
     }
 
     public void sendNotification(String userId, String title, String message, String type) {

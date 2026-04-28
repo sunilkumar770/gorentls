@@ -1,6 +1,7 @@
 package com.rentit.config;
 
 import com.rentit.security.JwtAuthenticationFilter;
+import com.rentit.security.RateLimitingFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -34,6 +35,7 @@ public class SecurityConfig {
 
     @Autowired private UserDetailsServiceImpl  userDetailsService;
     @Autowired private JwtAuthenticationFilter jwtAuthenticationFilter;
+    @Autowired private RateLimitingFilter      rateLimitingFilter;
 
 
 
@@ -67,8 +69,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(jwtAuthenticationFilter,
-                             UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
@@ -78,7 +80,7 @@ public class SecurityConfig {
         // Origins from environment — no hardcoded URLs in code
         config.setAllowedOrigins(Arrays.asList(allowedOrigins));
         config.setAllowedMethods(Arrays.asList("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);  // cache preflight for 1 hour
 

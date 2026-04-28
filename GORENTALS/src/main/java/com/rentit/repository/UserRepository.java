@@ -19,6 +19,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     boolean existsByEmail(String email);
 
+    Optional<User> findByResetToken(String resetToken);
+
     @Query("SELECT COUNT(u) FROM User u WHERE u.createdAt < :date")
     long countByCreatedAtBefore(@Param("date") LocalDateTime date);
 

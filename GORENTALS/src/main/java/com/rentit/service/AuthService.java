@@ -16,6 +16,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.UUID;
+
 /**
  * Handles registration, login, and token management.
  *
@@ -39,6 +42,7 @@ public class AuthService {
     private final PasswordEncoder        passwordEncoder;
     private final JwtUtil                jwtUtil;
     private final AuthenticationManager  authenticationManager;
+    private final EmailService           emailService;
 
     // ─────────────────────────────────────────────────────────────────────────
     // REGISTER
@@ -252,5 +256,40 @@ public class AuthService {
             .fullName(user.getFullName())
             .userId(user.getId())
             .build();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PASSWORD RESET
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Transactional
+    public void initiatePasswordReset(String email) {
+        User user = userRepository.findByEmail(email.trim().toLowerCase())
+            .orElseThrow(() -> BusinessException.notFound("User", email));
+
+        String token = UUID.randomUUID().toString();
+        user.setResetToken(token);
+        user.setResetTokenExpiry(LocalDateTime.now().plusHours(1));
+        userRepository.save(user);
+
+        emailService.sendPasswordResetEmail(user.getEmail(), token);
+        log.info("Password reset initiated for user: {}", email);
+    }
+
+    @Transactional
+    public void resetPassword(String token, String newPassword) {
+        User user = userRepository.findByResetToken(token)
+            .orElseThrow(() -> BusinessException.unauthorized("Invalid or expired reset token"));
+
+        if (user.getResetTokenExpiry() == null || user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw BusinessException.unauthorized("Reset token has expired");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setResetToken(null);
+        user.setResetTokenExpiry(null);
+        userRepository.save(user);
+        
+        log.info("Password reset successful for user: {}", user.getEmail());
     }
 }

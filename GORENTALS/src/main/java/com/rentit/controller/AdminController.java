@@ -14,10 +14,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import com.rentit.service.NotificationService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/admin")
 @PreAuthorize("hasRole('ADMIN')")
@@ -28,6 +31,9 @@ public class AdminController {
 
     @Autowired
     private AdminAuditLogRepository auditLogRepository;
+
+    @Autowired
+    private NotificationService notificationService;
 
     // ── Dashboard ──────────────────────────────────────────────────────────────
 
@@ -185,10 +191,17 @@ public class AdminController {
         return ResponseEntity.ok(auditLogRepository.findAll(pageable));
     }
 
-    // ── Internal: fire-and-forget async audit write ────────────────────────────
+    @PostMapping("/broadcast")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<SuccessResponse> broadcast(@RequestParam String title,
+                                                  @RequestParam String message,
+                                                  @RequestParam(defaultValue = "SYSTEM") String type) {
+        notificationService.broadcastNotification(title, message, type);
+        return ResponseEntity.ok(new SuccessResponse("Broadcast sent to all users", true));
+    }
 
     @Async
-    protected void audit(Authentication auth, String action,
+    public void audit(Authentication auth, String action,
                          String entityType, UUID entityId,
                          String description, HttpServletRequest req) {
         try {
@@ -197,8 +210,8 @@ public class AdminController {
             AdminAuditLog entry = AdminAuditLog.of(null, email, action, entityType, entityId, description);
             entry.setIpAddress(ip);
             auditLogRepository.save(entry);
-        } catch (Exception ignored) {
-            // Audit failures must never crash the main request
+        } catch (Exception e) {
+            log.error("Audit failure for action {}: {}", action, e.getMessage());
         }
     }
 }
