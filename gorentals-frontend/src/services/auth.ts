@@ -15,7 +15,7 @@ export interface BackendAuthResponse {
  * Normalizes the backend auth response into a consistent frontend Profile shape.
  * Backend may return: role | userType, name | fullName, id | userId
  */
-export function buildProfile(data: Partial<Profile> & Record<string, unknown>): Profile {
+export function buildProfile(data: any): Profile {
   const rawType: string = (data.userType as string) ?? (data.role as string) ?? '';
   const userType = rawType.replace(/^ROLE_/, '').toUpperCase();
 

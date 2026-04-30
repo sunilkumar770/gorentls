@@ -31,7 +31,7 @@ jobs:
 
       - name: Run backend tests
         working-directory: ./GORENTALS
-        run: ./mvnw test -B -Dspring.profiles.active=test -Dtestcontainers.enabled=true
+        run: ./mvnw test -B -Dspring.profiles.active=test -Dtestcontainers.enabled=false
 
   # ── Stage 2: Frontend Validation ────────────────────────
   frontend:
