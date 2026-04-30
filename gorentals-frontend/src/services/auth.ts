@@ -78,6 +78,7 @@ export async function signIn(
       error.response?.statusText    ??
       error.message                 ??
       'Login failed. Please try again.';
+    console.error('[signIn] HTTP', error.response?.status, msg);
     return { error: msg };
   }
 }
@@ -106,6 +107,7 @@ export async function adminSignIn(
       error.response?.statusText    ??
       error.message                 ??
       'Admin login failed.';
+    console.error('[adminSignIn] HTTP', error.response?.status, msg);
     return {
       error: msg,
     };

@@ -31,6 +31,7 @@ export function useEscrow(bookingId: string) {
         if (isMounted) setEscrow(data);
       })
       .catch((err) => {
+        console.error('Failed to fetch escrow summary:', err);
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
@@ -50,6 +51,7 @@ export function useEscrow(bookingId: string) {
           const update = JSON.parse(message.body);
           setEscrow(prev => prev ? { ...prev, ...update } : update);
         } catch (e) {
+          console.error('Failed to parse escrow update message', e);
         }
       }
     );
@@ -63,6 +65,7 @@ export function useEscrow(bookingId: string) {
     setIsLoading(true);
     getEscrowSummary(bookingId)
       .then(setEscrow)
+      .catch((err) => console.error('Failed to refresh escrow:', err))
       .finally(() => setIsLoading(false));
   }, [bookingId]);
   

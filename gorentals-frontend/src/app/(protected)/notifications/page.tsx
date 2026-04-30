@@ -209,6 +209,7 @@ export default function NotificationsPage() {
       setTotalElements(data.totalElements);
       setPage(data.number);
     } catch (e) {
+      console.error('Notifications load error:', e);
     } finally {
       setLoading(false);
     }
@@ -228,6 +229,7 @@ export default function NotificationsPage() {
       await markAsRead(id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
       setUnread(u => Math.max(0, u - 1));
+    } catch (e) { console.error(e); }
     finally { setBusy(null); }
   };
 
@@ -238,6 +240,7 @@ export default function NotificationsPage() {
       setNotifications(prev => prev.filter(n => n.id !== id));
       setTotalElements(t => t - 1);
       await refreshCount();
+    } catch (e) { console.error(e); }
     finally { setBusy(null); }
   };
 
@@ -247,6 +250,7 @@ export default function NotificationsPage() {
       await markAllAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnread(0);
+    } catch (e) { console.error(e); }
     finally { setMarkingAll(false); }
   };
 

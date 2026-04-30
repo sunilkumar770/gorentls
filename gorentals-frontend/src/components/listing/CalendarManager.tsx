@@ -23,6 +23,7 @@ export default function CalendarManager({ listingId }: CalendarManagerProps) {
       const data = await getAvailability(listingId);
       setBlockedRanges(data.blockedRanges);
     } catch (err) {
+      console.error('Failed to load availability', err);
     } finally {
       setLoading(false);
     }

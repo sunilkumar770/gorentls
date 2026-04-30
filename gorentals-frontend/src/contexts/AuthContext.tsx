@@ -71,13 +71,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (err: any) {
           const status = err?.response?.status;
           if (status === 401 || status === 403) {
+            console.warn('[AuthContext] Session expired/invalid. Clearing...');
             clearToken();
             setTokenState(null);
             setUser(null);
           } else {
+            console.warn('[AuthContext] Backend unreachable, using cached session if available');
           }
         }
       } catch (err) {
+        console.error('[AuthContext] Initialization failed:', err);
       } finally {
         setIsLoading(false);
       }
@@ -122,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(profile);
       localStorage.setItem('gr_user', JSON.stringify(profile));
     } catch (err) {
+      console.error('[AuthContext] Refresh failed:', err);
       throw err;
     }
   };

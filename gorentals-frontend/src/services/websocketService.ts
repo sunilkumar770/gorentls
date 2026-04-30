@@ -48,6 +48,7 @@ class WebSocketService {
     if (!url) {
       // Fail loud in dev (report recommendation), fall back in prod
       if (process.env.NODE_ENV === 'development') {
+        console.warn('[WS] NEXT_PUBLIC_WS_URL not set — using localhost:8080');
         return 'http://localhost:8080/ws/chat';
       }
       throw new Error('[WS] NEXT_PUBLIC_WS_URL must be set in production');
@@ -65,6 +66,7 @@ class WebSocketService {
     const token = this.getToken();
     if (!token) {
       if (process.env.NODE_ENV === 'development') {
+        console.debug('[WS] No auth token — skipping connection');
       }
       return;
     }
@@ -91,6 +93,7 @@ class WebSocketService {
       heartbeatOutgoing: 10000,
 
       debug: (str) => {
+        if (process.env.NODE_ENV === 'development') console.debug('[WS]', str);
       },
 
       onConnect: () => {
@@ -108,6 +111,7 @@ class WebSocketService {
           || event?.reason?.toLowerCase().includes('unauthorized');
 
         if (isAuthFailure) {
+          console.warn('[WS] Auth rejected — triggering logout');
           this.authFailListeners.forEach(cb => cb());
         } else {
         }
@@ -115,6 +119,7 @@ class WebSocketService {
 
       // Log ALL STOMP protocol errors — never leave this empty
       onStompError: (frame) => {
+        console.error('[WS] STOMP error:', frame.headers['message'], '|', frame.body);
       },
     });
 
@@ -134,7 +139,7 @@ class WebSocketService {
           try {
             callback(JSON.parse(frame.body) as IncomingMessage);
           } catch (e) {
-            // Silently fail on bad frames
+            // Silently ignore bad frames
           }
         }
       );
@@ -150,7 +155,7 @@ class WebSocketService {
       try {
         callback(JSON.parse(frame.body) as IncomingMessage);
       } catch (e) {
-        // Silently fail on bad frames
+        // Silently ignore bad frames
       }
     });
   }
@@ -164,6 +169,7 @@ class WebSocketService {
 
   sendMessage(conversationId: string, messageText: string, tempId?: string): void {
     if (!this.client?.connected) {
+      console.warn('[WS] sendMessage: not connected — message dropped');
       return;
     }
     this.client.publish({

@@ -64,6 +64,7 @@ export async function proxy(request: NextRequest) {
   // ── Guard: admin routes ────────────────────────────────────────────────────
   if (pathname.startsWith('/admin')) {
     if (!isAdmin) {
+      console.warn(`[Middleware] Access denied to admin route ${pathname} for role ${role}`);
       return NextResponse.redirect(
         new URL(isOwner ? '/owner/dashboard' : '/', request.url)
       );

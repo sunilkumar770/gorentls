@@ -64,6 +64,7 @@ export async function getListings(filters: SearchFilters = {}): Promise<Listing[
     const res = await api.get('/listings/search', { params });
     return (res.data.content ?? []).map(mapListingResponse);
   } catch (err: any) {
+    console.error('[listings] getListings failed:', err?.response?.data ?? err.message);
     return [];
   }
 }
@@ -73,6 +74,7 @@ export async function getListing(id: string): Promise<Listing | null> {
     const res = await api.get(`/listings/${id}`);
     return mapListingResponse(res.data);
   } catch (err: any) {
+    console.error(`[listings] getListing(${id}) failed:`, err?.response?.data ?? err.message);
     return null;
   }
 }
@@ -164,11 +166,14 @@ export async function updateListingImages(listingId: string, imageUrls: string[]
 
 // Keeping these as no-ops or removing if they are replaced by direct listing update logic
 export async function uploadListingImages(_listingId: string, _files: File[]): Promise<void> {
+  console.warn('Use direct Supabase upload instead of uploadListingImages');
 }
 
 export async function deleteListingImage(_listingId: string, _imageId: string): Promise<void> {
+  console.warn('Handle deletion via updateListingImages');
 }
 
 export async function setPrimaryImage(_listingId: string, _imageId: string): Promise<void> {
+  console.warn('Handle primary image via order in updateListingImages');
 }
 

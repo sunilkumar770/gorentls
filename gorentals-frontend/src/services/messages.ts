@@ -81,5 +81,6 @@ export async function startConversation(
 // Non-critical — failure is silently swallowed so it never blocks the UI
 export async function markConversationRead(conversationId: string): Promise<void> {
   await api.patch(`/conversations/${conversationId}/read`).catch((err) => {
+    console.warn('[messages] markConversationRead non-critical failure:', err?.message);
   });
 }

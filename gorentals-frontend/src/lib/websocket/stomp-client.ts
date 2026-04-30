@@ -35,6 +35,8 @@ export function useStomp() {
     };
 
     client.onStompError = (frame) => {
+      console.error('[STOMP] Broker reported error: ' + frame.headers['message']);
+      console.error('[STOMP] Additional details: ' + frame.body);
     };
 
     client.activate();
@@ -51,6 +53,7 @@ export function useStomp() {
     if (!clientRef.current || !clientRef.current.connected) {
       // If not connected yet, we might want to wait or throw. 
       // A robust implementation would queue subscriptions or retry.
+      console.warn('[STOMP] Client not connected yet, subscription may fail');
     }
 
     const client = clientRef.current;
