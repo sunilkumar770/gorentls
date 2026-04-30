@@ -215,28 +215,33 @@ public class BookingService {
         return !bookingRepository.isListingBooked(listingId, startDate, endDate);
     }
 
-    /**
-     * Owner confirms a booking request or item handover.
-     * Logic:
-     * 1. If PENDING_PAYMENT -> CONFIRMED (Accepting the request)
-     * 2. If CONFIRMED and ADVANCE_HELD -> IN_USE (Handover confirmed)
-     */
     @Transactional
     public BookingResponse confirmBooking(UUID bookingId, String ownerEmail) {
         Booking booking = bookingRepository.findById(bookingId)
-            .orElseThrow(() -> BusinessException.notFound("Booking", bookingId));
+                .orElseThrow(() -> BusinessException.notFound("Booking", bookingId));
 
         validateOwner(booking, ownerEmail);
 
         BookingStatus current = booking.getBookingStatus();
-        EscrowStatus escrow  = booking.getEscrowStatus();
+        EscrowStatus escrow = booking.getEscrowStatus();
 
         if (current == BookingStatus.PENDING_PAYMENT) {
-            return updateStatus(bookingId, BookingStatus.CONFIRMED, ownerEmail);
-        } else if (current == BookingStatus.CONFIRMED && escrow == EscrowStatus.ADVANCE_HELD) {
-            return updateStatus(bookingId, BookingStatus.IN_USE, ownerEmail);
+            escrowService.confirmOwnerAcceptance(booking);
+            return mapToBookingResponse(
+                    bookingRepository.findById(bookingId)
+                            .orElseThrow(() -> BusinessException.notFound("Booking", bookingId))
+            );
+        } else if (current == BookingStatus.CONFIRMED
+                && (escrow == EscrowStatus.ADVANCE_HELD || escrow == EscrowStatus.FULL_HELD)) {
+            escrowService.markHandoverAndStartUse(booking);
+            return mapToBookingResponse(
+                    bookingRepository.findById(bookingId)
+                            .orElseThrow(() -> BusinessException.notFound("Booking", bookingId))
+            );
         } else {
-            throw BusinessException.badRequest("Cannot confirm booking in current state: " + current + " / " + escrow);
+            throw BusinessException.badRequest(
+                    "Cannot confirm booking in current state: " + current + " / " + escrow
+            );
         }
     }
 
@@ -370,12 +375,18 @@ public class BookingService {
 
         // ── Escrow Side-Effects ──────────────────────────────────────────────
         // Sync the escrow service if the status change is a lifecycle event.
-        // We call these BEFORE setting the status on the object so the service 
-        // can verify the transition from the CURRENT status.
         if (newStatus == BookingStatus.IN_USE) {
-            escrowService.markHandover(booking);
+            escrowService.markHandoverAndStartUse(booking);
+            return mapToBookingResponse(
+                    bookingRepository.findById(bookingId)
+                            .orElseThrow(() -> BusinessException.notFound("Booking", bookingId))
+            );
         } else if (newStatus == BookingStatus.RETURNED) {
             escrowService.markReturn(booking);
+            return mapToBookingResponse(
+                    bookingRepository.findById(bookingId)
+                            .orElseThrow(() -> BusinessException.notFound("Booking", bookingId))
+            );
         }
 
         booking.setBookingStatus(newStatus);
@@ -463,13 +474,11 @@ public class BookingService {
                 .id(renter.getId())
                 .fullName(renter.getFullName())
                 .email(renter.getEmail())
-                .phone(renter.getPhone())
                 .build() : null)
             .owner(owner != null ? UserResponse.builder()
                 .id(owner.getId())
                 .fullName(owner.getFullName())
                 .email(owner.getEmail())
-                .phone(owner.getPhone())
                 .build() : null)
             .startDate(booking.getStartDate())
             .endDate(booking.getEndDate())

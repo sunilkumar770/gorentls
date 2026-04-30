@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "messages") // Corrected table name to match V3 migration
+@Table(name = "chat_messages") // Renamed from "messages" to fix F1 and follow conventions
 public class ChatMessage {
 
     public enum MessageType   { TEXT, IMAGE, SYSTEM }

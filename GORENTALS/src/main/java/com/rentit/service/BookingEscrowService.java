@@ -134,10 +134,43 @@ public class BookingEscrowService {
     // ── Lifecycle transitions ─────────────────────────────────────────────────
 
     /**
+     * Owner accepts the booking request.
+     */
+    @Transactional
+    public void confirmOwnerAcceptance(Booking booking) {
+        guardBookingStatus(booking, BookingStatus.PENDING_PAYMENT, BookingStatus.CONFIRMED);
+        booking.setBookingStatus(BookingStatus.CONFIRMED);
+        bookingRepo.save(booking);
+        broadcastEscrowUpdate(booking);
+        log.info("Owner acceptance recorded: booking={}", booking.getId());
+    }
+
+    /**
      * Owner marks item handed over to renter.
      * Records handover timestamp — used to compute rental duration.
-     * Does NOT change booking status (stays CONFIRMED until final payment collected).
+     * Moves status to IN_USE.
      */
+    @Transactional
+    public void markHandoverAndStartUse(Booking booking) {
+        if (booking.getBookingStatus() != BookingStatus.CONFIRMED) {
+            throw new InvalidStateTransitionException(
+                    booking.getBookingStatus(), BookingStatus.IN_USE, "Booking");
+        }
+        if (booking.getEscrowStatus() != EscrowStatus.ADVANCE_HELD
+                && booking.getEscrowStatus() != EscrowStatus.FULL_HELD) {
+            throw new BusinessException(
+                    "Cannot hand over item before escrow is funded",
+                    "ESCROW_NOT_FUNDED");
+        }
+
+        booking.setHandoverAt(Instant.now());
+        booking.setBookingStatus(BookingStatus.IN_USE);
+        bookingRepo.save(booking);
+        broadcastEscrowUpdate(booking);
+        log.info("Handover recorded and booking moved to IN_USE: booking={}", booking.getId());
+    }
+
+    /**
     @Transactional
     public void markHandover(Booking booking) {
         if (booking.getBookingStatus() != BookingStatus.CONFIRMED)

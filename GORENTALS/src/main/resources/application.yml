@@ -3,11 +3,10 @@ spring:
     name: gorentals
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/gorentals}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
-
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
@@ -26,11 +25,6 @@ spring:
       hibernate.format_sql: false
       hibernate.jdbc.lob.non_contextual_creation: true
 
-  servlet:
-    multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
-
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
     repair-on-migrate: true
@@ -42,27 +36,30 @@ spring:
     deserialization:
       fail-on-unknown-properties: false
     time-zone: UTC
+
   mail:
-    host: localhost
-    port: 25
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
-      mail.smtp.auth: false
-      mail.smtp.starttls.enable: false
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
 
 razorpay:
   key-id: ${RAZORPAY_KEY_ID}
   key-secret: ${RAZORPAY_KEY_SECRET}
   webhook-secret: ${RAZORPAY_WEBHOOK_SECRET}
-  account-number: ${RAZORPAY_ACCOUNT_NUMBER:70070707070707}
+  account-number: ${RAZORPAY_ACCOUNT_NUMBER}
 
 app:
   admin:
-    email: ${APP_ADMIN_EMAIL:admin@gorentals.com}
+    email: ${APP_ADMIN_EMAIL}
     password: ${APP_ADMIN_PASSWORD}
-    name: ${APP_ADMIN_NAME:Admin User}
-  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+    name: ${APP_ADMIN_NAME}
+  frontend-url: ${FRONTEND_URL}
   api:
-    server-url: ${APP_SERVER_URL:http://localhost:8080}
+    server-url: ${APP_SERVER_URL}
     version: ${APP_VERSION:1.0.0}
 
 jwt:
@@ -71,25 +68,21 @@ jwt:
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
 cloudinary:
-  cloud-name: ${CLOUDINARY_CLOUD_NAME:demo}
-  api-key: ${CLOUDINARY_API_KEY:demo}
-  api-secret: ${CLOUDINARY_API_SECRET:demo}
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
 
 cors:
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  allowed-origins: ${CORS_ALLOWED_ORIGINS}
 
 logging:
   level:
     root: WARN
     com.rentit: INFO
-    com.rentit.service.PayoutEngine: INFO
-    com.rentit.service.LedgerReconciliationService: INFO
     org.springframework.web: WARN
     org.springframework.messaging: WARN
     org.springframework.security: WARN
     org.hibernate.SQL: WARN
-  pattern:
-    console: "{\"timestamp\":\"%d{yyyy-MM-dd'T'HH:mm:ss.SSS'Z'}\",\"level\":\"%level\",\"logger\":\"%logger{36}\",\"trace\":\"%X{traceId}\",\"span\":\"%X{spanId}\",\"message\":\"%replace(%msg){'\\\"','\\\\\"'}\"}%n"
 
 server:
   port: ${PORT:8080}
@@ -105,15 +98,11 @@ springdoc:
     path: /swagger-ui.html
     operationsSorter: method
     tagsSorter: alpha
-    tryItOutEnabled: true
+    tryItOutEnabled: false
     filter: true
     displayRequestDuration: true
-  show-actuator: false
-  default-produces-media-type: application/json
-
-gorentals:
-  scheduling:
-    enabled: ${SCHEDULING_ENABLED:true}
+    show-actuator: false
+    default-produces-media-type: application/json
 
 management:
   endpoints:
@@ -123,8 +112,7 @@ management:
       base-path: /actuator
   endpoint:
     health:
-      show-details: when_authorized
-      roles: ADMIN
+      show-details: never
   info:
     env:
-      enabled: true
+      enabled: false

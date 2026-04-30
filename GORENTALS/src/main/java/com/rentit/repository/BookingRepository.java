@@ -49,13 +49,13 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     /**
      * Find bookings by renter ID — eager-fetches listing + owner to prevent N+1.
      */
-    @EntityGraph(attributePaths = {"listing", "listing.owner", "payments"})
+    @EntityGraph(attributePaths = {"listing", "listing.owner"})
     Page<Booking> findByRenterId(UUID renterId, Pageable pageable);
 
     /**
      * Find bookings by listing ID — eager-fetches renter + payments.
      */
-    @EntityGraph(attributePaths = {"renter", "payments"})
+    @EntityGraph(attributePaths = {"renter"})
     Page<Booking> findByListingId(UUID listingId, Pageable pageable);
 
     /**
@@ -63,7 +63,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * Uses JOIN FETCH in JPQL so the owner traversal is a single SQL join,
      * not a lazy proxy. Pagination applied in-DB via count query.
      */
-    @EntityGraph(attributePaths = {"listing", "listing.owner", "renter", "payments"})
+    @EntityGraph(attributePaths = {"listing", "listing.owner", "renter"})
     @Query("SELECT b FROM Booking b WHERE b.listing.owner.id = :ownerId ORDER BY b.createdAt DESC")
     Page<Booking> findByOwnerId(@Param("ownerId") UUID ownerId, Pageable pageable);
     

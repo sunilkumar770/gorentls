@@ -197,19 +197,44 @@ public class MessageService {
     @Transactional
     public void markMessageDelivered(UUID messageId, String userEmail) {
         ChatMessage msg = messageRepository.findById(messageId)
-            .orElseThrow(() -> BusinessException.notFound("Message", messageId));
+                .orElseThrow(() -> BusinessException.notFound("Message", messageId));
 
-        // Security: only the recipient can mark a message as delivered
-        if (msg.getSender().getEmail().equals(userEmail)) return;
+        Conversation conv = msg.getConversation();
+        User actor = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> BusinessException.notFound("User", userEmail));
+
+        boolean isOwner = conv.getOwner() != null && conv.getOwner().getId().equals(actor.getId());
+        boolean isRenter = conv.getRenter() != null && conv.getRenter().getId().equals(actor.getId());
+
+        if (!isOwner && !isRenter) {
+            throw BusinessException.forbidden(
+                    "Access denied: user is not a participant in conversation " + conv.getId()
+            );
+        }
+
+        boolean actorIsSender = msg.getSender() != null && msg.getSender().getId().equals(actor.getId());
+        if (actorIsSender) {
+            return;
+        }
+
+        UUID expectedRecipientId = conv.getOwner().getId().equals(msg.getSender().getId())
+                ? conv.getRenter().getId()
+                : conv.getOwner().getId();
+
+        if (!expectedRecipientId.equals(actor.getId())) {
+            throw BusinessException.forbidden(
+                    "Only the intended recipient can mark this message as delivered"
+            );
+        }
 
         if (msg.getStatus() == ChatMessage.MessageStatus.SENT) {
             msg.setStatus(ChatMessage.MessageStatus.DELIVERED);
             messageRepository.save(msg);
-            
-            // Broadcast the update back to the conversation so the sender sees the checkmark
+
             MessageResponse response = mapToMessageResponse(msg);
-            messagingTemplate.convertAndSend("/topic/conversation." + msg.getConversation().getId(), response);
-            log.info("[MSG] Marked delivered id={} conv={}", messageId, msg.getConversation().getId());
+            messagingTemplate.convertAndSend("/topic/conversation." + conv.getId(), response);
+
+            log.info("[MSG] Marked delivered id={} conv={} by={}", messageId, conv.getId(), userEmail);
         }
     }
 

@@ -97,16 +97,27 @@ export default function ChatPage() {
       // 3. Deduplicate by DB id (handles dual-broadcast replay)
       if (incoming.id && prev.some(m => m.id === incoming.id)) return prev;
 
-      // 4. Message from other party → mark read + send delivery ACK
-      if (user && incoming.senderId !== user.id) {
+      // 4. Message from other party → enrich names from conversation context
+      const enriched = { ...incoming };
+      if (!enriched.senderName && conversation) {
+        if (String(enriched.senderId) === String(conversation.ownerId)) {
+          enriched.senderName  = conversation.ownerName;
+          enriched.senderEmail = conversation.ownerEmail;
+        } else if (String(enriched.senderId) === String(conversation.renterId)) {
+          enriched.senderName  = conversation.renterName;
+          enriched.senderEmail = conversation.renterEmail;
+        }
+      }
+
+      if (user && enriched.senderId !== user.id) {
         websocketService.markAsRead(conversationId);
-        websocketService.sendDeliveryAck(incoming.id);
+        websocketService.sendDeliveryAck(enriched.id);
         refreshUnread();
       }
-      return [...prev, incoming];
+      return [...prev, enriched];
     });
     scrollToBottom();
-  }, [conversationId, refreshUnread, scrollToBottom, user]);
+  }, [conversation, conversationId, refreshUnread, scrollToBottom, user]);
 
   // Load history — sequenced to fix race condition (mark read AFTER messages load)
   useEffect(() => {

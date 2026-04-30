@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -60,15 +61,8 @@ public class AuthService {
         user.setFullName(request.getFullName());
         user.setPhone(request.getPhone());
 
-        // Default to RENTER; accept OWNER for unified /register if explicitly sent
-        try {
-            user.setUserType(User.UserType.valueOf(
-                request.getUserType() != null
-                    ? request.getUserType().toUpperCase()
-                    : "RENTER"));
-        } catch (IllegalArgumentException e) {
-            user.setUserType(User.UserType.RENTER);
-        }
+        user.setUserType(User.UserType.RENTER);
+        user.setIsActive(true);
 
         User savedUser = userRepository.save(user);
 
@@ -264,8 +258,21 @@ public class AuthService {
 
     @Transactional
     public void initiatePasswordReset(String email) {
-        User user = userRepository.findByEmail(email.trim().toLowerCase())
-            .orElseThrow(() -> BusinessException.notFound("User", email));
+        // C7 FIX: Prevent email enumeration by always returning success (silent success)
+        Optional<User> userOpt = userRepository.findByEmail(email.trim().toLowerCase());
+        
+        if (userOpt.isEmpty()) {
+            log.debug("Password reset requested for non-existent email: {}", email);
+            return;
+        }
+
+        User user = userOpt.get();
+
+        // C4/C8 FIX: Prevent password reset for deactivated accounts
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            log.warn("Blocked password reset attempt for deactivated account: {}", email);
+            return;
+        }
 
         String token = UUID.randomUUID().toString();
         user.setResetToken(token);

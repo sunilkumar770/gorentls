@@ -9,23 +9,23 @@ RUN ./mvnw clean package -DskipTests -B
 
 # ── Runtime stage — distroless for minimal attack surface ─────────────────
 # Distroless has no shell, no package manager, no curl — attack surface ≈ 0
-FROM gcr.io/distroless/java21-debian12:nonroot
+FROM eclipse-temurin:21-jre-alpine
+
 WORKDIR /app
-COPY --from=builder /app/target/*.jar app.jar
-EXPOSE 8080
+
+# Create a non-root user for security
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
+
+COPY --from=builder --chown=spring:spring /app/target/*.jar app.jar
 
 # ── Health check ─────────────────────────────────────────────────────────────
-# Uses a pure-Java HTTP client (HealthCheckClient.java) bundled inside app.jar.
-# exec-form required because distroless has no shell interpreter.
-# --start-period=60s: allow Spring Boot time to start before first check.
-HEALTHCHECK \
-  --interval=30s \
-  --timeout=10s \
-  --start-period=60s \
-  --retries=3 \
-  CMD ["java", "-cp", "/app/app.jar", "com.rentit.health.HealthCheckClient"]
+# HEALTHCHECK using wget (available in alpine) against the Actuator endpoint
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD wget -q --spider http://localhost:8080/actuator/health || exit 1
 
-USER nonroot:nonroot
+EXPOSE 8080
+
 ENTRYPOINT ["java", \
   "-XX:+UseContainerSupport", \
   "-XX:MaxRAMPercentage=75.0", \

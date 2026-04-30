@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import jakarta.validation.Valid;
 
 @Slf4j
 @RestController
@@ -69,7 +70,7 @@ public class AdminController {
 
     @PatchMapping("/users/{userId}/reject-kyc")
     public ResponseEntity<UserResponse> rejectKYC(@PathVariable UUID userId,
-                                                   @RequestBody KYCRejectionRequest request,
+                                                   @Valid @RequestBody KYCRejectionRequest request,
                                                    Authentication auth,
                                                    HttpServletRequest req) {
         UserResponse resp = adminService.rejectUserKYC(userId, request.getReason());
@@ -193,10 +194,13 @@ public class AdminController {
 
     @PostMapping("/broadcast")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<SuccessResponse> broadcast(@RequestParam String title,
-                                                  @RequestParam String message,
-                                                  @RequestParam(defaultValue = "SYSTEM") String type) {
-        notificationService.broadcastNotification(title, message, type);
+    public ResponseEntity<SuccessResponse> broadcast(
+            @Valid @RequestBody BroadcastNotificationRequest request) {
+        notificationService.broadcastNotification(
+                request.getTitle(),
+                request.getMessage(),
+                request.getType()
+        );
         return ResponseEntity.ok(new SuccessResponse("Broadcast sent to all users", true));
     }
 
