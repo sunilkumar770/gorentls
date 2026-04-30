@@ -66,7 +66,8 @@ jobs:
         working-directory: ./gorentals-frontend
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          # Use placeholder for build-time validation if secret is missing in CI
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api' }}
 
   # ── Stage 3: Docker Build Verification ───────────────────
   docker:
