@@ -40,7 +40,6 @@ public class AdminBootstrap implements CommandLineRunner {
         User adminUser = userRepository.findByEmail(adminEmail).orElse(null);
 
         if (adminUser == null) {
-            System.out.println("AdminBootstrap: Creating initial user account for " + adminEmail + "...");
             adminUser = new User();
             adminUser.setEmail(adminEmail);
             adminUser.setPasswordHash(passwordEncoder.encode(adminPassword));
@@ -51,7 +50,6 @@ public class AdminBootstrap implements CommandLineRunner {
             adminUser.setUpdatedAt(LocalDateTime.now());
             adminUser = userRepository.save(adminUser);
         } else {
-            System.out.println("AdminBootstrap: User account " + adminEmail + " already exists. Ensuring ADMIN type and syncing password.");
             adminUser.setPasswordHash(passwordEncoder.encode(adminPassword));
             if (adminUser.getUserType() != User.UserType.ADMIN) {
                 adminUser.setUserType(User.UserType.ADMIN);
@@ -60,16 +58,13 @@ public class AdminBootstrap implements CommandLineRunner {
         }
 
         if (adminUserRepository.findByUser(adminUser).isEmpty()) {
-            System.out.println("AdminBootstrap: Linking user " + adminEmail + " to admin_users table...");
             AdminUser roleUser = new AdminUser();
             roleUser.setUser(adminUser);
             roleUser.setRole("SUPER_ADMIN");
             roleUser.setCreatedAt(LocalDateTime.now());
             roleUser.setUpdatedAt(LocalDateTime.now());
             adminUserRepository.save(roleUser);
-            System.out.println("AdminBootstrap ✅: Successfully linked " + adminEmail + " with role SUPER_ADMIN");
         } else {
-            System.out.println("AdminBootstrap: Admin record for " + adminEmail + " already exists. Skipping.");
         }
     }
 }

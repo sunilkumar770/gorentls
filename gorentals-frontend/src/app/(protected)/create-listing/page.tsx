@@ -104,7 +104,6 @@ export default function CreateListingWizard() {
         const url = await uploadFile(file, 'listing-images', fileName);
         urls.push(url);
       } catch (err) {
-        console.error('Failed to upload image:', file.name, err);
         toast.error(`Failed to upload ${file.name}`);
       }
     }
@@ -166,7 +165,6 @@ export default function CreateListingWizard() {
       router.push(`/item/${res.data.id}`);
     } catch (err) {
       toast.error("Failed to create listing. Please try again.");
-      console.error(err);
     } finally {
       setLoading(false);
     }

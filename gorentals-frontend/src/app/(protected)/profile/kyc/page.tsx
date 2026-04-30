@@ -73,7 +73,6 @@ export default function KYCPage() {
       await refreshUser();
       setStep(3); // Success/Processing step
     } catch (err: any) {
-      console.error(err);
       toast.error(err.response?.data?.message || "Failed to submit KYC");
     } finally {
       setLoading(false);

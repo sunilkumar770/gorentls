@@ -55,7 +55,6 @@ export default function SignupPage() {
       router.refresh();
       
     } catch (err: any) {
-      console.error('[Signup] Client Error:', err);
       toast.error(err.message || 'Signup encountered an unexpected error.');
     } finally {
       setLoading(false);

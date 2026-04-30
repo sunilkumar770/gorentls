@@ -24,7 +24,6 @@ export function KYCManagement() {
       const pending = data.content.filter(u => u.kycStatus === 'SUBMITTED');
       setSubmissions(pending);
     } catch (error) {
-      console.error('Failed to fetch KYC submissions:', error);
     } finally {
       setLoading(false);
     }
@@ -36,7 +35,6 @@ export function KYCManagement() {
       await adminService.verifyUserKYC(userId);
       setSubmissions(prev => prev.filter(s => s.id !== userId));
     } catch (error) {
-      console.error('Failed to approve KYC:', error);
     } finally {
       setProcessing(null);
     }

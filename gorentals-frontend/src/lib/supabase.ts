@@ -5,7 +5,6 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 if (!supabaseUrl || !supabaseKey) {
   // In dev/build, we might not have these yet, but we shouldn't crash unless they are used.
-  console.warn('Supabase environment variables are missing. Realtime features will be disabled.')
 }
 
 export const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder', {
@@ -36,20 +35,17 @@ export function subscribeToConversation(
       {
         event: 'INSERT',
         schema: 'public',
-        table: 'chat_messages', // Note: the entity table name is chat_messages in Spring
+        table: 'messages', // Matched to backend ChatMessage.java @Table(name = "messages")
         filter: `conversation_id=eq.${conversationId}`,
       },
       (payload) => {
-        console.log('[Supabase Realtime] New message received:', payload.new)
         onMessage(payload.new)
       }
     )
     .subscribe((status) => {
-      console.log(`[Supabase Realtime] Subscription status for ${conversationId}:`, status)
     })
 
   return () => {
-    console.log(`[Supabase Realtime] Unsubscribing from ${conversationId}`)
     supabase.removeChannel(channel)
   }
 }

@@ -48,7 +48,6 @@ class WebSocketService {
     if (!url) {
       // Fail loud in dev (report recommendation), fall back in prod
       if (process.env.NODE_ENV === 'development') {
-        console.warn('[WS] NEXT_PUBLIC_WS_URL not set — using localhost:8080');
         return 'http://localhost:8080/ws/chat';
       }
       throw new Error('[WS] NEXT_PUBLIC_WS_URL must be set in production');
@@ -66,7 +65,6 @@ class WebSocketService {
     const token = this.getToken();
     if (!token) {
       if (process.env.NODE_ENV === 'development') {
-        console.debug('[WS] No auth token — skipping connection');
       }
       return;
     }
@@ -93,11 +91,9 @@ class WebSocketService {
       heartbeatOutgoing: 10000,
 
       debug: (str) => {
-        if (process.env.NODE_ENV === 'development') console.debug('[WS]', str);
       },
 
       onConnect: () => {
-        console.log('[WS] Connected');
         this.notify(true);
         this.pendingOnConnect.forEach(cb => cb());
         this.pendingOnConnect.clear();
@@ -112,16 +108,13 @@ class WebSocketService {
           || event?.reason?.toLowerCase().includes('unauthorized');
 
         if (isAuthFailure) {
-          console.warn('[WS] Auth rejected — triggering logout');
           this.authFailListeners.forEach(cb => cb());
         } else {
-          console.log('[WS] Connection closed — auto-reconnecting in 5s');
         }
       },
 
       // Log ALL STOMP protocol errors — never leave this empty
       onStompError: (frame) => {
-        console.error('[WS] STOMP error:', frame.headers['message'], '|', frame.body);
       },
     });
 
@@ -138,8 +131,11 @@ class WebSocketService {
       const sub = this.client.subscribe(
         `/topic/conversation.${conversationId}`,
         (frame) => {
-          try   { callback(JSON.parse(frame.body) as IncomingMessage); }
-          catch (e) { console.error('[WS] Bad message frame:', e); }
+          try {
+            callback(JSON.parse(frame.body) as IncomingMessage);
+          } catch (e) {
+            // Silently fail on bad frames
+          }
         }
       );
       this.subscriptions.set(conversationId, sub);
@@ -151,8 +147,11 @@ class WebSocketService {
   subscribeToInbox(callback: InboxCallback): StompSubscription | null {
     if (!this.client?.connected) return null;
     return this.client.subscribe('/user/queue/messages', (frame) => {
-      try   { callback(JSON.parse(frame.body) as IncomingMessage); }
-      catch (e) { console.error('[WS] Bad inbox frame:', e); }
+      try {
+        callback(JSON.parse(frame.body) as IncomingMessage);
+      } catch (e) {
+        // Silently fail on bad frames
+      }
     });
   }
 
@@ -165,7 +164,6 @@ class WebSocketService {
 
   sendMessage(conversationId: string, messageText: string, tempId?: string): void {
     if (!this.client?.connected) {
-      console.warn('[WS] sendMessage: not connected — message dropped');
       return;
     }
     this.client.publish({
@@ -212,7 +210,6 @@ class WebSocketService {
     this.pendingOnConnect.clear();
     if (this.client) { this.client.deactivate(); this.client = null; }
     this.notify(false);
-    console.log('[WS] Permanently disconnected');
   }
 
   get isConnected(): boolean {

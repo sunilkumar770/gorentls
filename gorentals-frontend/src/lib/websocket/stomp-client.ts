@@ -24,7 +24,6 @@ export function useStomp() {
       },
       debug: (str) => {
         if (process.env.NODE_ENV !== 'production') {
-          console.log('[STOMP]', str);
         }
       },
       reconnectDelay: 5000,
@@ -33,12 +32,9 @@ export function useStomp() {
     });
 
     client.onConnect = () => {
-      console.log('[STOMP] Connected to backend');
     };
 
     client.onStompError = (frame) => {
-      console.error('[STOMP] Broker reported error: ' + frame.headers['message']);
-      console.error('[STOMP] Additional details: ' + frame.body);
     };
 
     client.activate();
@@ -55,7 +51,6 @@ export function useStomp() {
     if (!clientRef.current || !clientRef.current.connected) {
       // If not connected yet, we might want to wait or throw. 
       // A robust implementation would queue subscriptions or retry.
-      console.warn('[STOMP] Client not connected yet, subscription may fail');
     }
 
     const client = clientRef.current;

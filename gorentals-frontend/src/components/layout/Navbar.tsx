@@ -53,7 +53,6 @@ export function Navbar() {
         setUnreadNotifications(count);
         setUnreadCount(count);
       } catch (err) {
-        console.error('[Navbar] Failed to fetch unread count', err);
       }
     };
 

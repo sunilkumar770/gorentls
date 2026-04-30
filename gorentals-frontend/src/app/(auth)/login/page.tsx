@@ -66,7 +66,6 @@ export default function LoginPage() {
       router.refresh();
       
     } catch (err: any) {
-      console.error('[Login] Client Error:', err);
       toast.error(err.message || 'Sign-in encountered an unexpected error.');
     } finally {
       setLoading(false);

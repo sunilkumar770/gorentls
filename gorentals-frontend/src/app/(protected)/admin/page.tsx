@@ -202,7 +202,6 @@ function UsersTab() {
       const d = await adminService.getUsers(page, 20, debouncedSearch);
       setUsers(d.content);
       setTotalPages(d.totalPages);
-    } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, [page, debouncedSearch]);
 
@@ -213,7 +212,6 @@ function UsersTab() {
   const act = async (id: string, fn: () => Promise<unknown>) => {
     setBusy(id);
     try { await fn(); await load(); }
-    catch (e) { console.error(e); }
     finally { setBusy(null); }
   };
 
@@ -292,7 +290,6 @@ function OwnersTab() {
       const d = await adminService.getOwners(page, 20, debouncedSearch);
       setOwners(d.content);
       setTotalPages(d.totalPages);
-    } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, [page, debouncedSearch]);
 
@@ -334,7 +331,6 @@ function OwnersTab() {
                           onClick={async () => {
                             setBusy(o.id);
                             try { await adminService.verifyOwner(o.id); await load(); }
-                            catch (e) { console.error(e); }
                             finally { setBusy(null); }
                           }} />
                       )}
@@ -344,7 +340,6 @@ function OwnersTab() {
                           onClick={async () => {
                             setBusy(o.id);
                             try { await adminService.suspendUser(o.id); await load(); }
-                            catch (e) { console.error(e); }
                             finally { setBusy(null); }
                           }} />
                       )}
@@ -354,7 +349,6 @@ function OwnersTab() {
                           onClick={async () => {
                             setBusy(o.id);
                             try { await adminService.unsuspendUser(o.id); await load(); }
-                            catch (e) { console.error(e); }
                             finally { setBusy(null); }
                           }} />
                       )}
@@ -390,7 +384,6 @@ function ListingsTab() {
         : await adminService.getPendingListings(page);
       setListings(d.content);
       setTotalPages(d.totalPages);
-    } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, [page, filter]);
 
@@ -399,7 +392,6 @@ function ListingsTab() {
   const act = async (id: string, fn: () => Promise<unknown>) => {
     setBusy(id);
     try { await fn(); await load(); }
-    catch (e) { console.error(e); }
     finally { setBusy(null); }
   };
 
@@ -484,7 +476,6 @@ function BookingsTab() {
       const d = await adminService.getAllBookings(page);
       setBookings(d.content);
       setTotalPages(d.totalPages);
-    } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, [page]);
 
@@ -561,7 +552,6 @@ function AuditLogTab() {
       const d = await adminService.getAuditLog(page);
       setLogs(d.content);
       setTotalPages(d.totalPages);
-    } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, [page]);
 

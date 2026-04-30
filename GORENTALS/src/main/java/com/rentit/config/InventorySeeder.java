@@ -26,16 +26,13 @@ public class InventorySeeder implements CommandLineRunner {
     @Transactional
     public void run(String... args) throws Exception {
         if (listingRepository.count() > 0) {
-            System.out.println("InventorySeeder: Listings already exist. Skipping seed.");
             return;
         }
 
-        System.out.println("InventorySeeder: Empty marketplace detected. Seeding inventory...");
 
         // Ensure we have an admin user to attach these listings to
         User owner = userRepository.findByEmail("admin@gorentals.com").orElse(null);
         if (owner == null) {
-            System.out.println("InventorySeeder: Admin user not found. Cannot seed listings.");
             return;
         }
 
@@ -166,6 +163,5 @@ public class InventorySeeder implements CommandLineRunner {
         l7.setUpdatedAt(LocalDateTime.now());
 
         listingRepository.saveAll(Arrays.asList(l1, l2, l3, l4, l5, l6, l7));
-        System.out.println("InventorySeeder ✅: Seeded 7 premium listings into the marketplace.");
     }
 }

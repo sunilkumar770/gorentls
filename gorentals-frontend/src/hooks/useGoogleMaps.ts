@@ -56,7 +56,6 @@ export function useGoogleMaps() {
     script.defer   = true;
     script.onload  = () => setStatus(isMapsLoaded() ? "ready" : "error");
     script.onerror = () => {
-      console.error("[GoRentals] Google Maps script failed to load.");
       setStatus("error");
     };
     document.head.appendChild(script);

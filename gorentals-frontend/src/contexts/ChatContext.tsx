@@ -72,7 +72,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       authCleanupRef.current?.();
       authCleanupRef.current = null;
       isSubscribed.current   = false;
-      setTotalUnread(0);
+
+      // Avoid setState directly in effect body
+      const cleanup = () => setTotalUnread(0);
+      cleanup();
       return;
     }
 
