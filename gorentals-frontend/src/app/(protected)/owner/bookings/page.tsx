@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { api } from '@/lib/api';
+import api from '@/lib/axios';
 import { handleApiError } from '@/lib/apiError';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -53,7 +53,8 @@ export default function OwnerBookingsPage() {
       const response = await api.get('/bookings/owner/bookings');
       setBookings(response.data.content);
     } catch (error) {
-      handleApiError(error, 'Failed to fetch bookings');
+      const message = handleApiError(error);
+      console.error('Fetch bookings failed:', message);
     } finally {
       setLoading(false);
     }
@@ -69,7 +70,8 @@ export default function OwnerBookingsPage() {
       await api.post(`/bookings/${bookingId}/${action}`);
       await fetchBookings();
     } catch (error) {
-      handleApiError(error, `Failed to ${action} booking`);
+      const message = handleApiError(error);
+      console.error(`Action ${action} failed:`, message);
     } finally {
       setActionLoading(null);
     }

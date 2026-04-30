@@ -5,14 +5,14 @@
 
 // ── Enums (must match Spring Boot BookingStatus exactly) ─────
 export type BookingStatus =
-  | 'PENDING'
-  | 'ACCEPTED'
+  | 'PENDING_PAYMENT'
   | 'CONFIRMED'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
+  | 'IN_USE'
   | 'RETURNED'
+  | 'COMPLETED'
   | 'CANCELLED'
-  | 'REJECTED';
+  | 'NO_SHOW'
+  | 'DISPUTED';
 
 export type PaymentStatus =
   | 'PENDING'

@@ -7,7 +7,6 @@ import { getAvailability, blockDates, unblockDates } from '@/services/availabili
 import { BlockedRange } from '@/types';
 import { toast } from 'react-hot-toast';
 import { Loader2, Calendar as CalendarIcon, X, Plus } from 'lucide-react';
-import 'react-day-picker/dist/style.css';
 
 interface CalendarManagerProps {
   listingId: string;
@@ -76,13 +75,13 @@ export default function CalendarManager({ listingId }: CalendarManagerProps) {
 
   const today = startOfDay(new Date());
 
-  if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-[#16a34a]" /></div>;
+  if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-[var(--primary)]" /></div>;
 
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="flex items-center gap-2 mb-4">
-          <CalendarIcon className="w-5 h-5 text-[#16a34a]" />
+          <CalendarIcon className="w-5 h-5 text-[var(--primary)]" />
           <h3 className="font-bold text-gray-900">Manage Availability</h3>
         </div>
 
@@ -103,7 +102,7 @@ export default function CalendarManager({ listingId }: CalendarManagerProps) {
                       <button
                         onClick={handleBlockDates}
                         disabled={submitting}
-                        className="w-full py-2 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                        className="w-full py-2.5 gradient-teal text-white text-xs font-bold rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-sm"
                       >
                         {submitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
                         Block Selected Dates
@@ -120,7 +119,7 @@ export default function CalendarManager({ listingId }: CalendarManagerProps) {
               }}
               modifiersStyles={{
                 selected: { backgroundColor: '#111827', color: 'white' },
-                today: { color: '#16a34a', fontWeight: 'bold' }
+                today: { color: 'var(--primary)', fontWeight: 'bold' }
               }}
             />
           </div>

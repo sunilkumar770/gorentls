@@ -12,6 +12,7 @@ interface AuthContextType {
   login: (token: string, user: Profile) => void;
   logout: () => void;
   updateUser: (newUser: Profile) => void;
+  refreshUser: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -117,8 +118,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(newUser);
   };
 
+  const refreshUser = async () => {
+    try {
+      const res = await api.get('/users/me');
+      const profile = buildProfile(res.data);
+      setUser(profile);
+      localStorage.setItem('gr_user', JSON.stringify(profile));
+    } catch (err) {
+      console.error('[AuthContext] Refresh failed:', err);
+      throw err;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, logout, updateUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

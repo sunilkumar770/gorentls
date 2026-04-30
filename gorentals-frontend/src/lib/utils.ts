@@ -66,9 +66,8 @@ export function isPaid(paymentStatus: string | undefined): boolean {
 
 export function isActiveBooking(status: string | undefined): boolean {
   return (
-    status === 'ACCEPTED' ||
     status === 'CONFIRMED' ||
-    status === 'IN_PROGRESS'
+    status === 'IN_USE'
   );
 }
 

@@ -130,8 +130,8 @@ export default function OwnerDashboardPage() {
     );
   }
 
-  const activeBookings  = bookings.filter(b => b.status === 'ACCEPTED' || b.status === 'CONFIRMED' || b.status === 'IN_PROGRESS');
-  const pendingRequests = bookings.filter(b => b.status === 'PENDING');
+  const activeBookings  = bookings.filter(b => b.status === 'CONFIRMED' || b.status === 'IN_USE');
+  const pendingRequests = bookings.filter(b => b.status === 'PENDING_PAYMENT');
   const totalEarned     = bookings
     .filter(b => b.paymentStatus === 'COMPLETED')
     .reduce((sum, b) => sum + b.totalAmount, 0);
@@ -209,12 +209,18 @@ export default function OwnerDashboardPage() {
       {/* Utility Nav */}
       <nav className="sticky top-0 z-50 bg-[var(--bg-card)]/80 backdrop-blur-xl border-b border-[var(--border)]">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-8 h-8 rounded-lg gradient-teal flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-              <Box className="w-4 h-4 text-white" />
+          <div className="flex items-center gap-10">
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="w-8 h-8 rounded-lg gradient-teal flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+                <Box className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-display font-bold text-lg text-[var(--text)] tracking-tight">GoRentals</span>
+            </Link>
+            <div className="hidden md:flex items-center gap-6">
+              <Link href="/owner/dashboard" className="text-sm font-bold text-[var(--primary)] uppercase tracking-widest border-b-2 border-[var(--primary)] pb-1">Fleet</Link>
+              <Link href="/owner/analytics" className="text-sm font-bold text-[var(--text-muted)] hover:text-[var(--primary)] uppercase tracking-widest transition-colors pb-1">Analytics</Link>
             </div>
-            <span className="font-display font-bold text-lg text-[var(--text)] tracking-tight">GoRentals</span>
-          </Link>
+          </div>
           <Button
             variant="gradient"
             size="sm"
@@ -411,7 +417,7 @@ export default function OwnerDashboardPage() {
                         {booking.listing?.title}
                       </p>
                       <p className="text-sm font-medium text-[var(--text-muted)]">
-                        {formatDate(booking.checkInDate)} → {formatDate(booking.checkOutDate)}
+                        {formatDate(booking.startDate)} → {formatDate(booking.endDate)}
                         <span className="mx-2 opacity-50">|</span>
                         <span className="text-[var(--primary)] font-bold">{formatCurrency(booking.totalAmount)}</span>
                       </p>

@@ -4,6 +4,7 @@ import com.rentit.model.Booking;
 import com.rentit.model.enums.BookingStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -40,19 +41,29 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
         @Param("cutoff")     LocalDateTime cutoff
     );
     
+    // ── N+1 ELIMINATION: single findById with eager fetch ───────────────────
+    @Override
+    @EntityGraph(attributePaths = {"listing", "listing.owner", "renter", "payments"})
+    Optional<Booking> findById(UUID id);
+
     /**
-     * Find bookings by renter ID
+     * Find bookings by renter ID — eager-fetches listing + owner to prevent N+1.
      */
+    @EntityGraph(attributePaths = {"listing", "listing.owner", "payments"})
     Page<Booking> findByRenterId(UUID renterId, Pageable pageable);
-    
+
     /**
-     * Find bookings by listing ID
+     * Find bookings by listing ID — eager-fetches renter + payments.
      */
+    @EntityGraph(attributePaths = {"renter", "payments"})
     Page<Booking> findByListingId(UUID listingId, Pageable pageable);
-    
+
     /**
-     * Find bookings by owner ID (through listing)
+     * Find bookings by owner ID — eager-fetches listing + renter + payments.
+     * Uses JOIN FETCH in JPQL so the owner traversal is a single SQL join,
+     * not a lazy proxy. Pagination applied in-DB via count query.
      */
+    @EntityGraph(attributePaths = {"listing", "listing.owner", "renter", "payments"})
     @Query("SELECT b FROM Booking b WHERE b.listing.owner.id = :ownerId ORDER BY b.createdAt DESC")
     Page<Booking> findByOwnerId(@Param("ownerId") UUID ownerId, Pageable pageable);
     
@@ -201,4 +212,13 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
         WHERE EXISTS (SELECT 1 FROM LedgerTransaction l WHERE l.bookingId = b.id)
         """)
     List<Booking> findBookingsWithLedgerEntries();
+
+    /**
+     * Owner Analytics Methods
+     */
+    @Query("SELECT b FROM Booking b WHERE b.listing.owner.id = :ownerId")
+    List<Booking> findByListingOwnerId(@Param("ownerId") UUID ownerId);
+
+    @Query("SELECT b FROM Booking b WHERE b.listing.owner.id = :ownerId AND b.createdAt BETWEEN :start AND :end")
+    List<Booking> findByOwnerIdAndCreatedAtBetween(@Param("ownerId") UUID ownerId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }

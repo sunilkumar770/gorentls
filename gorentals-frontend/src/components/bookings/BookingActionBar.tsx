@@ -23,18 +23,18 @@ export function BookingActionBar({ booking, role, onUpdate }: BookingActionBarPr
   const actions: { key: ActionKey; label: string; icon: React.ReactNode; variant: 'green' | 'red' | 'blue' | 'gray' }[] = [];
 
   if (role === 'owner') {
-    if (status === 'PENDING') {
+    if (status === 'PENDING_PAYMENT') {
       actions.push({ key: 'accept',  label: 'Accept',  icon: <CheckCircle2 className="w-4 h-4" />, variant: 'green' });
       actions.push({ key: 'reject',  label: 'Reject',  icon: <XCircle      className="w-4 h-4" />, variant: 'red'   });
     }
-    // ACCEPTED = owner has accepted, rental can be marked returned once gear is back
-    if (status === 'ACCEPTED' || status === 'CONFIRMED' || status === 'IN_PROGRESS') {
-      actions.push({ key: 'complete', label: 'Mark Returned', icon: <PackageCheck className="w-4 h-4" />, variant: 'blue' });
+    // CONFIRMED = owner has accepted, rental can be marked returned once gear is back
+    if (status === 'CONFIRMED' || status === 'IN_USE' || status === 'RETURNED') {
+      actions.push({ key: 'complete', label: 'Mark Completed', icon: <PackageCheck className="w-4 h-4" />, variant: 'blue' });
     }
   }
 
   if (role === 'renter') {
-    if (status === 'PENDING' || status === 'ACCEPTED') {
+    if (status === 'PENDING_PAYMENT' || status === 'CONFIRMED') {
       actions.push({ key: 'cancel', label: 'Cancel Booking', icon: <X className="w-4 h-4" />, variant: 'red' });
     }
   }

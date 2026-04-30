@@ -59,7 +59,10 @@ public class BookingService {
         Listing listing = listingRepository.findById(request.getListingId())
             .orElseThrow(() -> BusinessException.notFound("Listing", request.getListingId()));
 
-        if (!listing.getIsAvailable() || !listing.getIsPublished()) {
+        boolean isAvailable = listing.getIsAvailable() != null ? listing.getIsAvailable() : false;
+        boolean isPublished = listing.getIsPublished() != null ? listing.getIsPublished() : false;
+
+        if (!isAvailable || !isPublished) {
             throw BusinessException.conflict("This item is currently unavailable for booking");
         }
 
@@ -73,7 +76,8 @@ public class BookingService {
         LocalDate today     = LocalDate.now();
 
         // BUG-02: start must be today or in the future
-        if (startDate.isBefore(today)) {
+        // We allow up to 1 day in the past to account for timezone drift between the browser and server
+        if (startDate.isBefore(today.minusDays(1))) {
             throw BusinessException.badRequest("Start date cannot be in the past");
         }
         // BUG-03: end must be strictly after start (prevent 0-day bookings)

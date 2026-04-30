@@ -3,6 +3,7 @@ package com.rentit.repository;
 import com.rentit.model.Listing;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,10 +17,19 @@ import java.util.UUID;
 @Repository
 public interface ListingRepository extends JpaRepository<Listing, UUID> {
     
+    // ── N+1 ELIMINATION: Single listing detail — eager-fetches owner ───────────
+    @Override
+    @EntityGraph(attributePaths = {"owner"})
+    Optional<Listing> findById(UUID id);
+
     /**
-     * Find listings by owner ID
+     * Find listings by owner ID (paginated)
      */
+    @EntityGraph(attributePaths = {"owner"})
     Page<Listing> findByOwnerId(UUID ownerId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"owner"})
+    List<Listing> findByOwnerId(UUID ownerId);
     
     /**
      * Find published listings

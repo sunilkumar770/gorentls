@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import {
   ShieldCheck, ShieldAlert, Clock, Eye, Check, X,
-  Search, Filter, ExternalLink, Loader2, User,
+  Search, Filter, ExternalLink, Loader2, User, Mail,
   FileText, Calendar, AlertCircle, ChevronRight,
   MoreVertical, Download, ZoomIn
 } from "lucide-react";

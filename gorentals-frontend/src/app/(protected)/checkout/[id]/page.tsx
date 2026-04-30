@@ -6,31 +6,35 @@ import Link from 'next/link';
 import { RazorpayCheckout } from '@/components/payment/RazorpayCheckout';
 import { useEscrow } from '@/hooks/useEscrow';
 import { PriceBreakdown } from '@/components/bookings/PriceBreakdown';
-import { Shield, MapPin, Calendar, ChevronLeft, AlertCircle } from 'lucide-react';
+import { getBooking } from '@/services/bookings';
+import { Shield, MapPin, Calendar, ChevronLeft, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
-import type { Booking } from '@/types';
 import { calcQuotePhase1 } from '@/lib/pricing';
 
 export default function CheckoutPage() {
   const { id: bookingId } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [booking,  setBooking]  = useState<Booking | null>(null);
+  const [booking,  setBooking]  = useState<any | null>(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
   const { escrow, refresh: refreshEscrow } = useEscrow(bookingId as string);
 
   // Load booking details
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'}/bookings/${bookingId}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
-    })
-      .then(r => r.json())
-      .then(data => { setBooking(data); setLoading(false); })
-      .catch(() => { setError('Could not load booking details.'); setLoading(false); });
+    if (!bookingId) return;
+    setLoading(true);
+    getBooking(bookingId)
+      .then(data => {
+        setBooking(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('[Checkout] Failed to load booking:', err);
+        setError('Could not load booking details. Please try again.');
+        setLoading(false);
+      });
   }, [bookingId]);
 
   if (loading) return (
@@ -118,11 +122,6 @@ export default function CheckoutPage() {
         {/* Breakdown — smart: uses backend gstAmount/platformFee if present (new bookings),
             falls back to Phase 1 recomputed values for legacy bookings without fee columns. */}
         {(() => {
-          // Use backend-computed breakdown when both fee fields are present (non-null).
-          // typeof null === 'object' — that's why we use != null, NOT typeof === 'number'.
-          // Backend returns 0.00 (not null) for new bookings; null only for legacy rows
-          // before column was added. So gstAmount=0 with platformFee=0 is valid and
-          // will render "GST: ₹0.00" — the calcQuotePhase1 fallback covers that case too.
           const hasServerBreakdown =
             booking.gstAmount   != null &&
             booking.platformFee != null;

@@ -111,6 +111,30 @@ export default function CreateListingWizard() {
     return urls;
   };
 
+  const handleNextStep = () => {
+    if (step === 1) {
+      if (!form.title.trim()) {
+        toast.error("Asset nomenclature is required");
+        return;
+      }
+      if (!form.description.trim()) {
+        toast.error("Technical specifications are required");
+        return;
+      }
+    } else if (step === 2) {
+      if (!form.location.trim() || !form.city.trim() || !form.state.trim()) {
+        toast.error("Complete deployment location is required");
+        return;
+      }
+    } else if (step === 3) {
+      if (images.length === 0) {
+        toast.error("Please upload at least one image of the asset");
+        return;
+      }
+    }
+    setStep((s) => Math.min(s + 1, TOTAL));
+  };
+
   const handleSubmit = async () => {
     if (images.length > 5) {
       toast.error("You can upload a maximum of 5 images.");
@@ -150,10 +174,14 @@ export default function CreateListingWizard() {
 
   const canPublish =
     !!form.title.trim() &&
+    !!form.description.trim() &&
     !!form.pricePerDay &&
     Number(form.pricePerDay) > 0 &&
     !!form.category &&
-    !!form.city.trim();
+    !!form.location.trim() &&
+    !!form.city.trim() &&
+    !!form.state.trim() &&
+    images.length > 0;
 
   const isKycApproved = user?.kycStatus === 'APPROVED';
 
@@ -432,8 +460,13 @@ export default function CreateListingWizard() {
 
           {step < TOTAL ? (
             <button
-              onClick={() => setStep((s) => Math.min(s + 1, TOTAL))}
-              className="flex items-center gap-2 bg-[var(--text)] hover:bg-black text-[var(--bg)] px-8 py-3.5 rounded-[var(--r-md)] font-bold text-sm transition-all shadow-card active:scale-95"
+              onClick={handleNextStep}
+              disabled={
+                (step === 1 && (!form.title?.trim() || !form.description?.trim())) ||
+                (step === 2 && (!form.location?.trim() || !form.city?.trim() || !form.state?.trim())) ||
+                (step === 3 && images.length === 0)
+              }
+              className="flex items-center gap-2 bg-[var(--text)] hover:bg-black text-[var(--bg)] px-8 py-3.5 rounded-[var(--r-md)] font-bold text-sm transition-all shadow-card active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Continue <ArrowRight className="w-4 h-4" />
             </button>

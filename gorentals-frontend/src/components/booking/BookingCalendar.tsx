@@ -1,268 +1,179 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { DayPicker, DateRange } from 'react-day-picker';
-import { format } from 'date-fns';
+import React, { useMemo, useState } from 'react';
+import { DayPicker, DateRange, DayProps, useDayRender } from 'react-day-picker';
+import { format, isWithinInterval, startOfDay, isBefore } from 'date-fns';
 import { BlockedRange } from '@/types';
-import 'react-day-picker/dist/style.css';
+import { Info } from 'lucide-react';
 
 interface BookingCalendarProps {
-  /** Array of blocked date ranges with reasons */
   blockedRanges: BlockedRange[];
-  /** Currently selected date range */
   selectedRange?: DateRange;
-  /** Callback when date range is selected */
   onSelect: (range: DateRange | undefined) => void;
-  /** Disabled state (e.g., while booking in progress) */
   disabled?: boolean;
 }
 
 /**
  * Production-Grade Booking Calendar Component
- * 
+ *
  * Features:
- * - Clear visual distinction between available, booked, and owner-blocked dates
- * - Prevents invalid date selections
- * - Shows interactive legend
- * - Mobile-friendly with touch support
- * - Accessible with ARIA labels and keyboard navigation
- * - Performance optimized with useMemo
+ * - Custom Day rendering with per-day block-reason tooltips
+ * - Clear visual distinction: available / booked (orange) / owner-blocked (red) / selected (teal)
+ * - Prevents past-date selection
+ * - Full accessibility: ARIA labels, keyboard navigation
+ * - Performance-optimised with useMemo
  */
+
+/**
+ * Custom Day component — handles specialised per-day styling and tooltips.
+ */
+function CustomDay(props: DayProps & { blockedRanges: BlockedRange[]; disabled?: boolean }) {
+  const { date, displayMonth, blockedRanges } = props;
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  const { activeModifiers, buttonProps } = useDayRender(
+    date,
+    displayMonth,
+    buttonRef as React.RefObject<HTMLButtonElement>,
+  );
+
+  // Determine if this specific day is blocked and why
+  const blockReason = useMemo(() => {
+    const day = startOfDay(date);
+    const range = blockedRanges.find(r => {
+      const start = startOfDay(new Date(r.startDate));
+      const end = startOfDay(new Date(r.endDate));
+      return isWithinInterval(day, { start, end });
+    });
+    return range?.reason;
+  }, [date, blockedRanges]);
+
+  const isPast = isBefore(startOfDay(date), startOfDay(new Date()));
+  const isBlocked = !!blockReason || isPast;
+
+  const getDayStyles = () => {
+    if (isPast) return 'text-gray-300 cursor-not-allowed bg-gray-50 opacity-50';
+    if (blockReason === 'BOOKING') return 'bg-orange-100 text-orange-700 cursor-not-allowed border-orange-200';
+    if (blockReason === 'MANUAL') return 'bg-red-50 text-red-700 cursor-not-allowed border-red-100';
+
+    if (activeModifiers.selected) {
+      if (activeModifiers.range_start || activeModifiers.range_end) {
+        return 'bg-[#0d9488] text-white font-bold ring-2 ring-[#0d9488]/20 z-10';
+      }
+      return 'bg-[#0d9488]/10 text-[#0d9488] font-semibold';
+    }
+
+    return 'hover:bg-gray-100 text-gray-700';
+  };
+
+  const getTooltipText = (): string | null => {
+    if (isPast) return 'Date is in the past';
+    if (blockReason === 'BOOKING') return 'Already booked by another renter';
+    if (blockReason === 'MANUAL') return 'Unavailable (Owner blocked)';
+    return null;
+  };
+
+  const tooltip = getTooltipText();
+
+  return (
+    <div className="relative group">
+      <button
+        {...buttonProps}
+        ref={buttonRef}
+        disabled={isBlocked || props.disabled}
+        aria-label={`${format(date, 'PPPP')}${tooltip ? `. ${tooltip}` : ''}`}
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        className={`
+          w-10 h-10 md:w-11 md:h-11 flex items-center justify-center text-sm rounded-xl transition-all relative
+          ${getDayStyles()}
+          ${isBlocked ? 'pointer-events-auto' : ''}
+          ${activeModifiers.range_middle ? 'rounded-none' : ''}
+          ${activeModifiers.range_start ? 'rounded-r-none' : ''}
+          ${activeModifiers.range_end ? 'rounded-l-none' : ''}
+        `}
+      >
+        {format(date, 'd')}
+
+        {/* Visual indicators for blocked states */}
+        {blockReason === 'BOOKING' && (
+          <div className="absolute bottom-1.5 w-1 h-1 rounded-full bg-orange-400" />
+        )}
+        {blockReason === 'MANUAL' && (
+          <div className="absolute bottom-1.5 w-1 h-1 rounded-full bg-red-400" />
+        )}
+      </button>
+
+      {/* Tooltip */}
+      {showTooltip && tooltip && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-[10px] font-bold rounded-lg whitespace-nowrap z-[100] shadow-xl pointer-events-none">
+          {tooltip}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BookingCalendar({
   blockedRanges,
   selectedRange,
   onSelect,
-  disabled = false,
+  disabled
 }: BookingCalendarProps) {
-  const [hoveredDay, setHoveredDay] = useState<Date | null>(null);
-
-  // Separate blocked ranges by reason for different visual treatment
-  const { bookedDates, ownerBlockedDates } = useMemo(() => {
-    const booked: Array<{ from: Date; to: Date }> = [];
-    const ownerBlocked: Array<{ from: Date; to: Date }> = [];
-
-    blockedRanges.forEach((range) => {
-      const dateRange = {
-        from: new Date(range.startDate),
-        to: new Date(range.endDate),
-      };
-      
-      if (range.reason === 'BOOKING') {
-        booked.push(dateRange);
-      } else if (range.reason === 'MANUAL') {
-        ownerBlocked.push(dateRange);
-      }
-    });
-
-    return { bookedDates: booked, ownerBlockedDates: ownerBlocked };
-  }, [blockedRanges]);
-
-  // All disabled dates (both booked and owner-blocked)
-  const allDisabledDates = useMemo(
-    () => [...bookedDates, ...ownerBlockedDates],
-    [bookedDates, ownerBlockedDates]
-  );
-
-  // Get tooltip text for hovered date
-  const getTooltipText = (day: Date): string | null => {
-    const dayStr = format(day, 'yyyy-MM-dd');
-    
-    for (const range of blockedRanges) {
-      const start = new Date(range.startDate);
-      const end = new Date(range.endDate);
-      
-      if (day >= start && day <= end) {
-        return range.reason === 'BOOKING' 
-          ? 'Already booked by another renter'
-          : 'Unavailable (Owner blocked)';
-      }
-    }
-    
-    return null;
-  };
-
-  const tooltipText = hoveredDay ? getTooltipText(hoveredDay) : null;
 
   return (
-    <div className="booking-calendar-container">
-      {/* Legend - Always visible for clarity */}
-      <div className="flex items-center gap-4 mb-4 text-sm flex-wrap">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded border-2 border-gray-200 bg-white" />
-          <span className="text-gray-700">Available</span>
+    <div className="booking-calendar-wrapper w-full max-w-sm mx-auto">
+      <div className="flex flex-col gap-6">
+        {/* Legend */}
+        <div className="grid grid-cols-2 gap-y-2 gap-x-4 py-3 px-4 bg-gray-50/50 rounded-2xl border border-gray-100 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-white border border-gray-200" />
+            <span>Available</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-orange-400" />
+            <span>Booked</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+            <span>Owner Blocked</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-[#0d9488]" />
+            <span>Selection</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-orange-400" />
-          <span className="text-gray-700">Booked</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-red-500" />
-          <span className="text-gray-700">Owner Blocked</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-teal-600" />
-          <span className="text-gray-700">Your Selection</span>
-        </div>
-      </div>
 
-      {/* Tooltip for hovered disabled dates */}
-      {tooltipText && (
-        <div 
-          className="mb-2 px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm text-gray-700 animate-fade-in"
-          role="status"
-          aria-live="polite"
-        >
-          {tooltipText}
-        </div>
-      )}
-
-      {/* Calendar */}
-      <div className="booking-calendar-wrapper">
-        <DayPicker
-          mode="range"
-          selected={selectedRange}
-          onSelect={onSelect}
-          disabled={[
-            { before: new Date() }, // Past dates
-            ...allDisabledDates, // Blocked ranges
-          ]}
-          modifiers={{
-            booked: bookedDates,
-            ownerBlocked: ownerBlockedDates,
-          }}
-          modifiersStyles={{
-            booked: {
-              backgroundColor: '#fb923c', // orange-400
-              color: 'white',
-              cursor: 'not-allowed',
-              opacity: 0.9,
-            },
-            ownerBlocked: {
-              backgroundColor: '#ef4444', // red-500
-              color: 'white',
-              cursor: 'not-allowed',
-              opacity: 0.9,
-            },
-            selected: {
-              backgroundColor: 'var(--primary, #0d9488)', // teal-600
-              color: 'white',
-              fontWeight: '600',
-            },
-          }}
-          styles={{
-            caption: {
-              color: 'var(--text, #111827)',
-              fontFamily: 'Satoshi, system-ui, sans-serif',
-              fontWeight: '700',
-              fontSize: '1rem',
-            },
-            head_cell: {
-              color: '#6b7280', // gray-500
-              fontSize: '0.75rem',
-              fontWeight: '600',
-              textTransform: 'uppercase',
-            },
-            day: {
-              fontWeight: '500',
-              color: '#111827',
-              cursor: 'pointer',
-            },
-          }}
-          onDayMouseEnter={(day) => setHoveredDay(day)}
-          onDayMouseLeave={() => setHoveredDay(null)}
-          // Accessibility
-          aria-label="Booking calendar - select your rental dates"
+        <div className="flex justify-center p-2 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+          <DayPicker
+            mode="range"
+            selected={selectedRange}
+            onSelect={onSelect}
+            disabled={[
+              { before: startOfDay(new Date()) },
+              ...blockedRanges.map(r => ({ from: new Date(r.startDate), to: new Date(r.endDate) }))
+            ]}
+            components={{
+              Day: (props) => <CustomDay {...props} blockedRanges={blockedRanges} disabled={disabled} />
+            }}
+            styles={{
+              caption: { color: '#1a1a18', fontWeight: '700', marginBottom: '0.5rem' },
+              head_cell: { color: '#6b6b65', fontSize: '0.75rem', fontWeight: '600', paddingBottom: '0.75rem' },
+              table: { borderCollapse: 'separate', borderSpacing: '2px' },
+              nav_button: { color: '#6b6b65' }
+            }}
           />
+        </div>
+
+        {selectedRange?.from && !selectedRange?.to && (
+          <div className="flex items-center gap-2 p-3 bg-teal-50 border border-teal-100 rounded-xl">
+            <Info className="w-4 h-4 text-[#0d9488]" />
+            <p className="text-xs text-teal-800 font-medium">Select your intended return date</p>
+          </div>
+        )}
       </div>
-
-      <style jsx global>{`
-        /* Custom calendar styles for production polish */
-        .booking-calendar-wrapper .rdp {
-          --rdp-cell-size: 44px;
-          --rdp-accent-color: var(--primary, #0d9488);
-          font-family: 'Satoshi', system-ui, sans-serif;
-        }
-
-        .booking-calendar-wrapper .rdp-day {
-          border-radius: 6px;
-          transition: all 0.15s ease;
-        }
-
-        .booking-calendar-wrapper .rdp-day:not(.rdp-day_disabled):hover {
-          background-color: #f3f4f6;
-          transform: scale(1.05);
-        }
-
-        .booking-calendar-wrapper .rdp-day_selected {
-          border-radius: 6px;
-        }
-
-        .booking-calendar-wrapper .rdp-day_disabled {
-          opacity: 0.5;
-          pointer-events: none;
-        }
-
-        .booking-calendar-wrapper .rdp-day_today {
-          font-weight: 700;
-          color: var(--primary, #0d9488);
-        }
-
-        /* Improved range selection visual */
-        .booking-calendar-wrapper .rdp-day_range_middle {
-          background-color: rgba(13, 148, 136, 0.1) !important;
-          color: #111827;
-        }
-
-        .booking-calendar-wrapper .rdp-day_range_start,
-        .booking-calendar-wrapper .rdp-day_range_end {
-          background-color: var(--primary, #0d9488) !important;
-          color: white;
-          font-weight: 600;
-        }
-
-        /* Mobile optimizations */
-        @media (max-width: 640px) {
-          .booking-calendar-wrapper .rdp {
-            --rdp-cell-size: 38px;
-            font-size: 0.875rem;
-          }
-        }
-
-        /* Animation for tooltip */
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-            transform: translateY(-4px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-fade-in {
-          animation: fade-in 0.2s ease-out;
-        }
-
-        /* Accessibility improvements */
-        .booking-calendar-wrapper .rdp-day:focus-visible {
-          outline: 2px solid var(--primary, #0d9488);
-          outline-offset: 2px;
-          z-index: 10;
-        }
-
-        /* Better visual feedback for disabled dates */
-        .booking-calendar-wrapper .rdp-day_disabled::after {
-          content: '';
-          position: absolute;
-          top: 50%;
-          left: 10%;
-          right: 10%;
-          height: 2px;
-          background: rgba(255, 255, 255, 0.5);
-          transform: translateY(-50%) rotate(-45deg);
-        }
-      `}</style>
     </div>
   );
 }

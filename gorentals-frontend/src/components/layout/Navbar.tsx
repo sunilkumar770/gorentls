@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/contexts/ChatContext';
 import {
   Search, Plus, LayoutDashboard, LogOut, User, ChevronDown,
-  Calendar, ClipboardList, Shield, MessageCircle, Bell,
+  Calendar, ClipboardList, Shield, MessageCircle, Bell, BarChart3, ArrowRight
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
@@ -28,7 +28,7 @@ function GoRentalsLogo() {
 }
 
 export function Navbar() {
-  const { user, profile, isOwner, isAdmin, loading, logout } = useAuth();
+  const { user, profile, isOwner, isAdmin, isRenter, loading, logout } = useAuth();
   const { totalUnread } = useChat();
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const router   = useRouter();
@@ -169,10 +169,12 @@ export function Navbar() {
               <>
                 {user ? (
                   <>
-                    <Link href="/create-listing"
-                      className="hidden sm:flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-[#01696f] rounded-xl hover:bg-[#015a5f] transition-colors shadow-sm">
-                      <Plus className="w-4 h-4" /> List item
-                    </Link>
+                {user && !isRenter && (
+                  <Link href="/create-listing"
+                    className="hidden sm:flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-[#01696f] rounded-xl hover:bg-[#015a5f] transition-colors shadow-sm">
+                    <Plus className="w-4 h-4" /> List item
+                  </Link>
+                )}
 
                     {/* Desktop Notifications Bell */}
                     <Link href="/notifications" className="hidden md:flex relative p-2 rounded-lg text-[#6b7280] hover:text-[#111827] hover:bg-[#f9fafb] transition-colors">
@@ -251,6 +253,10 @@ export function Navbar() {
                               className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f7f6f2] hover:text-[#1a1a18] transition-colors">
                               <LayoutDashboard className="w-4 h-4 text-[#6b6b65]" /> Owner Dashboard
                             </Link>
+                            <Link href="/owner/analytics" onClick={() => setMenuOpen(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-[#01696f] hover:bg-[#01696f]/5 transition-colors">
+                              <BarChart3 className="w-4 h-4 text-[#01696f]" /> View Analytics
+                            </Link>
                             <Link href="/owner/bookings" onClick={() => setMenuOpen(false)}
                               className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f7f6f2] hover:text-[#1a1a18] transition-colors">
                               <ClipboardList className="w-4 h-4 text-[#6b6b65]" /> Manage Bookings
@@ -275,6 +281,15 @@ export function Navbar() {
                 ) : (
                   <>
                     {/* Ghost Sign in */}
+                    {!isRenter && (
+                      <Link
+                        href="/signup"
+                        className="flex items-center gap-1.5 text-sm font-semibold text-[#01696f] hover:text-[#015a5f] group transition-colors"
+                      >
+                        List your gear
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                      </Link>
+                    )}
                     <Link
                       href="/login"
                       className="px-4 py-2 text-sm font-semibold text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5 rounded-lg transition-colors"

@@ -13,6 +13,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import com.rentit.model.enums.BookingStatus;
 import com.rentit.model.enums.EscrowStatus;
@@ -94,6 +96,10 @@ public class Booking {
     
     @Column(name = "razorpay_payment_id")
     private String razorpayPaymentId;
+    
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<Payment> payments = new ArrayList<>();
     
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -287,5 +293,13 @@ public class Booking {
 
 	public void setUpdatedAt(LocalDateTime updatedAt) {
 		this.updatedAt = updatedAt;
+	}
+
+	public List<Payment> getPayments() {
+		return payments;
+	}
+
+	public void setPayments(List<Payment> payments) {
+		this.payments = payments;
 	}
 }

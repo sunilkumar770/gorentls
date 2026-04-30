@@ -57,7 +57,14 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
-        
+
+        <!-- Structured JSON logging for production (logback-spring.xml prod profile) -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
+
         <!-- Database -->
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -225,6 +232,17 @@
                     </excludes>
                 </configuration>
             </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <systemPropertyVariables>
+                        <testcontainers.enabled>true</testcontainers.enabled>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
             
             <!-- OWASP Dependency Check — security audit -->
             <plugin>
@@ -246,3 +264,4 @@
         </plugins>
     </build>
 </project>
+

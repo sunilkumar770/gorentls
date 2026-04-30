@@ -38,6 +38,41 @@ public class MessageService {
         this.messagingTemplate      = messagingTemplate;
     }
 
+    /**
+     * Unified message sender for dual-broadcast (Database + WebSocket).
+     * Saving to DB triggers Supabase Realtime via Postgres replication.
+     * messagingTemplate.convertAndSend handles fallback/legacy clients.
+     */
+    @Transactional
+    public MessageResponse sendMessage(Conversation conv, User sender, String text, UUID tempId, ChatMessage.MessageType type) {
+        ChatMessage msg = new ChatMessage();
+        msg.setConversation(conv);
+        msg.setSender(sender);
+        msg.setMessageText(text);
+        msg.setTempId(tempId);
+        msg.setMessageType(type != null ? type : ChatMessage.MessageType.TEXT);
+        msg.setStatus(ChatMessage.MessageStatus.SENT);
+        
+        messageRepository.save(msg);
+        
+        // Update unread counts
+        boolean senderIsOwner = conv.getOwner().getId().equals(sender.getId());
+        if (senderIsOwner) conv.setRenterUnread(conv.getRenterUnread() + 1);
+        else               conv.setOwnerUnread(conv.getOwnerUnread() + 1);
+        conversationRepository.save(conv);
+
+        MessageResponse response = mapToMessageResponse(msg);
+        
+        // Broadcast via WebSocket (Fallback)
+        messagingTemplate.convertAndSend("/topic/conversation." + conv.getId(), response);
+        
+        // Broadcast to user inbox
+        String recipientEmail = senderIsOwner ? conv.getRenter().getEmail() : conv.getOwner().getEmail();
+        messagingTemplate.convertAndSendToUser(recipientEmail, "/queue/messages", response);
+        
+        return response;
+    }
+
     // ── REAL-TIME CORE ────────────────────────────────────────────────────────
     @Transactional
     public void processIncomingMessage(WsSendMessageRequest request, String senderEmail) {
@@ -53,40 +88,20 @@ public class MessageService {
         if (!isParticipant)
             throw BusinessException.forbidden("Not a participant in " + convId);
 
-        // schema alignment: message_text (DB) mapped to messageText (Entity)
-        ChatMessage msg = new ChatMessage();
-        msg.setConversation(conv);
-        msg.setSender(sender);
-        msg.setMessageText(request.getMessageText());
-        
+        ChatMessage.MessageType type = ChatMessage.MessageType.TEXT;
+        if (request.getMessageType() != null) {
+            try { type = ChatMessage.MessageType.valueOf(request.getMessageType()); }
+            catch (IllegalArgumentException e) { /* default to TEXT */ }
+        }
+
+        UUID tempUuid = null;
         if (request.getTempId() != null && !request.getTempId().trim().isEmpty()) {
-            try { msg.setTempId(UUID.fromString(request.getTempId())); }
+            try { tempUuid = UUID.fromString(request.getTempId()); }
             catch (Exception e) { log.warn("[MSG] Invalid tempId UUID: {}", request.getTempId()); }
         }
 
-        if (request.getMessageType() != null) {
-            try { msg.setMessageType(ChatMessage.MessageType.valueOf(request.getMessageType())); }
-            catch (IllegalArgumentException e) { msg.setMessageType(ChatMessage.MessageType.TEXT); }
-        }
-        msg.setStatus(ChatMessage.MessageStatus.SENT);
-        messageRepository.save(msg);
-        log.info("[MSG] Persisted id={} conv={}", msg.getId(), convId);
-
-        boolean senderIsOwner = conv.getOwner().getId().equals(sender.getId());
-        if (senderIsOwner) conv.setRenterUnread(conv.getRenterUnread() + 1);
-        else               conv.setOwnerUnread(conv.getOwnerUnread() + 1);
-        conversationRepository.save(conv);
-
-        MessageResponse response = mapToMessageResponse(msg);
-
-        // Broadcast 1: both users in the chat room receive instantly
-        messagingTemplate.convertAndSend("/topic/conversation." + convId, response);
-
-        // Broadcast 2: recipient inbox → Navbar badge increments without page refresh
-        String recipientEmail = senderIsOwner
-            ? conv.getRenter().getEmail() : conv.getOwner().getEmail();
-        messagingTemplate.convertAndSendToUser(recipientEmail, "/queue/messages", response);
-        log.info("[MSG] Broadcast → topic + /user/{}/queue/messages", recipientEmail);
+        sendMessage(conv, sender, request.getMessageText(), tempUuid, type);
+        log.info("[MSG] Processed id={} conv={}", convId, convId);
     }
 
     // ── REST ─────────────────────────────────────────────────────────────────

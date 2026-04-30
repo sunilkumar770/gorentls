@@ -52,14 +52,14 @@ export default function MyBookingsPage() {
 
   const getStatusConfig = (status: string) => {
     const config: Record<string, { color: string; icon: any; label: string; bg: string }> = {
-      PENDING: { color: 'text-amber-600', bg: 'bg-amber-50', icon: Clock, label: 'Pending Approval' },
-      ACCEPTED: { color: 'text-green-600', bg: 'bg-green-50', icon: CheckCircle2, label: 'Accepted' },
+      PENDING_PAYMENT: { color: 'text-amber-600', bg: 'bg-amber-50', icon: Clock, label: 'Pending Payment' },
       CONFIRMED: { color: 'text-green-600', bg: 'bg-green-50', icon: CheckCircle2, label: 'Confirmed' },
-      REJECTED: { color: 'text-red-600', bg: 'bg-red-50', icon: XCircle, label: 'Rejected' },
-      CANCELLED: { color: 'text-gray-500', bg: 'bg-gray-50', icon: XCircle, label: 'Cancelled' },
-      IN_PROGRESS: { color: 'text-blue-600', bg: 'bg-blue-50', icon: Package, label: 'In Progress' },
-      COMPLETED: { color: 'text-green-600', bg: 'bg-green-50', icon: Check, label: 'Completed' },
+      IN_USE: { color: 'text-blue-600', bg: 'bg-blue-50', icon: Package, label: 'In Use' },
       RETURNED: { color: 'text-gray-600', bg: 'bg-gray-50', icon: CheckCircle2, label: 'Returned' },
+      COMPLETED: { color: 'text-green-600', bg: 'bg-green-50', icon: Check, label: 'Completed' },
+      CANCELLED: { color: 'text-gray-500', bg: 'bg-gray-50', icon: XCircle, label: 'Cancelled' },
+      NO_SHOW: { color: 'text-red-600', bg: 'bg-red-50', icon: XCircle, label: 'No Show' },
+      DISPUTED: { color: 'text-red-700', bg: 'bg-red-100', icon: AlertCircle, label: 'Disputed' },
     };
     return config[status] || { color: 'text-gray-500', bg: 'bg-gray-50', icon: AlertCircle, label: status };
   };
@@ -165,7 +165,7 @@ export default function MyBookingsPage() {
                             <span className="text-[#6b7280] block text-xs mb-1">Duration</span>
                             <div className="font-medium text-[#111827] flex items-center">
                               <Calendar className="w-4 h-4 mr-1.5 text-[#16a34a]" />
-                              {format(new Date(booking.checkInDate || booking.createdAt), 'MMM d, yyyy')} - {format(new Date(booking.checkOutDate || booking.createdAt), 'MMM d, yyyy')}
+                              {format(new Date(booking.startDate || booking.createdAt), 'MMM d, yyyy')} - {format(new Date(booking.endDate || booking.createdAt), 'MMM d, yyyy')}
                             </div>
                           </div>
                           <div className="bg-[#f9fafb] p-3 rounded-lg">
@@ -188,7 +188,7 @@ export default function MyBookingsPage() {
                   </div>
                   
                   <div className="flex gap-3">
-                    {(booking.status === 'PENDING' || booking.status === 'ACCEPTED') && (
+                    {(booking.status === 'PENDING_PAYMENT' || booking.status === 'CONFIRMED') && (
                       <button
                         onClick={() => handleCancelBooking(booking.id)}
                         disabled={cancellingId === booking.id}
@@ -203,7 +203,7 @@ export default function MyBookingsPage() {
                       </button>
                     )}
                     
-                    {booking.status === 'ACCEPTED' && (
+                    {booking.status === 'PENDING_PAYMENT' && (
                       <Link
                         href={`/checkout/${booking.id}`}
                         className="inline-flex items-center justify-center px-4 py-2 font-bold rounded-lg text-sm text-white bg-[#16a34a] hover:bg-[#15803d] transition-colors shadow-sm"
@@ -212,7 +212,7 @@ export default function MyBookingsPage() {
                       </Link>
                     )}
                     
-                    {(booking.status === 'CONFIRMED' || booking.status === 'IN_PROGRESS') && (
+                    {(booking.status === 'CONFIRMED' || booking.status === 'IN_USE') && (
                       <Link
                         href={`/checkout/${booking.id}`}
                         className="inline-flex items-center justify-center px-4 py-2 font-bold rounded-lg text-sm text-[#16a34a] border border-[#16a34a] hover:bg-[#f0fdf4] transition-colors shadow-sm"

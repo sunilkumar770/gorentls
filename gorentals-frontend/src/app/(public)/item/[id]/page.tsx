@@ -14,8 +14,8 @@ import { MapPin, Shield, Calendar, Loader2, ChevronLeft, Package, Info, CheckCir
 import { toast } from 'react-hot-toast';
 import type { Listing, BlockedRange } from '@/types';
 import { getAvailability } from '@/services/availability';
-import { DayPicker, DateRange } from 'react-day-picker';
-import 'react-day-picker/dist/style.css';
+import { DateRange } from 'react-day-picker';
+import BookingCalendar from '@/components/booking/BookingCalendar';
 import { calcRentalQuote, formatINR } from '@/lib/pricing';
 import { PriceBreakdown } from '@/components/bookings/PriceBreakdown';
 import { VerifiedBadge } from '@/components/ui/VerifiedBadge';
@@ -291,33 +291,14 @@ export default function ItemDetailPage() {
                 <label className="block text-xs font-bold text-[var(--text-muted)] mb-3 uppercase tracking-widest flex items-center gap-2">
                   <Calendar className="w-4 h-4" /> Specify Duration
                 </label>
-                <div className="flex justify-center rounded-[var(--r-md)] bg-[var(--bg)] border border-[var(--border)] p-4 shadow-inner">
-                  <DayPicker
-                    mode="range"
-                    selected={selectedRange}
+                <div className="rounded-[var(--r-md)] bg-[var(--bg)] border border-[var(--border)] p-4 shadow-inner">
+                  <BookingCalendar
+                    blockedRanges={blockedRanges}
+                    selectedRange={selectedRange}
                     onSelect={setSelectedRange}
-                    disabled={[
-                      { before: startOfDay(new Date()) },
-                      ...blockedRanges.map(r => ({ from: new Date(r.startDate), to: new Date(r.endDate) }))
-                    ]}
-                    styles={{
-                      caption: { color: 'var(--text)', fontFamily: 'Satoshi', fontWeight: '700' },
-                      head_cell: { color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600' },
-                      day: { fontWeight: '500', color: 'var(--text)' }
-                    }}
-                    modifiersStyles={{
-                      selected: { backgroundColor: 'var(--primary)', color: 'white', borderRadius: '4px' },
-                      today: { color: 'var(--primary)', fontWeight: 'bold' }
-                    }}
+                    disabled={booking}
                   />
                 </div>
-                {selectedRange?.from && !selectedRange?.to && (
-                  <div className="mt-3 p-3 bg-[var(--primary-light)] rounded-[var(--r-md)] border border-[var(--primary)]/20">
-                    <p className="text-xs text-[var(--primary-muted)] font-medium flex items-center gap-2">
-                      <ChevronLeft className="w-4 h-4 -rotate-90" /> Select your intended return date
-                    </p>
-                  </div>
-                )}
               </div>
 
               {/* Live Quotation — Phase 1 pricing breakdown */}

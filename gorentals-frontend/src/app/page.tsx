@@ -11,6 +11,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { useAuth } from '@/hooks/useAuth';
 
 // ── Categories — all teal, consistent ──────────────────────────
 const CATEGORIES = [
@@ -32,6 +33,7 @@ const TRUST_ITEMS = [
 ];
 
 export default function Home() {
+  const { user, isRenter } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
@@ -48,7 +50,7 @@ export default function Home() {
   return (
     <>
       {/* ── Announcement Banner ──────────────────────────────── */}
-      {!bannerDismissed && (
+      {!bannerDismissed && !isRenter && (
         <div className="bg-[#01696f] text-white text-sm font-medium py-2.5 px-4 flex items-center justify-center gap-2 relative">
           <span>🎉 GoRentals is now live in Hyderabad — List your gear today!</span>
           <Link href="/signup" className="font-bold underline underline-offset-2 hover:text-white/80 transition-colors ml-1">
@@ -129,13 +131,15 @@ export default function Home() {
                   </Link>
                 </Button>
                 {/* Secondary as a text link — clear visual hierarchy */}
-                <Link
-                  href="/signup"
-                  className="flex items-center gap-1.5 text-sm font-semibold text-[#01696f] hover:text-[#015a5f] group transition-colors"
-                >
-                  List your gear
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
+                {(!user || !isRenter) && (
+                  <Link
+                    href="/signup"
+                    className="flex items-center gap-1.5 text-sm font-semibold text-[#01696f] hover:text-[#015a5f] group transition-colors"
+                  >
+                    List your gear
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                )}
               </div>
             </div>
 
@@ -250,12 +254,14 @@ export default function Home() {
             emptyTitle="No listings yet — be the first!"
             emptyBody="We're just getting started. List your gear and be among the first owners on GoRentals."
             emptyAction={
-              <Link
-                href="/signup"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-[#01696f] text-white text-sm font-bold rounded-xl hover:bg-[#015a5f] transition-colors"
-              >
-                List your first item →
-              </Link>
+              !isRenter && (
+                <Link
+                  href="/signup"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#01696f] text-white text-sm font-bold rounded-xl hover:bg-[#015a5f] transition-colors"
+                >
+                  List your first item →
+                </Link>
+              )
             }
           />
 
@@ -338,16 +344,18 @@ export default function Home() {
           <p className="text-[#9b9b93] text-xl mb-12 max-w-2xl mx-auto leading-relaxed">
             Join thousands of verified owners who earn from their cameras, tools, and electronics every week.
           </p>
-          <Button
-            variant="primary"
-            size="lg"
-            className="px-12 py-7 text-lg rounded-2xl"
-            asChild
-          >
-            <Link href="/signup">
-              List your first item <ArrowRight className="w-5 h-5 ml-2" />
-            </Link>
-          </Button>
+          {(!user || !isRenter) && (
+            <Button
+              variant="primary"
+              size="lg"
+              className="px-12 py-7 text-lg rounded-2xl"
+              asChild
+            >
+              <Link href="/signup">
+                List your first item <ArrowRight className="w-5 h-5 ml-2" />
+              </Link>
+            </Button>
+          )}
         </div>
       </section>
     </>

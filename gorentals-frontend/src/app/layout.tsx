@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${manrope.variable} font-sans min-h-screen flex flex-col bg-[#fff8f6] text-[#251913] antialiased`}>
+      <body className={`${inter.variable} ${manrope.variable} font-sans min-h-screen flex flex-col antialiased`}>
         <AuthProvider>
           <ChatProvider>
             <Navbar />

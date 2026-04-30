@@ -17,6 +17,12 @@ razorpay:
   webhook-secret: fake_webhook_secret
   account-number: "000000000000"
 
+# JWT secret must satisfy HS256 minimum key-length (>= 256 bits).
+# This value is ONLY used in the test profile — never deployed to production.
+jwt:
+  secret: test-only-secret-that-is-at-least-256-bits-long-for-hs256-algorithm-padding
+  expiration: 86400000
+
 logging:
   level:
     com.rentit: DEBUG

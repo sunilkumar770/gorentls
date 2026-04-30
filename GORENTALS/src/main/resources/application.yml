@@ -42,6 +42,12 @@ spring:
     deserialization:
       fail-on-unknown-properties: false
     time-zone: UTC
+  mail:
+    host: localhost
+    port: 25
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
 
 razorpay:
   key-id: ${RAZORPAY_KEY_ID}

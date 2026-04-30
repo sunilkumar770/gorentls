@@ -38,12 +38,12 @@ export async function cancelBooking(bookingId: string): Promise<Booking> {
 }
 
 export async function acceptBooking(bookingId: string): Promise<Booking> {
-  const res = await api.patch<Booking>(`/bookings/${bookingId}/accept`);
+  const res = await api.post<Booking>(`/bookings/${bookingId}/confirm`);
   return res.data;
 }
 
 export async function rejectBooking(bookingId: string): Promise<Booking> {
-  const res = await api.patch<Booking>(`/bookings/${bookingId}/reject`);
+  const res = await api.post<Booking>(`/bookings/${bookingId}/reject`);
   return res.data;
 }
 

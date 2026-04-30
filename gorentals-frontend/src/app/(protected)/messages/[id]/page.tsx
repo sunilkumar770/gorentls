@@ -12,6 +12,7 @@ import websocketService, { type IncomingMessage } from '@/services/websocketServ
 import { parseISO, formatDistanceToNow } from 'date-fns';
 import { ArrowLeft, Send, Loader2, AlertCircle, Wifi, WifiOff, Check, CheckCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { subscribeToConversation } from '@/lib/supabase';
 
 function toMessage(m: IncomingMessage): Message {
   return {
@@ -19,6 +20,22 @@ function toMessage(m: IncomingMessage): Message {
     senderId: m.senderId, senderName: m.senderName, senderEmail: m.senderEmail,
     messageText: m.messageText, messageType: m.messageType,
     status: m.status, createdAt: m.createdAt,
+  };
+}
+
+function toMessageFromSupabase(payload: any): Message {
+  // Supabase payloads use snake_case by default
+  return {
+    id: payload.id,
+    tempId: payload.temp_id,
+    conversationId: payload.conversation_id,
+    senderId: payload.sender_id,
+    senderName: '', // These aren't in the DB row, but we'll fetch/derive them or rely on WS fallback for enrichment
+    senderEmail: '',
+    messageText: payload.message_text,
+    messageType: payload.message_type || 'TEXT',
+    status: payload.status || 'SENT',
+    createdAt: payload.created_at,
   };
 }
 
@@ -45,6 +62,51 @@ export default function ChatPage() {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     });
   }, []);
+
+  const handleIncoming = useCallback((incoming: Message) => {
+    setMessages(prev => {
+      // 1. Check if this is a status update for an existing message (ACK or READ update)
+      const existingIdx = prev.findIndex(m => m.id === incoming.id);
+      if (existingIdx !== -1 && incoming.id) {
+        const updated = [...prev];
+        // Merge: keep sender details if we had them from a previous source
+        updated[existingIdx] = { 
+          ...updated[existingIdx],
+          ...incoming,
+          senderName: incoming.senderName || updated[existingIdx].senderName,
+          senderEmail: incoming.senderEmail || updated[existingIdx].senderEmail
+        };
+        return updated;
+      }
+
+      // 2. Optimistic swap: replace temp entry with confirmed server message
+      if (incoming.tempId) {
+        const tempIdx = prev.findIndex(m => m.tempId === incoming.tempId);
+        if (tempIdx !== -1) {
+          const updated = [...prev];
+          updated[tempIdx] = {
+            ...incoming,
+            // Enrich with name/email from the optimistic entry if missing
+            senderName: incoming.senderName || updated[tempIdx].senderName,
+            senderEmail: incoming.senderEmail || updated[tempIdx].senderEmail
+          };
+          return updated;
+        }
+      }
+
+      // 3. Deduplicate by DB id (handles dual-broadcast replay)
+      if (incoming.id && prev.some(m => m.id === incoming.id)) return prev;
+
+      // 4. Message from other party → mark read + send delivery ACK
+      if (user && incoming.senderId !== user.id) {
+        websocketService.markAsRead(conversationId);
+        websocketService.sendDeliveryAck(incoming.id);
+        refreshUnread();
+      }
+      return [...prev, incoming];
+    });
+    scrollToBottom();
+  }, [conversationId, refreshUnread, scrollToBottom, user]);
 
   // Load history — sequenced to fix race condition (mark read AFTER messages load)
   useEffect(() => {
@@ -80,51 +142,27 @@ export default function ChatPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, user?.id]);
 
-  // Real-time subscription
+  // Real-time subscription (WebSocket + Supabase)
   useEffect(() => {
     if (!conversationId || !user) return;
+
+    // 1. WebSocket Subscription
     const removeConn = websocketService.onConnectionChange(setWsConnected);
-
     websocketService.subscribeToConversation(conversationId, (incoming: IncomingMessage) => {
-      setMessages(prev => {
-        // 1. Check if this is a status update for an existing message (ACK or READ update)
-        const existingIdx = prev.findIndex(m => m.id === incoming.id);
-        if (existingIdx !== -1 && incoming.id) {
-          const updated = [...prev];
-          updated[existingIdx] = toMessage(incoming);
-          return updated;
-        }
+      handleIncoming(toMessage(incoming));
+    });
 
-        // 2. Optimistic swap: replace temp entry with confirmed server message
-        if (incoming.tempId) {
-          const tempIdx = prev.findIndex(m => m.tempId === incoming.tempId);
-          if (tempIdx !== -1) {
-            const updated = [...prev];
-            updated[tempIdx] = toMessage(incoming);
-            return updated;
-          }
-        }
-
-        // 3. Deduplicate by DB id (handles WS reconnect replay)
-        if (incoming.id && prev.some(m => m.id === incoming.id)) return prev;
-
-        // 4. Message from other party → mark read + send delivery ACK
-        if (incoming.senderId !== user.id) {
-          websocketService.markAsRead(conversationId);
-          websocketService.sendDeliveryAck(incoming.id);
-          refreshUnread();
-        }
-        return [...prev, toMessage(incoming)];
-      });
-      scrollToBottom();
+    // 2. Supabase Realtime Subscription
+    const unsubscribeSupabase = subscribeToConversation(conversationId, (payload) => {
+      handleIncoming(toMessageFromSupabase(payload));
     });
 
     return () => {
       websocketService.unsubscribeFromConversation(conversationId);
       removeConn();
+      unsubscribeSupabase();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, user?.id]);
+  }, [conversationId, user, handleIncoming]);
 
   // Auto-scroll whenever message list grows
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);

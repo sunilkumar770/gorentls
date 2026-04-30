@@ -2,6 +2,7 @@ package com.rentit.controller;
 
 import com.rentit.dto.BookingRequest;
 import com.rentit.dto.BookingResponse;
+import com.rentit.dto.BookingStatusUpdateRequest;
 import com.rentit.service.BookingService;
 import com.rentit.model.enums.BookingStatus;
 
@@ -26,7 +27,7 @@ public class BookingController {
     private final BookingService bookingService;
 
     @PostMapping
-    @PreAuthorize("hasRole('RENTER')")
+    @PreAuthorize("hasAnyRole('RENTER', 'USER', 'ADMIN')")
     public ResponseEntity<BookingResponse> createBooking(
             @Valid @RequestBody BookingRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -88,9 +89,9 @@ public class BookingController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BookingResponse> updateStatus(
             @PathVariable UUID id,
-            @RequestBody java.util.Map<String, String> statusUpdate,
+            @Valid @RequestBody BookingStatusUpdateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-        BookingStatus newStatus = BookingStatus.valueOf(statusUpdate.get("status"));
+        BookingStatus newStatus = BookingStatus.valueOf(request.getStatus().toUpperCase());
         return ResponseEntity.ok(bookingService.updateStatus(id, newStatus, userDetails.getUsername()));
     }
 

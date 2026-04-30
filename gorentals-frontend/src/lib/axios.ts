@@ -22,22 +22,41 @@ api.interceptors.request.use(config => {
   return config;
 });
 
-// ── Response: handle 401 globally ────────────────────────────
+// ── Response: retry 5xx on GET, handle 401 globally ─────────────
 api.interceptors.response.use(
   response => response,
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
+    const config = error.config as typeof error.config & { _retryCount?: number };
+    const response = error.response;
+
+    // Retry idempotent GET requests on 5xx or network failure (no response).
+    // Never retry POST/PATCH/DELETE — those are not safe to replay.
+    const isGet = config?.method?.toLowerCase() === 'get';
+    const isRetryable = !response || response.status >= 500;
+    const retryCount = config?._retryCount ?? 0;
+
+    if (config && isGet && isRetryable && retryCount < 3) {
+      config._retryCount = retryCount + 1;
+      // Exponential back-off: 2 s, 4 s, 8 s
+      const delay = Math.pow(2, config._retryCount) * 1000;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return api(config);
+    }
+
+    // 401 → clear session and redirect to login
     if (
-      error.response?.status === 401 &&
+      response?.status === 401 &&
       typeof window !== 'undefined' &&
       !window.location.pathname.includes('/login')
     ) {
       localStorage.removeItem(TOKEN_KEY);
       const params = new URLSearchParams({
         reason: 'session_expired',
-        redirect: window.location.pathname
+        redirect: window.location.pathname,
       });
       window.location.href = `/login?${params.toString()}`;
     }
+
     return Promise.reject(error);
   }
 );

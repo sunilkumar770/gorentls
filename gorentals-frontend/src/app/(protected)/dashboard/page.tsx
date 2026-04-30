@@ -18,14 +18,14 @@ import { toast } from 'react-hot-toast';
 
 // ── Status config mapped to Deep Teal vibes ────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; pill: string; icon: any }> = {
-  PENDING:     { label: 'Pending Approval', pill: 'bg-[#fef3c7] text-[#92400e] border border-[#fde68a]', icon: Clock },
-  ACCEPTED:    { label: 'Accepted',         pill: 'bg-[var(--primary-light)] text-[var(--primary)] border border-[var(--border)]', icon: BadgeCheck },
+  PENDING_PAYMENT: { label: 'Pending Payment', pill: 'bg-[#fef3c7] text-[#92400e] border border-[#fde68a]', icon: Clock },
   CONFIRMED:   { label: 'Confirmed',        pill: 'bg-[var(--primary-light)] text-[var(--primary)] border border-[var(--border)]', icon: BadgeCheck },
-  IN_PROGRESS: { label: 'In Progress',      pill: 'bg-[#dbeafe] text-[#1e40af] border border-[#bfdbfe]', icon: Zap },
+  IN_USE:      { label: 'In Use',           pill: 'bg-[#dbeafe] text-[#1e40af] border border-[#bfdbfe]', icon: Zap },
   COMPLETED:   { label: 'Completed',        pill: 'bg-[var(--bg-subtle)] text-[var(--text-muted)] border border-[var(--border)]', icon: ShieldAlert },
   RETURNED:    { label: 'Returned',         pill: 'bg-[var(--bg-subtle)] text-[var(--text-muted)] border border-[var(--border)]', icon: RotateCcw },
-  REJECTED:    { label: 'Rejected',         pill: 'bg-[#fee2e2] text-[#b91c1c] border border-[#fecaca]', icon: XCircle },
   CANCELLED:   { label: 'Cancelled',        pill: 'bg-[var(--bg-subtle)] text-[var(--text-faint)] border border-[var(--border)]', icon: XCircle },
+  NO_SHOW:     { label: 'No Show',          pill: 'bg-[#fee2e2] text-[#b91c1c] border border-[#fecaca]', icon: XCircle },
+  DISPUTED:    { label: 'Disputed',         pill: 'bg-[#fee2e2] text-[#b91c1c] border border-[#fecaca]', icon: ShieldAlert },
 };
 
 function BookingSkeleton() {
@@ -62,9 +62,9 @@ export default function DashboardPage() {
 
   // ── KPI derivations ──────────────────────────────────────────────────────
   const activeCount  = bookings.filter(b =>
-    b.status === 'ACCEPTED' || b.status === 'CONFIRMED' || b.status === 'IN_PROGRESS'
+    b.status === 'CONFIRMED' || b.status === 'IN_USE'
   ).length;
-  const pendingCount = bookings.filter(b => b.status === 'PENDING').length;
+  const pendingCount = bookings.filter(b => b.status === 'PENDING_PAYMENT').length;
   const totalSpent   = bookings
     .filter(b => b.paymentStatus === 'COMPLETED' || b.paymentStatus === 'PAID')
     .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
@@ -194,7 +194,7 @@ export default function DashboardPage() {
                 ?? { label: booking.status, pill: 'bg-[var(--bg-subtle)] text-[var(--text-muted)] border border-[var(--border)]', icon: ShieldAlert };
               
               const StatusIcon = cfg.icon;
-              const canCancel = booking.status === 'PENDING' || booking.status === 'ACCEPTED';
+              const canCancel = booking.status === 'PENDING_PAYMENT' || booking.status === 'CONFIRMED';
 
               return (
                 <div key={booking.id}
@@ -219,8 +219,8 @@ export default function DashboardPage() {
                       {booking.listing?.title ?? 'Unknown Resource'}
                     </p>
                     <p className="text-sm text-[var(--text-muted)] font-medium mb-3">
-                      {booking.checkInDate && booking.checkOutDate
-                        ? `${formatDate(booking.checkInDate)} → ${formatDate(booking.checkOutDate)}`
+                      {booking.startDate && booking.endDate
+                        ? `${formatDate(booking.startDate)} → ${formatDate(booking.endDate)}`
                         : 'Dates undefined'}
                     </p>
                     <div className="flex items-center gap-2">

@@ -1,42 +1,55 @@
-/**
- * GoRentals Cloud-Free Mock
- * 
- * We have removed the '@supabase/supabase-js' dependency to completely detach 
- * from cloud services. This mock allows the application to function without 
- * throwing errors by mimicking the Supabase Storage and Auth API shapes.
- */
+import { createClient } from '@supabase/supabase-js'
 
-export const supabase = {
-  storage: {
-    from: (bucket: string) => ({
-      /**
-       * Mocks the upload process.
-       * Always returns an error explaining that cloud uploads are detached.
-       */
-      upload: async () => ({ 
-        data: null, 
-        error: new Error('[GoRentals] Cloud connection detached. Local storage only.') 
-      }),
-      
-      /**
-       * Mocks retrieving a public URL.
-       * Returns a placeholder based on the path.
-       */
-      getPublicUrl: (path: string) => ({ 
-        data: { publicUrl: path.startsWith('http') ? path : `/placeholder-image.jpg` } 
-      }),
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-      /**
-       * Mocks the removal process.
-       */
-      remove: async () => ({ error: null }),
-    })
+if (!supabaseUrl || !supabaseKey) {
+  // In dev/build, we might not have these yet, but we shouldn't crash unless they are used.
+  console.warn('Supabase environment variables are missing. Realtime features will be disabled.')
+}
+
+export const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder', {
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
   },
-  
-  auth: {
-    getSession: async () => ({ data: { session: null }, error: null }),
-    onAuthStateChange: () => ({ 
-      data: { subscription: { unsubscribe: () => {} } } 
-    }),
+})
+
+/**
+ * Subscribes to real-time changes for a specific conversation.
+ * 
+ * @param conversationId The UUID of the conversation
+ * @param onMessage Callback function for new messages
+ * @returns An unsubscribe function
+ */
+export function subscribeToConversation(
+  conversationId: string,
+  onMessage: (message: any) => void
+) {
+  if (!supabaseUrl || !supabaseKey) return () => {}
+
+  const channel = supabase
+    .channel(`conversation:${conversationId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages', // Note: the entity table name is chat_messages in Spring
+        filter: `conversation_id=eq.${conversationId}`,
+      },
+      (payload) => {
+        console.log('[Supabase Realtime] New message received:', payload.new)
+        onMessage(payload.new)
+      }
+    )
+    .subscribe((status) => {
+      console.log(`[Supabase Realtime] Subscription status for ${conversationId}:`, status)
+    })
+
+  return () => {
+    console.log(`[Supabase Realtime] Unsubscribing from ${conversationId}`)
+    supabase.removeChannel(channel)
   }
-} as any;
+}
