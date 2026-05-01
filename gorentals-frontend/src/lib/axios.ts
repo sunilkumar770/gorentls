@@ -43,6 +43,16 @@ api.interceptors.response.use(
       return api(config);
     }
 
+    // Handle CORS or Network errors (status code 0 or undefined response)
+    if (!response || response.status === 0) {
+      console.error('❌ CORS Error or Network Issue');
+      console.error(`Failed to connect to: ${config?.baseURL}`);
+      // Only throw if it's not a retry attempt
+      if (!isGet || retryCount >= 3) {
+        throw new Error('Cannot connect to API. Check CORS configuration and API URL.');
+      }
+    }
+
     // 401 → clear session and redirect to login
     if (
       response?.status === 401 &&

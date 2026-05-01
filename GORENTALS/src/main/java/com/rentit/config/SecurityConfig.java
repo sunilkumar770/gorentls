@@ -18,20 +18,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-
-    @Value("${cors.allowed-origins}")
-    private String[] allowedOrigins;
 
     @Autowired private UserDetailsServiceImpl  userDetailsService;
     @Autowired private JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -40,9 +32,9 @@ public class SecurityConfig {
 
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .csrf(csrf -> csrf.disable())
             .headers(headers -> headers
                 .contentSecurityPolicy(csp -> csp
@@ -73,23 +65,6 @@ public class SecurityConfig {
             .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        // Origins from environment — no hardcoded URLs in code
-        config.setAllowedOrigins(Arrays.asList(allowedOrigins));
-        config.setAllowedMethods(Arrays.asList("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"));
-        config.setAllowCredentials(true);
-        config.setMaxAge(3600L);  // cache preflight for 1 hour
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
-    }
-
-    @Bean
     public AuthenticationManager authenticationManager(
             AuthenticationConfiguration cfg) throws Exception {
         return cfg.getAuthenticationManager();
