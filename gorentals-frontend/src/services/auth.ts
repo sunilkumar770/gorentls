@@ -16,19 +16,19 @@ export interface BackendAuthResponse {
  * Backend may return: role | userType, name | fullName, id | userId
  */
 export function buildProfile(data: any): Profile {
-  const rawType: string = data.userType ?? data.role ?? '';
+  const rawType: string = (data.userType as string) ?? (data.role as string) ?? '';
   const userType = rawType.replace(/^ROLE_/, '').toUpperCase();
 
   return {
-    id:              data.id       ?? data.userId    ?? '',
-    fullName:        data.fullName ?? data.name      ?? '',
+    id:              (data.id as string)       ?? (data.userId as string)    ?? '',
+    fullName:        (data.fullName as string) ?? (data.name as string)      ?? '',
     email:           data.email    ?? '',
-    phone:           data.phone    ?? data.phoneNumber ?? '',
+    phone:           data.phone    ?? (data.phoneNumber as string) ?? '',
     role:            userType as UserRole,
-    userType:        userType as any,
+    userType:        userType as UserRole,
     kycStatus:       data.kycStatus ?? 'PENDING',
     isActive:        data.isActive ?? true,
-    isVerified:      data.isVerified ?? data.verified ?? false,
+    isVerified:      data.isVerified ?? (data.verified as boolean) ?? false,
     createdAt:       data.createdAt ?? new Date().toISOString(),
     updatedAt:       data.updatedAt ?? new Date().toISOString(),
   } as Profile;
@@ -120,14 +120,14 @@ export async function adminSignIn(
 export const loginAdmin = adminSignIn;
 
 export const authService = {
-  login: async (data: any): Promise<BackendAuthResponse> => {
+  login: async (data: Record<string, unknown>): Promise<BackendAuthResponse> => {
     const response = await api.post<BackendAuthResponse>('/auth/login', data);
     const token = response.data.accessToken;
     if (token) setToken(token);
     return response.data;
   },
 
-  register: async (data: any): Promise<BackendAuthResponse> => {
+  register: async (data: Record<string, unknown>): Promise<BackendAuthResponse> => {
     const response = await api.post<BackendAuthResponse>('/auth/register', data);
     const token = response.data.accessToken;
     if (token) setToken(token);

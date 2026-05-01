@@ -25,7 +25,6 @@ export default function AdminLoginPage() {
       const { data, error } = await adminSignIn(email, password);
       if (error || !data) throw new Error(error || 'Admin authentication failed');
       const profile = buildProfile(data);
-      console.log('[AdminLogin] Success. Profile received:', profile);
       login(data.accessToken, profile);
       toast.success(`Access granted — welcome, ${profile.fullName}`);
       router.replace('/admin/dashboard');

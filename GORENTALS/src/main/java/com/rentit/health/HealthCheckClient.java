@@ -38,7 +38,6 @@ public class HealthCheckClient {
                 client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() == 200 && response.body().contains("\"UP\"")) {
-                System.out.println("[HealthCheck] OK — status=UP");
                 System.exit(0);
             } else {
                 System.err.printf("[HealthCheck] FAILED — HTTP %d body=%s%n",

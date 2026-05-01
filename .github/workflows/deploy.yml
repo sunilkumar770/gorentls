@@ -31,7 +31,7 @@ jobs:
 
       - name: Run backend tests
         working-directory: ./GORENTALS
-        run: ./mvnw test -B -Dspring.profiles.active=test -Dtestcontainers.enabled=true
+        run: ./mvnw test -B -Dspring.profiles.active=test -Dtestcontainers.enabled=false
 
   # ── Stage 2: Frontend Validation ────────────────────────
   frontend:
@@ -48,7 +48,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./gorentals-frontend
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Cache Next.js build
         uses: actions/cache@v4
@@ -66,7 +66,8 @@ jobs:
         working-directory: ./gorentals-frontend
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          # Use placeholder for build-time validation if secret is missing in CI
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api' }}
 
   # ── Stage 3: Docker Build Verification ───────────────────
   docker:

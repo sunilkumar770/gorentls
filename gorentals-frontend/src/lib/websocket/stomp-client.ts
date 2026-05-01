@@ -24,7 +24,6 @@ export function useStomp() {
       },
       debug: (str) => {
         if (process.env.NODE_ENV !== 'production') {
-          console.log('[STOMP]', str);
         }
       },
       reconnectDelay: 5000,
@@ -33,7 +32,6 @@ export function useStomp() {
     });
 
     client.onConnect = () => {
-      console.log('[STOMP] Connected to backend');
     };
 
     client.onStompError = (frame) => {

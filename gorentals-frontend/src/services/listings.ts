@@ -4,10 +4,9 @@
 import api from '@/lib/axios';
 import type { Listing, SearchFilters } from '@/types';
 
-function mapListingResponse(data: any): Listing {
+function mapListingResponse(data: Record<string, any>): Listing {
   const ratingCount  = data.ratingCount  ?? 0;
   const totalRatings = data.totalRatings ?? 0;
-  const avgRating    = ratingCount > 0 ? totalRatings / ratingCount : 0;
 
   return {
     // Identity
@@ -84,7 +83,7 @@ export async function getListing(id: string): Promise<Listing | null> {
 // No try/catch — caller must show real error state, not silent empty list
 export async function getOwnerListings(_ownerId?: string): Promise<Listing[]> {
   const res = await api.get('/listings/owner/mine');
-  const items: any[] = Array.isArray(res.data) ? res.data : (res.data.content ?? []);
+  const items: Record<string, any>[] = Array.isArray(res.data) ? res.data : (res.data.content ?? []);
   return items.map(mapListingResponse);
 }
 

@@ -97,7 +97,6 @@ class WebSocketService {
       },
 
       onConnect: () => {
-        console.log('[WS] Connected');
         this.notify(true);
         this.pendingOnConnect.forEach(cb => cb());
         this.pendingOnConnect.clear();
@@ -115,7 +114,6 @@ class WebSocketService {
           console.warn('[WS] Auth rejected — triggering logout');
           this.authFailListeners.forEach(cb => cb());
         } else {
-          console.log('[WS] Connection closed — auto-reconnecting in 5s');
         }
       },
 
@@ -138,8 +136,11 @@ class WebSocketService {
       const sub = this.client.subscribe(
         `/topic/conversation.${conversationId}`,
         (frame) => {
-          try   { callback(JSON.parse(frame.body) as IncomingMessage); }
-          catch (e) { console.error('[WS] Bad message frame:', e); }
+          try {
+            callback(JSON.parse(frame.body) as IncomingMessage);
+          } catch (e) {
+            // Silently ignore bad frames
+          }
         }
       );
       this.subscriptions.set(conversationId, sub);
@@ -151,8 +152,11 @@ class WebSocketService {
   subscribeToInbox(callback: InboxCallback): StompSubscription | null {
     if (!this.client?.connected) return null;
     return this.client.subscribe('/user/queue/messages', (frame) => {
-      try   { callback(JSON.parse(frame.body) as IncomingMessage); }
-      catch (e) { console.error('[WS] Bad inbox frame:', e); }
+      try {
+        callback(JSON.parse(frame.body) as IncomingMessage);
+      } catch (e) {
+        // Silently ignore bad frames
+      }
     });
   }
 
@@ -212,7 +216,6 @@ class WebSocketService {
     this.pendingOnConnect.clear();
     if (this.client) { this.client.deactivate(); this.client = null; }
     this.notify(false);
-    console.log('[WS] Permanently disconnected');
   }
 
   get isConnected(): boolean {

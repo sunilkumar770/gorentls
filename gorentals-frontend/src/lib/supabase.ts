@@ -36,20 +36,17 @@ export function subscribeToConversation(
       {
         event: 'INSERT',
         schema: 'public',
-        table: 'chat_messages', // Note: the entity table name is chat_messages in Spring
+        table: 'messages', // Note: the entity table name is chat_messages in Spring
         filter: `conversation_id=eq.${conversationId}`,
       },
       (payload) => {
-        console.log('[Supabase Realtime] New message received:', payload.new)
         onMessage(payload.new)
       }
     )
     .subscribe((status) => {
-      console.log(`[Supabase Realtime] Subscription status for ${conversationId}:`, status)
     })
 
   return () => {
-    console.log(`[Supabase Realtime] Unsubscribing from ${conversationId}`)
     supabase.removeChannel(channel)
   }
 }

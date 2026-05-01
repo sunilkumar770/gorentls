@@ -34,7 +34,6 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
   // 1. Diagnostics
-  console.log(`[Middleware] ${request.method} ${pathname}`);
 
   // 2. Public bypass
   if (
@@ -53,7 +52,6 @@ export async function proxy(request: NextRequest) {
   const token = request.cookies.get('token')?.value || request.cookies.get('accessToken')?.value;
   const isLoggedIn = !!token;
   
-  console.log(`[Middleware] Token present: ${isLoggedIn}`);
 
   if (!token) {
     const loginUrl = new URL('/login', request.url);
@@ -62,7 +60,6 @@ export async function proxy(request: NextRequest) {
   }
 
   const { role, isAdmin, isOwner } = parseJwt(token);
-  console.log(`[Middleware] Parsed Role: ${role} | isAdmin: ${isAdmin} | isOwner: ${isOwner}`);
 
   // ── Guard: admin routes ────────────────────────────────────────────────────
   if (pathname.startsWith('/admin')) {
