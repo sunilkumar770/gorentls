@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTes(classes = GoRentals.class)
-    @AutoConfigureMockMvc
+  @AutoConfigureMockMvc
 public class RateLimitingIntegrationTest {
 
     @Autowired
