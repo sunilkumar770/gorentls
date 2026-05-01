@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/users")
@@ -37,7 +38,7 @@ public class UserController {
      * Updates the authenticated user's name, phone, and location details.
      */
     @PatchMapping("/profile")
-    public ResponseEntity<UserProfileResponse> updateProfile(@RequestBody UpdateProfileRequest request) {
+    public ResponseEntity<UserProfileResponse> updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
         String email = getAuthenticatedEmail();
         return ResponseEntity.ok(userService.updateProfile(email, request));
     }
@@ -47,7 +48,7 @@ public class UserController {
      * Updates notification and account-level settings for the authenticated user.
      */
     @PatchMapping("/settings")
-    public ResponseEntity<UserProfileResponse> updateSettings(@RequestBody UpdateSettingsRequest request) {
+    public ResponseEntity<UserProfileResponse> updateSettings(@Valid @RequestBody UpdateSettingsRequest request) {
         String email = getAuthenticatedEmail();
         return ResponseEntity.ok(userService.updateSettings(email, request));
     }
@@ -57,7 +58,7 @@ public class UserController {
      * Changes the current user's password.
      */
     @PostMapping("/password")
-    public ResponseEntity<SuccessResponse> changePassword(@RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<SuccessResponse> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         String email = getAuthenticatedEmail();
         userService.changePassword(email, request);
         return ResponseEntity.ok(new SuccessResponse("Password changed successfully", true));
@@ -68,7 +69,7 @@ public class UserController {
      * Submits KYC verification details.
      */
     @PostMapping("/kyc")
-    public ResponseEntity<UserProfileResponse> submitKYC(@RequestBody KYCSubmissionRequest request) {
+    public ResponseEntity<UserProfileResponse> submitKYC(@Valid @RequestBody KYCSubmissionRequest request) {
         String email = getAuthenticatedEmail();
         return ResponseEntity.ok(userService.submitKYC(email, request));
     }
