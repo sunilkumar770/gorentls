@@ -8,9 +8,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTes(classes = GoRentals.class)
-  @AutoConfigureMockMvc
+@ActiveProfiles("test")
+@SpringBootTestt(classes = GoRentals.class)
+  nfigureMockMvc
 public class RateLimitingIntegrationTest {
 
     @Autowired
