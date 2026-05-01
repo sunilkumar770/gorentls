@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTes(classes = GoRentals.class)
     @AutoConfigureMockMvc
-@AutoConfigureMockMvc
 public class RateLimitingIntegrationTest {
 
     @Autowired
