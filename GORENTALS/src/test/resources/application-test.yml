@@ -1,7 +1,6 @@
 spring:
   flyway:
-    enabled: true
-    locations: classpath:db/migration
+    enabled: false
   datasource:
     url: jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
@@ -12,22 +11,16 @@ spring:
       ddl-auto: create-drop
     database-platform: org.hibernate.dialect.H2Dialect
 
-# Disable ShedLock scheduler in tests — prevents background jobs
-# from interfering with test assertions
 gorentals:
   scheduling:
     enabled: false
 
-# Use a no-op Razorpay configuration in tests —
-# all Razorpay calls are mocked via @MockBean
 razorpay:
   key-id: rzp_test_fake
   key-secret: fake_secret_32_chars_padding_xxxx
   webhook-secret: fake_webhook_secret
   account-number: "000000000000"
 
-# JWT secret must satisfy HS256 minimum key-length (>= 256 bits).
-# This value is ONLY used in the test profile — never deployed to production.
 jwt:
   secret: test-only-secret-that-is-at-least-256-bits-long-for-hs256-algorithm-padding
   expiration: 86400000
@@ -35,19 +28,15 @@ jwt:
 logging:
   level:
     com.rentit: DEBUG
-    org.flywaydb: INFO
+    org.flywaydb: WARN
 
 rate-limiting:
   enabled: true
-  # Global limit: requests per minute
   global:
     requests-per-minute: 1000
-  # Authentication endpoints: requests per minute per IP
   auth:
     requests-per-minute: 10
-  # Registration endpoint: requests per minute per IP
   registration:
     requests-per-minute: 5
-  # File upload endpoints: requests per minute per IP
   upload:
     requests-per-minute: 50

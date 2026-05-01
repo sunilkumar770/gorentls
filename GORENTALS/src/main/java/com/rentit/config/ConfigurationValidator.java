@@ -1,9 +1,6 @@
 package com.rentit.config;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
+import jakarta.annotation.PostConstruct;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
@@ -18,12 +15,12 @@ import java.util.List;
 public class ConfigurationValidator {
 
     private static final List<String> REQUIRED_ENV_VARS = List.of(
-        "DB_URL",
-        "DB_USERNAME", 
-        "DB_PASSWORD",
-        "JWT_SECRET",
-        "RAZORPAY_KEY_ID",
-        "RAZORPAY_KEY_SECRET"
+            "DB_URL",
+            "DB_USERNAME",
+            "DB_PASSWORD",
+            "JWT_SECRET",
+            "RAZORPAY_KEY_ID",
+            "RAZORPAY_KEY_SECRET"
     );
 
     private final Environment env;
@@ -32,7 +29,7 @@ public class ConfigurationValidator {
         this.env = environment;
     }
 
-    @EventListener(ApplicationReadyEvent.class)
+    @PostConstruct
     public void validateConfiguration() {
         List<String> missingVars = new ArrayList<>();
 
@@ -44,18 +41,12 @@ public class ConfigurationValidator {
         }
 
         if (!missingVars.isEmpty()) {
-            String errorMessage = String.format(
-                "\n\n❌ [GoRentals] Missing required environment variables:\n" +
-                missingVars.stream()
-                    .map(v -> "   • " + v)
-                    .reduce((a, b) -> a + "\n" + b)
-                    .orElse("") +
-                "\n\nPlease set these environment variables and restart the application.\n" +
-                "Reference: GORENTALS/.env.example\n\n"
+            throw new IllegalStateException(
+                    "\n\n❌ [GoRentals] Missing required environment variables:\n" +
+                    String.join("\n", missingVars.stream().map(v -> " • " + v).toList()) +
+                    "\n\nPlease set these environment variables before starting the application.\n" +
+                    "Reference: GORENTALS/.env.example\n"
             );
-            throw new IllegalStateException(errorMessage);
         }
-
-        System.out.println("✅ All required environment variables validated successfully");
     }
 }
