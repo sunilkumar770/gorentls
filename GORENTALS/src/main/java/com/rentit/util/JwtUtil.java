@@ -59,7 +59,7 @@ public class JwtUtil {
      */
     private Claims extractAllClaims(String token) {
         try {
-            return Jwts.parserBuilder()
+            return Jwts.parser()
                     .setSigningKey(getSigningKey())
                     .build()
                     .parseClaimsJws(token)
@@ -199,12 +199,13 @@ public class JwtUtil {
     public String refreshToken(String token) {
         try {
             final Claims claims = extractAllClaims(token);
-            claims.setIssuedAt(new Date());
-            claims.setExpiration(new Date(System.currentTimeMillis() + expiration));
-            claims.remove("type"); // Remove refresh type for new access token
+            Map<String, Object> newClaims = new HashMap<>(claims);
+            newClaims.remove("type"); // Remove refresh type for new access token
             
             return Jwts.builder()
-                    .setClaims(claims)
+                    .setClaims(newClaims)
+                    .setIssuedAt(new Date())
+                    .setExpiration(new Date(System.currentTimeMillis() + expiration))
                     .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                     .compact();
         } catch (Exception e) {
