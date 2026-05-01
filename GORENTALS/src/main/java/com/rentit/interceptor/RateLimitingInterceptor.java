@@ -30,7 +30,7 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
                 return true;
             } else {
                 // Rate limit exceeded
-                long waitForRefill = (probe.getNanosToWait() / 1_000_000_000) + 1;
+                long waitForRefill = (probe.getNanosToWaitForRefill() / 1_000_000_000) + 1;
                 response.setStatus(429); // Too Many Requests
                 response.addHeader("Retry-After", String.valueOf(waitForRefill));
                 response.addHeader("X-Rate-Limit-Limit", "exceeded");
