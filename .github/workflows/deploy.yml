@@ -95,6 +95,8 @@ jobs:
           context: ./gorentals-frontend
           push: false
           tags: gorentals-frontend:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
