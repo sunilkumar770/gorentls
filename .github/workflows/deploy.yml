@@ -98,7 +98,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
               build-args: |
-      NEXT_PUBLIC_API_URL=http://localhost:8080/api/dummy
+        NEXT_PUBLIC_API_URL=http://localhost:8080/api/dummy
 
   # ── Stage 4: Deploy to Render ───────────────────────────
   deploy:
