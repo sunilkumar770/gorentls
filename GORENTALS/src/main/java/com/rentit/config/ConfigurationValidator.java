@@ -20,7 +20,17 @@ public class ConfigurationValidator {
             "DB_PASSWORD",
             "JWT_SECRET",
             "RAZORPAY_KEY_ID",
-            "RAZORPAY_KEY_SECRET"
+            "RAZORPAY_KEY_SECRET",
+            "RAZORPAY_WEBHOOK_SECRET",
+            "FRONTEND_URL",
+            "APP_SERVER_URL",
+            "MAIL_HOST",
+            "MAIL_PORT",
+            "MAIL_USERNAME",
+            "MAIL_PASSWORD",
+            "CLOUDINARY_CLOUD_NAME",
+            "CLOUDINARY_API_KEY",
+            "CLOUDINARY_API_SECRET"
     );
 
     private final Environment env;
