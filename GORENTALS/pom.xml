@@ -193,6 +193,21 @@
 			<version>7.6.0</version>
 		</dependency>
 
+
+		<!-- Additional validation for URLs, emails, etc -->
+		<dependency>
+			<groupId>org.hibernate.validator</groupId>
+			<artifactId>hibernate-validator</artifactId>
+			<version>8.0.1.Final</version>
+		</dependency>
+
+		<!-- XSS Protection -->
+		<dependency>
+			<groupId>org.owasp.encoder</groupId>
+			<artifactId>encoder</artifactId>
+			<version>1.3.0</version>
+		</dependency>
+
 		<!-- Resilience: Circuit Breaker & Retry -->
 		<dependency>
 			<groupId>io.github.resilience4j</groupId>

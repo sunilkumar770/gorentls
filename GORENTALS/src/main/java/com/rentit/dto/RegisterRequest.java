@@ -1,67 +1,74 @@
 package com.rentit.dto;
 
-import lombok.Data;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 
-@Data
+/**
+ * Registration request DTO with input validation
+ */
 public class RegisterRequest {
-    
-    @NotBlank(message = "Full name is required")
-    private String fullName;
-    
+
+    @NotBlank(message = "First name is required")
+    @Size(min = 2, max = 50, message = "First name must be between 2 and 50 characters")
+    private String firstName;
+
+    @NotBlank(message = "Last name is required")
+    @Size(min = 2, max = 50, message = "Last name must be between 2 and 50 characters")
+    private String lastName;
+
     @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
+    @Email(message = "Email must be valid")
     private String email;
-    
+
     @NotBlank(message = "Password is required")
-    @Size(min = 6, message = "Password must be at least 6 characters")
+    @Size(min = 8, max = 128, message = "Password must be between 8 and 128 characters")
+    @Pattern(regexp = "^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])", 
+             message = "Password must contain uppercase, number, and special character")
     private String password;
-    
+
     @NotBlank(message = "Phone number is required")
-    private String phone;
-    
-    @NotBlank(message = "User type is required")
-    private String userType;
+    @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$", message = "Phone number must be valid")
+    private String phoneNumber;
 
-	public String getFullName() {
-		return fullName;
-	}
+    // Constructors, getters, setters
+    public RegisterRequest() {}
 
-	public void setFullName(String fullName) {
-		this.fullName = fullName;
-	}
+    public String getFirstName() {
+        return firstName;
+    }
 
-	public String getEmail() {
-		return email;
-	}
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
 
-	public void setEmail(String email) {
-		this.email = email;
-	}
+    public String getLastName() {
+        return lastName;
+    }
 
-	public String getPassword() {
-		return password;
-	}
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
 
-	public void setPassword(String password) {
-		this.password = password;
-	}
+    public String getEmail() {
+        return email;
+    }
 
-	public String getPhone() {
-		return phone;
-	}
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-	public void setPhone(String phone) {
-		this.phone = phone;
-	}
+    public String getPassword() {
+        return password;
+    }
 
-	public String getUserType() {
-		return userType;
-	}
+    public void setPassword(String password) {
+        this.password = password;
+    }
 
-	public void setUserType(String userType) {
-		this.userType = userType;
-	}
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
 }
