@@ -188,9 +188,9 @@
 
 		<!-- Rate Limiting -->
 		<dependency>
-			<groupId>com.bucket4j</groupId>
+			<groupId>com.github.vladimir-bukhtoyarov</groupId>
 			<artifactId>bucket4j-core</artifactId>
-			<version>8.10.1</version>
+			<version>7.6.0</version>
 		</dependency>
 
 		<!-- Resilience: Circuit Breaker & Retry -->

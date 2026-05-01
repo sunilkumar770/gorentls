@@ -80,6 +80,21 @@ cors:
   allow-credentials: true
   max-age: 3600
 
+rate-limiting:
+  enabled: true
+  # Global limit: requests per minute
+  global:
+    requests-per-minute: 1000
+  # Authentication endpoints: requests per minute per IP
+  auth:
+    requests-per-minute: 10
+  # Registration endpoint: requests per minute per IP
+  registration:
+    requests-per-minute: 5
+  # File upload endpoints: requests per minute per IP
+  upload:
+    requests-per-minute: 50
+
 logging:
   level:
     root: WARN

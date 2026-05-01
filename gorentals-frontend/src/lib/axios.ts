@@ -43,6 +43,19 @@ api.interceptors.response.use(
       return api(config);
     }
 
+    if (error.response?.status === 429) {
+      // Rate limited
+      const retryAfter = error.response.headers['retry-after'];
+      const waitSeconds = retryAfter ? parseInt(retryAfter as string) : 60;
+      
+      console.error(`❌ Rate Limited: Please wait ${waitSeconds} seconds before retrying`);
+      
+      // Show user-friendly message
+      throw new Error(
+        `Too many requests. Please wait ${waitSeconds} seconds before trying again.`
+      );
+    }
+
     // Handle CORS or Network errors (status code 0 or undefined response)
     if (!response || response.status === 0) {
       console.error('❌ CORS Error or Network Issue');
