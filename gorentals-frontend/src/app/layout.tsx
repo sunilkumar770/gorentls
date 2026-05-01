@@ -6,6 +6,12 @@ import { Footer } from '@/components/layout/Footer';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ChatProvider } from '@/contexts/ChatContext';
 import './globals.css';
+import { validateConfiguration } from '@/config/validateConfig';
+
+// Validate configuration immediately on app load
+if (typeof window !== 'undefined') {
+  validateConfiguration();
+}
 
 const inter   = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope' });
