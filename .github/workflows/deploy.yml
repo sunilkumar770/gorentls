@@ -106,8 +106,8 @@ jobs:
     steps:
       - name: Trigger Render Deploy (Backend)
         run: |
-          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}" ]; then curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}; else echo 'Render webhook secret not configured'; fi
 
       - name: Trigger Render Deploy (Frontend)
         run: |
-          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}" ]; then curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}; else echo 'Render webhook secret not configured'; fi
