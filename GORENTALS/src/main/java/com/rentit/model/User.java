@@ -28,6 +28,7 @@ public class User {
     @Column(name = "password_hash")
     private String passwordHash;
     
+    @Builder.Default
     @Column(name = "user_type", nullable = false)
     @Enumerated(EnumType.STRING)
     private UserType userType = UserType.RENTER;
@@ -37,6 +38,7 @@ public class User {
     
     private String phone;
     
+    @Builder.Default
     @Column(name = "is_active")
     private Boolean isActive = true;
     

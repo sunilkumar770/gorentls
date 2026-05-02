@@ -16,7 +16,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class ListingResponse {
     private UUID id;
-    private UserResponse owner;
+    private UserPublicResponse owner;
     private String title;
     private String description;
     private String category;

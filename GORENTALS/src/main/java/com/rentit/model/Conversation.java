@@ -1,7 +1,6 @@
 package com.rentit.model;
 
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.UpdateTimestamp;
 import jakarta.persistence.*;   // Spring Boot 3.3.6
 import java.time.LocalDateTime;
@@ -15,8 +14,7 @@ import java.util.UUID;
 public class Conversation {
 
     @Id
-    @GeneratedValue(generator = "UUID")
-    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(updatable = false, nullable = false)
     private UUID id;
 

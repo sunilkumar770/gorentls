@@ -1,17 +1,22 @@
 package com.rentit.util;
 
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
+import io.jsonwebtoken.security.SecurityException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import javax.crypto.SecretKey;
 
 @Component
 public class JwtUtil {
@@ -60,18 +65,18 @@ public class JwtUtil {
     private Claims extractAllClaims(String token) {
         try {
             return Jwts.parser()
-                    .setSigningKey(getSigningKey())
+                    .verifyWith(getSigningKey())
                     .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+                    .parseSignedClaims(token)
+                    .getPayload();
         } catch (ExpiredJwtException e) {
             logger.error("JWT token expired: {}", e.getMessage());
             throw e;
         } catch (MalformedJwtException e) {
             logger.error("Invalid JWT token: {}", e.getMessage());
             throw e;
-        } catch (SignatureException e) {
-            logger.error("Invalid JWT signature: {}", e.getMessage());
+        } catch (SecurityException e) {
+            logger.error("Invalid JWT signature/security: {}", e.getMessage());
             throw e;
         } catch (Exception e) {
             logger.error("Error parsing JWT token: {}", e.getMessage());
@@ -82,7 +87,7 @@ public class JwtUtil {
     /**
      * Get signing key
      */
-    private Key getSigningKey() {
+    private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
 
@@ -118,11 +123,11 @@ public class JwtUtil {
      */
     private String createToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(subject)
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .claims(claims)
+                .subject(subject)
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getSigningKey())
                 .compact();
     }
 
@@ -132,11 +137,11 @@ public class JwtUtil {
     private String createRefreshToken(Map<String, Object> claims, String subject) {
         long refreshExpiration = expiration * 2; // 2x the access token expiry
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(subject)
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + refreshExpiration))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .claims(claims)
+                .subject(subject)
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + refreshExpiration))
+                .signWith(getSigningKey())
                 .compact();
     }
 
@@ -203,10 +208,10 @@ public class JwtUtil {
             newClaims.remove("type"); // Remove refresh type for new access token
             
             return Jwts.builder()
-                    .setClaims(newClaims)
-                    .setIssuedAt(new Date())
-                    .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                    .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                    .claims(newClaims)
+                    .issuedAt(new Date())
+                    .expiration(new Date(System.currentTimeMillis() + expiration))
+                    .signWith(getSigningKey())
                     .compact();
         } catch (Exception e) {
             logger.error("Token refresh failed: {}", e.getMessage());
@@ -244,11 +249,11 @@ public class JwtUtil {
     public String generateTokenWithClaims(Map<String, Object> claims, String subject) {
         claims.put("created", new Date());
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(subject)
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .claims(claims)
+                .subject(subject)
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getSigningKey())
                 .compact();
     }
 }

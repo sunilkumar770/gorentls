@@ -1,6 +1,7 @@
 package com.rentit.config;
 
 import jakarta.annotation.PostConstruct;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
@@ -12,6 +13,7 @@ import java.util.List;
  * Fails fast with clear error message if any required config is missing.
  */
 @Component
+@Profile("!test")
 public class ConfigurationValidator {
 
     private static final List<String> REQUIRED_ENV_VARS = List.of(

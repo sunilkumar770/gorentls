@@ -1,9 +1,9 @@
 package com.rentit.service;
 
 import com.rentit.dto.BookingRequest;
+import com.rentit.dto.UserPublicResponse;
 import com.rentit.dto.BookingResponse;
 import com.rentit.dto.ListingResponse;
-import com.rentit.dto.UserResponse;
 import com.rentit.exception.BusinessException;
 import com.rentit.model.*;
 import com.rentit.model.enums.BookingStatus;
@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 public class BookingService {
 
     private final BookingRepository     bookingRepository;
+    private final UserProfileRepository userProfileRepository;
     private final ListingRepository     listingRepository;
     private final UserRepository        userRepository;
     private final PaymentRepository     paymentRepository;
@@ -412,7 +413,30 @@ public class BookingService {
                         booking.getListing().getTitle(), caller.getFullName()),
                     "BOOKING_CANCELLED");
 
-                // Only send refund notification if money was actually captured
+                // CRITICAL FIX: Trigger actual escrow refund if money was held
+                EscrowStatus escrow = booking.getEscrowStatus();
+                if (escrow == EscrowStatus.ADVANCE_HELD || escrow == EscrowStatus.FULL_HELD) {
+                    BigDecimal refundAmount = (escrow == EscrowStatus.FULL_HELD) 
+                        ? booking.getTotalAmount() : booking.getAdvanceAmount();
+                    
+                    try {
+                        String refundId = null;
+                        if (booking.getRazorpayPaymentId() != null) {
+                            refundId = razorpayService.createRefund(
+                                booking.getRazorpayPaymentId(),
+                                refundAmount,
+                                "Booking cancelled by " + (isRenter ? "renter" : "owner"),
+                                bookingId
+                            );
+                        }
+                        escrowService.cancelAndRefund(booking, refundAmount, 
+                            "Cancellation by " + (isRenter ? "renter" : "owner"), refundId);
+                    } catch (Exception e) {
+                        log.error("Refund failed during cancellation for booking {}: {}", bookingId, e.getMessage());
+                        // Status update still proceeds, but ledger might need manual intervention
+                    }
+                }
+
                 if ("COMPLETED".equals(booking.getPaymentStatus()) && isRenter) {
                     notificationService.sendNotification(
                         booking.getRenter().getId(), "Refund Initiated",
@@ -470,15 +494,19 @@ public class BookingService {
                 .location(l.getLocation())
                 .category(l.getCategory())
                 .build() : null)
-            .renter(renter != null ? UserResponse.builder()
+            .renter(renter != null ? UserPublicResponse.builder()
                 .id(renter.getId())
                 .fullName(renter.getFullName())
-                .email(renter.getEmail())
+                .isVerified(userProfileRepository.findByUserId(renter.getId())
+                    .map(p -> p.getKycStatus() == com.rentit.model.UserProfile.KYCStatus.APPROVED)
+                    .orElse(false))
                 .build() : null)
-            .owner(owner != null ? UserResponse.builder()
+            .owner(owner != null ? UserPublicResponse.builder()
                 .id(owner.getId())
                 .fullName(owner.getFullName())
-                .email(owner.getEmail())
+                .isVerified(userProfileRepository.findByUserId(owner.getId())
+                    .map(p -> p.getKycStatus() == com.rentit.model.UserProfile.KYCStatus.APPROVED)
+                    .orElse(false))
                 .build() : null)
             .startDate(booking.getStartDate())
             .endDate(booking.getEndDate())

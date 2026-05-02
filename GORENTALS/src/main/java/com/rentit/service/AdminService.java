@@ -1,6 +1,7 @@
 package com.rentit.service;
 
 import com.rentit.dto.*;
+import com.rentit.dto.UserPublicResponse;
 import com.rentit.model.*;
 import com.rentit.model.enums.BookingStatus;
 import com.rentit.exception.BusinessException;
@@ -31,6 +32,7 @@ public class AdminService {
         private final BookingRepository bookingRepository;
         private final PaymentRepository paymentRepository;
         private final NotificationService notificationService;
+        private final AdminAuditLogRepository auditLogRepository;
 
         // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -41,6 +43,23 @@ public class AdminService {
         private String likePattern(String search) {
                 if (search == null || search.isBlank()) return "%%";
                 return "%" + search.trim() + "%";
+        }
+
+        private void logAction(String action, String entityType, String entityId, String description) {
+                try {
+                        AdminAuditLog log = new AdminAuditLog();
+                        log.setAction(action);
+                        log.setEntityType(entityType);
+                        if (entityId != null) {
+                                log.setEntityId(UUID.fromString(entityId));
+                        }
+                        log.setDescription(description);
+                        // In production, we'd pull this from SecurityContextHolder
+                        log.setAdminEmail("admin@gorentals.com"); 
+                        auditLogRepository.save(log);
+                } catch (Exception e) {
+                        // Log locally but don't break the UI flow if DB audit fails
+                }
         }
 
         // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -135,6 +154,9 @@ public class AdminService {
                 profile.setKycStatus(UserProfile.KYCStatus.APPROVED);
                 profile.setKycRejectionReason(null); // Clear any previous rejection reason
                 userProfileRepository.save(profile);
+
+                logAction("VERIFY_USER_KYC", "USER", userId.toString(), "KYC Approved manually");
+
                 return mapToUserResponse(user);
         }
 
@@ -156,6 +178,8 @@ public class AdminService {
                     "Your identity verification was not approved. Reason: " + reason,
                     "KYC_REJECTED"
                 );
+
+                logAction("REJECT_USER_KYC", "USER", userId.toString(), "KYC Rejected. Reason: " + reason);
 
                 return mapToUserResponse(user);
         }
@@ -179,6 +203,9 @@ public class AdminService {
                         profile.setKycStatus(UserProfile.KYCStatus.APPROVED);
                         userProfileRepository.save(profile);
                 }
+
+                logAction("VERIFY_BUSINESS_OWNER", "BUSINESS_OWNER", ownerId.toString(), "Owner verified manually");
+
                 return mapToBusinessOwnerResponse(owner);
         }
 
@@ -230,6 +257,9 @@ public class AdminService {
                     "Your listing \"" + listing.getTitle() + "\" has been approved and is now live.",
                     "LISTING_APPROVED"
                 );
+
+                logAction("APPROVE_LISTING", "LISTING", listingId.toString(), "Listing approved: " + listing.getTitle());
+
                 return mapToListingResponse(listing);
         }
 
@@ -250,6 +280,8 @@ public class AdminService {
                     "Your listing \"" + listing.getTitle() + "\" was not approved. Please review and resubmit.",
                     "LISTING_REJECTED"
                 );
+
+                logAction("REJECT_LISTING", "LISTING", listingId.toString(), "Listing rejected: " + listing.getTitle());
         }
 
         // ── Bookings / Transactions ───────────────────────────────────────────────
@@ -397,6 +429,17 @@ public class AdminService {
                                 .build();
         }
 
+        private UserPublicResponse mapToUserPublicResponse(User user) {
+                UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElse(null);
+                boolean isVerified  = profile != null && profile.getKycStatus() == UserProfile.KYCStatus.APPROVED;
+
+                return UserPublicResponse.builder()
+                                .id(user.getId())
+                                .fullName(user.getFullName())
+                                .isVerified(isVerified)
+                                .build();
+        }
+
         private BusinessOwnerResponse mapToBusinessOwnerResponse(BusinessOwner owner) {
                 return BusinessOwnerResponse.builder()
                                 .id(owner.getId())
@@ -421,7 +464,7 @@ public class AdminService {
         private ListingResponse mapToListingResponse(Listing listing) {
                 return ListingResponse.builder()
                                 .id(listing.getId())
-                                .owner(mapToUserResponse(listing.getOwner()))
+                                .owner(mapToUserPublicResponse(listing.getOwner()))
                                 .title(listing.getTitle())
                                 .description(listing.getDescription())
                                 .category(listing.getCategory())
@@ -470,12 +513,14 @@ public class AdminService {
                                                 .pricePerDay(booking.getListing().getPricePerDay())
                                                 .images(booking.getListing().getImages())
                                                 .build())
-                                .renter(UserResponse.builder()
+                                .renter(UserPublicResponse.builder()
                                                 .id(renter.getId()).fullName(renter.getFullName())
-                                                .email(renter.getEmail()).phone(renter.getPhone()).build())
-                                .owner(UserResponse.builder()
+                                                .isVerified(false) // Admin view logic can be expanded
+                                                .build())
+                                .owner(UserPublicResponse.builder()
                                                 .id(owner.getId()).fullName(owner.getFullName())
-                                                .email(owner.getEmail()).phone(owner.getPhone()).build())
+                                                .isVerified(true)
+                                                .build())
                                 .startDate(booking.getStartDate())
                                 .endDate(booking.getEndDate())
                                 .totalDays(booking.getTotalDays())

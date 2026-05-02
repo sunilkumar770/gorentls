@@ -60,9 +60,11 @@ public class BusinessOwner {
     @Column(name = "registration_number")
     private String registrationNumber;
     
+    @Builder.Default
     @Column(name = "is_verified")
     private Boolean isVerified = false;
     
+    @Builder.Default
     @Column(name = "commission_rate")
     private BigDecimal commissionRate = new BigDecimal("10.00");
     

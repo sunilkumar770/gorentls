@@ -17,8 +17,8 @@ import java.util.UUID;
 public class BookingResponse {
     private UUID id;
     private ListingResponse listing;
-    private UserResponse renter;
-    private UserResponse owner;
+    private UserPublicResponse renter;
+    private UserPublicResponse owner;
     private LocalDate startDate;
     private LocalDate endDate;
     private Integer totalDays;

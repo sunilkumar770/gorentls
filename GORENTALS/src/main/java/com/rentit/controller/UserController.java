@@ -6,7 +6,7 @@ import com.rentit.dto.KYCSubmissionRequest;
 import com.rentit.dto.UpdateProfileRequest;
 import com.rentit.dto.UpdateSettingsRequest;
 import com.rentit.dto.UserProfileResponse;
-import com.rentit.dto.ErrorResponse;
+
 import com.rentit.dto.SuccessResponse;
 import com.rentit.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;

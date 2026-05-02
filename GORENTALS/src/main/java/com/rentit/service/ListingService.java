@@ -3,8 +3,8 @@ package com.rentit.service;
 import com.rentit.dto.AvailabilityResponse;
 import com.rentit.dto.ListingRequest;
 import com.rentit.dto.ListingResponse;
+import com.rentit.dto.UserPublicResponse;
 import com.rentit.dto.PagedResponse;
-import com.rentit.dto.UserResponse;
 import com.rentit.exception.BusinessException;
 import com.rentit.model.BlockedDate;
 import com.rentit.model.enums.BookingStatus;
@@ -427,14 +427,12 @@ public class ListingService {
         
         return ListingResponse.builder()
                 .id(listing.getId())
-                .owner(UserResponse.builder()
+                .owner(UserPublicResponse.builder()
                         .id(owner.getId())
                         .fullName(owner.getFullName())
-                        .email(owner.getEmail())
-                        .phone(owner.getPhone())
-                        .kycStatus(userProfileRepository.findByUserId(owner.getId())
-                                .map(p -> p.getKycStatus().name())
-                                .orElse("PENDING"))
+                        .isVerified(userProfileRepository.findByUserId(owner.getId())
+                                .map(p -> p.getKycStatus() == UserProfile.KYCStatus.APPROVED)
+                                .orElse(false))
                         .build())
                 .title(listing.getTitle())
                 .description(listing.getDescription())

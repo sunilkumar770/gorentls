@@ -1,17 +1,23 @@
 package com.rentit.interceptor;
 
-import com.rentit.config.RateLimitingConfig;
+import com.rentit.config.RateLimitConfig;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.ConsumptionProbe;
 import org.springframework.web.servlet.HandlerInterceptor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 /**
  * HTTP Interceptor for rate limiting.
  * Applies appropriate rate limits based on endpoint and client IP.
  */
+@Component
+@RequiredArgsConstructor
 public class RateLimitingInterceptor implements HandlerInterceptor {
+
+    private final RateLimitConfig rateLimitConfig;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -49,15 +55,15 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
     private Bucket getBucketForEndpoint(String path, String clientIp) {
         if (path.contains("/auth/login") || path.contains("/auth/register") || path.contains("/users/register")) {
             if (path.contains("/register")) {
-                return RateLimitingConfig.getRegistrationBucket(clientIp);
+                return rateLimitConfig.getBucketForIp("register", clientIp, rateLimitConfig::createRegistrationBucket);
             } else {
-                return RateLimitingConfig.getAuthenticationBucket(clientIp);
+                return rateLimitConfig.getBucketForIp("auth", clientIp, rateLimitConfig::createAuthBucket);
             }
         } else if (path.contains("/upload") || path.contains("/files")) {
-            return RateLimitingConfig.getFileUploadBucket(clientIp);
+            return rateLimitConfig.getBucketForIp("upload", clientIp, rateLimitConfig::createUploadBucket);
         }
         // Global rate limit for all endpoints
-        return RateLimitingConfig.getGlobalBucket();
+        return rateLimitConfig.getGlobalBucket();
     }
 
     /**

@@ -69,15 +69,19 @@ public class Listing {
     @Column(columnDefinition = "jsonb")
     private List<String> images;
     
+    @Builder.Default
     @Column(name = "is_available")
     private Boolean isAvailable = true;
     
+    @Builder.Default
     @Column(name = "is_published")
     private Boolean isPublished = false;
     
+    @Builder.Default
     @Column(name = "total_ratings")
     private BigDecimal totalRatings = BigDecimal.ZERO;
     
+    @Builder.Default
     @Column(name = "rating_count")
     private Integer ratingCount = 0;
     

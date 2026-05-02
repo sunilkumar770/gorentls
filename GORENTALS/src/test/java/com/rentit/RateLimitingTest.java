@@ -1,28 +1,30 @@
 package com.rentit;
 
-import com.rentit.config.RateLimitingConfig;
+import com.rentit.config.RateLimitConfig;
 import io.github.bucket4j.Bucket;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class RateLimitingTest {
 
+    private final RateLimitConfig config = new RateLimitConfig();
+
     @Test
     public void testAuthenticationRateLimit() {
-        Bucket bucket = RateLimitingConfig.getAuthenticationBucket("192.168.1.1");
+        Bucket bucket = config.getBucketForIp("auth", "192.168.1.1", config::createAuthBucket);
         
-        // Should allow 10 requests
-        for (int i = 0; i < 10; i++) {
+        // Should allow 5 requests (new limit)
+        for (int i = 0; i < 5; i++) {
             assertTrue(bucket.tryConsume(1), "Request " + (i + 1) + " should be allowed");
         }
         
-        // 11th request should fail
-        assertFalse(bucket.tryConsume(1), "11th request should be rate limited");
+        // 6th request should fail
+        assertFalse(bucket.tryConsume(1), "6th request should be rate limited");
     }
 
     @Test
     public void testRegistrationRateLimit() {
-        Bucket bucket = RateLimitingConfig.getRegistrationBucket("192.168.1.2");
+        Bucket bucket = config.getBucketForIp("register", "192.168.1.2", config::createRegistrationBucket);
         
         // Should allow 5 requests
         for (int i = 0; i < 5; i++) {
@@ -35,7 +37,7 @@ public class RateLimitingTest {
 
     @Test
     public void testGlobalRateLimit() {
-        Bucket bucket = RateLimitingConfig.getGlobalBucket();
+        Bucket bucket = config.getGlobalBucket();
         
         // Should allow 1000 requests
         for (int i = 0; i < 100; i++) { // Test subset

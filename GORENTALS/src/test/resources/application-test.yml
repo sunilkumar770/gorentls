@@ -33,10 +33,11 @@ logging:
 rate-limiting:
   enabled: true
   global:
-    requests-per-minute: 1000
+    requests: 1000
   auth:
-    requests-per-minute: 10
+    requests: 5
+    duration-minutes: 15
   registration:
-    requests-per-minute: 5
+    requests: 5
   upload:
-    requests-per-minute: 50
+    requests: 50

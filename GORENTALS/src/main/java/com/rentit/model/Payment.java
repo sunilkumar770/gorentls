@@ -31,6 +31,7 @@ public class Payment {
     @Column(nullable = false)
     private BigDecimal amount;
     
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "kind", length = 20)
     private PaymentKind kind = PaymentKind.ADVANCE;

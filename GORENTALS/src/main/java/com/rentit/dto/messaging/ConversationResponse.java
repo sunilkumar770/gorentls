@@ -12,15 +12,13 @@ public class ConversationResponse {
     private String        listingTitle;
     private String        listingImage;
 
-    // Flat owner fields for chat page
+    // Flat owner fields for chat page (Protected)
     private UUID          ownerId;
     private String        ownerName;
-    private String        ownerEmail;
 
-    // Flat renter fields for chat page
+    // Flat renter fields for chat page (Protected)
     private UUID          renterId;
     private String        renterName;
-    private String        renterEmail;
 
     // Unread counts for each participant
     private int           ownerUnread;
@@ -37,7 +35,6 @@ public class ConversationResponse {
     public static class OtherUserDto {
         private UUID   id;
         private String fullName;
-        private String email;
-        private String phone;
+        // PII (email, phone) removed for privacy
     }
 }

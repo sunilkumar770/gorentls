@@ -3,7 +3,7 @@ package com.rentit.config;
 import com.rentit.security.JwtAuthenticationFilter;
 import com.rentit.security.RateLimitingFilter;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,7 +25,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    @Autowired private UserDetailsServiceImpl  userDetailsService;
+
     @Autowired private JwtAuthenticationFilter jwtAuthenticationFilter;
     @Autowired private RateLimitingFilter      rateLimitingFilter;
 
@@ -58,7 +58,7 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/listings/owner/mine").hasRole("OWNER")
                 .requestMatchers(HttpMethod.GET, "/api/listings/**").permitAll()
-                .requestMatchers("/ws/**").permitAll()
+                .requestMatchers("/ws/**").authenticated()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )

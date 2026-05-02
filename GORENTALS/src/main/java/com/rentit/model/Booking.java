@@ -59,23 +59,29 @@ public class Booking {
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 
+    @Builder.Default
     @Column(name = "gst_amount", nullable = true)
     private BigDecimal gstAmount = BigDecimal.ZERO;
 
+    @Builder.Default
     @Column(name = "platform_fee", nullable = true)
     private BigDecimal platformFee = BigDecimal.ZERO;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private BookingStatus bookingStatus = BookingStatus.PENDING_PAYMENT;
     
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "escrow_status", length = 20)
     private EscrowStatus escrowStatus = EscrowStatus.PENDING;
     
+    @Builder.Default
     @Column(name = "advance_amount")
     private BigDecimal advanceAmount = BigDecimal.ZERO;
     
+    @Builder.Default
     @Column(name = "remaining_amount")
     private BigDecimal remainingAmount = BigDecimal.ZERO;
     
@@ -88,6 +94,7 @@ public class Booking {
     @Column(name = "dispute_window_ends_at")
     private Instant disputeWindowEndsAt;
 
+    @Builder.Default
     @Column(name = "payment_status")
     private String paymentStatus = "PENDING";
     
