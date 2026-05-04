@@ -4,6 +4,7 @@ import com.rentit.dto.*;
 import com.rentit.model.AdminAuditLog;
 import com.rentit.repository.AdminAuditLogRepository;
 import com.rentit.service.AdminService;
+import com.rentit.service.PlatformAnalyticsService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -29,6 +30,9 @@ public class AdminController {
 
     @Autowired
     private AdminService adminService;
+
+    @Autowired
+    private PlatformAnalyticsService platformAnalyticsService;
 
     @Autowired
     private AdminAuditLogRepository auditLogRepository;
@@ -181,7 +185,7 @@ public class AdminController {
     public ResponseEntity<PlatformAnalytics> getPlatformAnalytics(
             @RequestParam String startDate,
             @RequestParam String endDate) {
-        return ResponseEntity.ok(adminService.getPlatformAnalytics(startDate, endDate));
+        return ResponseEntity.ok(platformAnalyticsService.getPlatformAnalytics(startDate, endDate));
     }
 
     @GetMapping("/audit-log")
