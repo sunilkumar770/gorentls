@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.UUID;
 
 /**
  * Controls ALL escrow state transitions and financial postings for a booking.
@@ -47,15 +48,18 @@ public class BookingEscrowService {
     private final BookingRepository       bookingRepo;
     private final LedgerService           ledger;
     private final SimpMessagingTemplate   broker;
+    private final NotificationService     notificationService;
 
     public BookingEscrowService(
         BookingRepository       bookingRepo,
         LedgerService           ledger,
-        SimpMessagingTemplate   broker
+        SimpMessagingTemplate   broker,
+        NotificationService     notificationService
     ) {
-        this.bookingRepo = bookingRepo;
-        this.ledger      = ledger;
-        this.broker      = broker;
+        this.bookingRepo         = bookingRepo;
+        this.ledger              = ledger;
+        this.broker              = broker;
+        this.notificationService = notificationService;
     }
 
     // ── Payment application ───────────────────────────────────────────────────
@@ -103,6 +107,9 @@ public class BookingEscrowService {
             payment.getAmount(),
             "Advance payment captured — booking confirmed"
         );
+
+        // Notify the owner that advance payment was received
+        notifyOwnerAdvanceReceived(booking);
     }
 
     private void applyFinal(Booking booking, Payment payment) {
@@ -118,6 +125,9 @@ public class BookingEscrowService {
             payment.getAmount(),
             "Final payment captured — item in use"
         );
+
+        // Notify the owner that final payment was received
+        notifyOwnerFinalPaymentReceived(booking);
     }
 
     private void applyDeposit(Booking booking, Payment payment) {
@@ -483,6 +493,69 @@ public class BookingEscrowService {
         bookingRepo.save(booking);
         broadcastEscrowUpdate(booking);
         log.info("No-show processed: booking={} ownerShare=₹{}", booking.getId(), ownerShare);
+    }
+
+    // ── Owner Notifications ───────────────────────────────────────────────────
+
+    /**
+     * Notify the listing owner when the advance payment is captured.
+     * Includes item title, renter name, dates, advance amount, platform fee and GST.
+     */
+    private void notifyOwnerAdvanceReceived(Booking booking) {
+        try {
+            UUID ownerId = booking.getListing().getOwner().getId();
+            String msg = String.format(
+                "Great news! A booking for '%s' has been confirmed.\n" +
+                "Renter: %s\n" +
+                "Dates: %s → %s (%d days)\n" +
+                "Advance Received: ₹%.2f\n" +
+                "Platform Fee: ₹%.2f | GST: ₹%.2f\n" +
+                "Booking ID: %s",
+                booking.getListing().getTitle(),
+                booking.getRenter().getFullName(),
+                booking.getStartDate(), booking.getEndDate(),
+                booking.getTotalDays(),
+                booking.getAdvanceAmount(),
+                booking.getPlatformFee(),
+                booking.getGstAmount(),
+                booking.getId()
+            );
+            notificationService.sendNotification(ownerId,
+                "New Booking Confirmed – Payment Received", msg, "PAYMENT_RECEIVED");
+            log.info("Owner advance-received notification sent: booking={} owner={}",
+                booking.getId(), ownerId);
+        } catch (Exception e) {
+            log.warn("Failed to notify owner (advance) for booking {}: {}",
+                booking.getId(), e.getMessage());
+        }
+    }
+
+    /**
+     * Notify the listing owner when the final payment is captured and item goes IN_USE.
+     */
+    private void notifyOwnerFinalPaymentReceived(Booking booking) {
+        try {
+            UUID ownerId = booking.getListing().getOwner().getId();
+            java.math.BigDecimal totalHeld = booking.getAdvanceAmount()
+                .add(booking.getRemainingAmount());
+            String msg = String.format(
+                "Final payment received for '%s'.\n" +
+                "Renter: %s | Total Escrow Held: ₹%.2f\n" +
+                "The item is now IN USE. Please arrange handover.\n" +
+                "Booking ID: %s",
+                booking.getListing().getTitle(),
+                booking.getRenter().getFullName(),
+                totalHeld,
+                booking.getId()
+            );
+            notificationService.sendNotification(ownerId,
+                "Final Payment Received – Item In Use", msg, "FINAL_PAYMENT_RECEIVED");
+            log.info("Owner final-payment notification sent: booking={} owner={}",
+                booking.getId(), ownerId);
+        } catch (Exception e) {
+            log.warn("Failed to notify owner (final) for booking {}: {}",
+                booking.getId(), e.getMessage());
+        }
     }
 
     // ── Guards ────────────────────────────────────────────────────────────────
