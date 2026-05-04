@@ -59,8 +59,8 @@ export function BookingActionBar({ booking, role, onUpdate }: BookingActionBarPr
       };
       toast.success(messages[key]);
       onUpdate?.(updated!);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? `Action failed — please retry.`);
+    } catch (err: unknown) { const _err = err as { response?: { data?: { message?: string; error?: string } }; message?: string };
+      toast.error(_err?.response?.data?.message ?? `Action failed — please retry.`);
     } finally {
       setLoading(null);
     }

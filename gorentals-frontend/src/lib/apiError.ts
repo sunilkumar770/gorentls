@@ -6,7 +6,7 @@ export function handleApiError(err: unknown): string {
   if (typeof err === 'string') return err;
   
   if (err && typeof err === 'object') {
-    const e = err as any;
+    const e = err as { response?: { data?: { message?: string; error?: string } }; message?: string };
     
     // Check for Axios response errors
     if (e.response?.data) {

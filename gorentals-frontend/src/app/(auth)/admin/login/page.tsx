@@ -29,8 +29,9 @@ export default function AdminLoginPage() {
       toast.success(`Access granted — welcome, ${profile.fullName}`);
       router.replace('/admin/dashboard');
       router.refresh();
-    } catch (err: any) {
-      toast.error(err.message || 'Authentication failure. Check your credentials.');
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      toast.error(error.message || 'Authentication failure. Check your credentials.');
     } finally {
       setLoading(false);
     }

@@ -14,6 +14,7 @@ import {
   type AdminUser,
   type AdminBooking,
   type AuditLog,
+  type AdminListing,
 } from '@/services/admin';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatCurrency } from '@/lib/utils';
@@ -375,7 +376,7 @@ function OwnersTab() {
 // ─── Listings Tab ─────────────────────────────────────────────────────────────
 
 function ListingsTab() {
-  const [listings, setListings] = useState<any[]>([]);
+  const [listings, setListings] = useState<AdminListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -403,7 +404,7 @@ function ListingsTab() {
     finally { setBusy(null); }
   };
 
-  const getStatus = (l: any) => l.approvalStatus || (l.is_published ? 'LIVE' : 'PENDING');
+  const getStatus = (l: AdminListing) => l.approvalStatus || (l.is_published ? 'LIVE' : 'PENDING');
 
   return (
     <div className="space-y-4">
@@ -429,7 +430,7 @@ function ListingsTab() {
               {listings.length === 0 && (
                 <tr><td colSpan={7} className="px-4 py-12 text-center text-[#8c7164]">No listings found.</td></tr>
               )}
-              {listings.map((l: any) => (
+              {listings.map((l: AdminListing) => (
                 <tr key={l.id} className="hover:bg-[#251913]/[0.02] transition-colors">
                   <Td>
                     <span className="font-semibold text-[#251913] block max-w-[160px] truncate">{l.title}</span>

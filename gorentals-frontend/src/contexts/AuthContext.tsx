@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
 import type { Profile } from '@/types';
 import { buildProfile, setToken, clearToken } from '@/services/auth';
 import api from '@/lib/axios';
@@ -68,8 +68,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const profile = buildProfile(res.data);
           setUser(profile);
           localStorage.setItem('gr_user', JSON.stringify(profile));
-        } catch (err: any) {
-          const status = err?.response?.status;
+        } catch (err: unknown) { 
+          const _err = err as { response?: { status?: number; data?: { message?: string; error?: string } }; message?: string };
+          const status = _err?.response?.status;
           if (status === 401 || status === 403) {
             console.warn('[AuthContext] Session expired/invalid. Clearing...');
             clearToken();

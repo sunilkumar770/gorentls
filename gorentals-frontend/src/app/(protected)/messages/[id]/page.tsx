@@ -23,18 +23,30 @@ function toMessage(m: IncomingMessage): Message {
   };
 }
 
-function toMessageFromSupabase(payload: any): Message {
+interface SupabaseMessagePayload {
+  id: string;
+  temp_id?: string;
+  conversation_id: string;
+  sender_id: string;
+  message_text: string;
+  message_type?: string;
+  status?: string;
+  created_at: string;
+  [key: string]: unknown;
+}
+
+function toMessageFromSupabase(payload: SupabaseMessagePayload): Message {
   // Supabase payloads use snake_case by default
   return {
     id: payload.id,
-    tempId: payload.temp_id,
+    tempId: payload.temp_id || null,
     conversationId: payload.conversation_id,
     senderId: payload.sender_id,
     senderName: '', // These aren't in the DB row, but we'll fetch/derive them or rely on WS fallback for enrichment
     senderEmail: '',
     messageText: payload.message_text,
-    messageType: payload.message_type || 'TEXT',
-    status: payload.status || 'SENT',
+    messageType: (payload.message_type as 'TEXT' | 'IMAGE' | 'SYSTEM') || 'TEXT',
+    status: (payload.status as 'SENT' | 'DELIVERED' | 'READ') || 'SENT',
     createdAt: payload.created_at,
   };
 }
@@ -142,8 +154,9 @@ export default function ChatPage() {
             websocketService.sendDeliveryAck(m.id);
           }
         });
-      } catch (err: any) {
-        setError(err?.response?.data?.message ?? 'Failed to load conversation.');
+      } catch (err: unknown) {
+        const error = err as { response?: { data?: { message?: string } } };
+        setError(error?.response?.data?.message ?? 'Failed to load conversation.');
       } finally {
         setLoading(false);
         scrollToBottom();
@@ -165,7 +178,7 @@ export default function ChatPage() {
 
     // 2. Supabase Realtime Subscription
     const unsubscribeSupabase = subscribeToConversation(conversationId, (payload) => {
-      handleIncoming(toMessageFromSupabase(payload));
+      handleIncoming(toMessageFromSupabase(payload as SupabaseMessagePayload));
     });
 
     return () => {

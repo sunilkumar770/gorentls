@@ -17,7 +17,7 @@ import { cancelBooking } from '@/services/bookings';
 import { toast } from 'react-hot-toast';
 
 // ── Status config mapped to Deep Teal vibes ────────────────────────────────
-const STATUS_CONFIG: Record<string, { label: string; pill: string; icon: any }> = {
+const STATUS_CONFIG: Record<string, { label: string; pill: string; icon: React.ElementType }> = {
   PENDING_PAYMENT: { label: 'Pending Payment', pill: 'bg-[#fef3c7] text-[#92400e] border border-[#fde68a]', icon: Clock },
   CONFIRMED:   { label: 'Confirmed',        pill: 'bg-[var(--primary-light)] text-[var(--primary)] border border-[var(--border)]', icon: BadgeCheck },
   IN_USE:      { label: 'In Use',           pill: 'bg-[#dbeafe] text-[#1e40af] border border-[#bfdbfe]', icon: Zap },
@@ -79,8 +79,9 @@ export default function DashboardPage() {
       await cancelBooking(bookingId);
       toast.success('Reservation successfully cancelled.');
       refetch?.();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Cancellation sequence failed.');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error?.response?.data?.message || 'Cancellation sequence failed.');
     } finally {
       setCancellingId(null);
     }

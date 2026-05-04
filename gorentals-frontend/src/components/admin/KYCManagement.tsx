@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { adminService } from '@/services/admin';
-import { Profile } from '@/types';
+import { adminService, AdminUser } from '@/services/admin';
 import { CheckCircle2, XCircle, Eye, User, FileText, BadgeCheck, AlertCircle, Shield } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 
 export function KYCManagement() {
-  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
 

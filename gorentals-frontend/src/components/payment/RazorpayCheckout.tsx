@@ -24,7 +24,7 @@ export function RazorpayCheckout({
 
   const loadRazorpayScript = (): Promise<boolean> => {
     return new Promise((resolve) => {
-      if (typeof window !== 'undefined' && (window as any).Razorpay) {
+      if (typeof window !== 'undefined' && (window as { Razorpay?: unknown }).Razorpay) {
         resolve(true);
         return;
       }
@@ -77,7 +77,7 @@ export function RazorpayCheckout({
             setIsProcessing(false);
           },
         },
-        handler: async function (response: any) {
+        handler: async function (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) {
           // ── Step 5: Confirm payment on backend ───────────
           try {
             await confirmPaymentAction({
@@ -88,8 +88,9 @@ export function RazorpayCheckout({
               razorpaySignature: response.razorpay_signature,
             });
             if (onSuccess) onSuccess();
-          } catch (confirmError: any) {
-            if (onError) onError(confirmError.message ?? 'Payment confirmation failed');
+          } catch (confirmError: unknown) {
+            const _err = confirmError as { message?: string };
+            if (onError) onError(_err.message ?? 'Payment confirmation failed');
           } finally {
             setIsProcessing(false);
           }
@@ -104,9 +105,9 @@ export function RazorpayCheckout({
         },
       };
 
-      const paymentObject = new (window as any).Razorpay(options);
+      const paymentObject = new (window as { Razorpay: new (options: unknown) => { on: (event: string, handler: (response: { error: { description?: string } }) => void) => void; open: () => void } }).Razorpay(options);
 
-      paymentObject.on('payment.failed', function (response: any) {
+      paymentObject.on('payment.failed', function (response: { error: { description?: string } }) {
         if (onError) onError(response.error.description ?? 'Payment failed');
         setIsProcessing(false);
       });
@@ -116,8 +117,9 @@ export function RazorpayCheckout({
       // State resets in: handler (success), modal.ondismiss (cancel),
       // payment.failed (failure). All paths covered.
 
-    } catch (err: any) {
-      if (onError) onError(err.message ?? 'Payment initiation failed');
+    } catch (err: unknown) {
+      const _err = err as { message?: string };
+      if (onError) onError(_err.message ?? 'Payment initiation failed');
       setIsProcessing(false);
     }
   };

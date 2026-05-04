@@ -338,7 +338,7 @@ function SearchPageContent() {
                     {SORT_OPTIONS.map(opt => (
                       <button
                         key={opt.value}
-                        onClick={() => setSort(opt.value as any)}
+                        onClick={() => setSort(opt.value as 'newest' | 'price_asc' | 'price_desc' | 'rating')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                           sort === opt.value
                             ? 'bg-[#1a1a18] text-white shadow-sm'

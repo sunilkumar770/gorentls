@@ -31,8 +31,8 @@ export function useRenterBookings(userId?: string) {
       setError(null);
       const res = await api.get<BookingsApiResponse>('/bookings/my-bookings');
       setBookings(normalise(res.data));
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Failed to load bookings.');
+    } catch (err: unknown) { const _err = err as { response?: { data?: { message?: string; error?: string } }; message?: string };
+      setError(_err?.response?.data?.message ?? 'Failed to load bookings.');
     } finally {
       setLoading(false);
     }
@@ -63,8 +63,8 @@ export function useOwnerBookings() {
       setError(null);
       const res = await api.get<BookingsApiResponse>('/bookings/owner/bookings');
       setBookings(normalise(res.data));
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Failed to load bookings.');
+    } catch (err: unknown) { const _err = err as { response?: { data?: { message?: string; error?: string } }; message?: string };
+      setError(_err?.response?.data?.message ?? 'Failed to load bookings.');
     } finally {
       setLoading(false);
     }

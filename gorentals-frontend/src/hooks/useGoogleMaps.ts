@@ -32,6 +32,7 @@ export function useGoogleMaps() {
 
     // Fix: explicitly set disabled in effect — covers SSR hydration edge case
     if (!apiKey) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus("disabled");
       return;
     }

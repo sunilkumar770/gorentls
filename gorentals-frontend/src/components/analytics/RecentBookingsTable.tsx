@@ -1,7 +1,7 @@
 import { format } from 'date-fns';
 import Link from 'next/link';
 
-interface Booking {
+export interface RecentBooking {
   id: string;
   listingTitle: string;
   renterName: string;
@@ -10,7 +10,7 @@ interface Booking {
   createdAt: string;
 }
 
-export function RecentBookingsTable({ bookings }: { bookings: Booking[] }) {
+export function RecentBookingsTable({ bookings }: { bookings: RecentBooking[] }) {
   return (
     <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-2xl overflow-hidden h-full">
       <div className="p-6 border-b border-slate-800 flex justify-between items-center">

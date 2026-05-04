@@ -25,6 +25,7 @@ export function useEscrow(bookingId: string) {
   // 1. Initial fetch via Server Action
   useEffect(() => {
     let isMounted = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoading(true);
     getEscrowSummary(bookingId)
       .then((data) => {

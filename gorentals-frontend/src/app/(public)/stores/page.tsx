@@ -20,7 +20,7 @@ export default function StoresPage() {
   useEffect(() => {
     setLoading(true);
     getListings({ city: selectedCity === 'All Cities' ? undefined : selectedCity })
-      .then((data: any) => setListings(Array.isArray(data) ? data : data.content ?? []))
+      .then((data: Listing[]) => setListings(data))
       .finally(() => setLoading(false));
   }, [selectedCity]);
 

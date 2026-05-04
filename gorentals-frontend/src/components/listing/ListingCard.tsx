@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/static-components */
 'use client';
 
 import Link from 'next/link';
@@ -41,7 +42,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
   const city         = listing.stores?.store_city || null;
   const ownerName    = listing.stores?.store_name || null;
   const ownerInitial = ownerName ? ownerName.charAt(0).toUpperCase() : '?';
-  const CategoryIcon = getCategoryIcon(listing.category);
+  const Icon = getCategoryIcon(listing.category);
   const categoryLabel = getCategoryLabel(listing.category);
 
   return (
@@ -73,7 +74,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
             /* Graceful placeholder */
             <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-[#f7f6f2]">
               <div className="w-14 h-14 bg-[#e6f4f4] rounded-2xl flex items-center justify-center">
-                <CategoryIcon className="w-7 h-7 text-[#01696f]" strokeWidth={1.5} />
+                <Icon className="w-7 h-7 text-[#01696f]" strokeWidth={1.5} />
               </div>
               <span className="text-xs text-[#9b9b93] font-medium">No photo yet</span>
             </div>
@@ -91,7 +92,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
           {/* Category pill — with dark scrim for legibility on any image */}
           <div className="absolute top-3 left-3">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold rounded-full bg-black/40 text-white backdrop-blur-sm border border-white/10">
-              <CategoryIcon className="w-3 h-3" strokeWidth={2} />
+              <Icon className="w-3 h-3" strokeWidth={2} />
               {categoryLabel}
             </span>
           </div>

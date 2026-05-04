@@ -22,7 +22,7 @@ export function useStomp() {
       connectHeaders: {
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       },
-      debug: (str) => {
+      debug: () => {
         if (process.env.NODE_ENV !== 'production') {
         }
       },

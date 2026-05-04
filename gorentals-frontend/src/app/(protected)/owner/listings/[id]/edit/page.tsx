@@ -111,8 +111,8 @@ export default function EditListingPage() {
       });
       toast.success('✅ Listing updated!');
       router.push('/owner/listings');
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Update failed — please retry.');
+    } catch (err: unknown) { const _err = err as { response?: { data?: { message?: string; error?: string } }; message?: string };
+      toast.error(_err?.response?.data?.message ?? 'Update failed — please retry.');
     } finally {
       setSaving(false);
     }

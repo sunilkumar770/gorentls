@@ -15,7 +15,7 @@ export function validateConfiguration(): void {
   const invalidVars: string[] = [];
 
   // Check for missing variables
-  for (const [key, config] of Object.entries(REQUIRED_ENV_VARS)) {
+  for (const key of Object.keys(REQUIRED_ENV_VARS)) {
     const value = process.env[key];
 
     if (!value) {

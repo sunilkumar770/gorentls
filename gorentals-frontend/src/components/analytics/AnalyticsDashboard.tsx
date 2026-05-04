@@ -1,8 +1,8 @@
 'use client';
 
 import { KPICard } from './KPICard';
-import { RevenueChart } from './RevenueChart';
-import { RecentBookingsTable } from './RecentBookingsTable';
+import { RevenueChart, RevenuePoint } from './RevenueChart';
+import { RecentBookingsTable, RecentBooking } from './RecentBookingsTable';
 import { TrendingUp, Wallet, ShoppingBag, CheckCircle, Package, Clock, XCircle, BarChart3 } from 'lucide-react';
 
 interface AnalyticsData {
@@ -16,8 +16,8 @@ interface AnalyticsData {
   activeListings: number;
   totalListings: number;
   averageBookingValue: number;
-  recentBookings: any[];
-  revenueChart: any[];
+  recentBookings: RecentBooking[];
+  revenueChart: RevenuePoint[];
 }
 
 export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {

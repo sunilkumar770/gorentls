@@ -138,7 +138,7 @@ class WebSocketService {
         (frame) => {
           try {
             callback(JSON.parse(frame.body) as IncomingMessage);
-          } catch (e) {
+          } catch {
             // Silently ignore bad frames
           }
         }
@@ -154,7 +154,7 @@ class WebSocketService {
     return this.client.subscribe('/user/queue/messages', (frame) => {
       try {
         callback(JSON.parse(frame.body) as IncomingMessage);
-      } catch (e) {
+      } catch {
         // Silently ignore bad frames
       }
     });

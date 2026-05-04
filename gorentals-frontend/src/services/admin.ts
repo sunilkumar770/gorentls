@@ -64,6 +64,21 @@ export interface AuditLog {
   createdAt: string;
 }
 
+export interface AdminListing {
+  id: string;
+  title: string;
+  city?: string;
+  category?: string;
+  approvalStatus?: string;
+  is_published?: boolean;
+  isPublished?: boolean;
+  pricePerDay?: number;
+  price_per_day?: number;
+  rentalPricePerDay?: number;
+  ownerName?: string;
+  owner?: { fullName?: string; email?: string };
+}
+
 export interface PageResponse<T> {
   content: T[];
   totalElements: number;
@@ -123,12 +138,12 @@ export const adminService = {
   },
 
   // ── Listings ─────────────────────────────────────────────────────────────
-  getAllListings: async (page = 0, size = 20): Promise<PageResponse<any>> => {
+  getAllListings: async (page = 0, size = 20): Promise<PageResponse<AdminListing>> => {
     const r = await api.get(`/admin/listings?page=${page}&size=${size}`);
     return r.data;
   },
 
-  getPendingListings: async (page = 0, size = 20): Promise<PageResponse<any>> => {
+  getPendingListings: async (page = 0, size = 20): Promise<PageResponse<AdminListing>> => {
     const r = await api.get(`/admin/listings/pending?page=${page}&size=${size}`);
     return r.data;
   },

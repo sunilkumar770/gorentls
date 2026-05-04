@@ -50,7 +50,8 @@ export default function CalendarManager({ listingId }: CalendarManagerProps) {
       setSelectedRange(undefined);
       loadAvailability();
     } catch (err: unknown) {
-      const message = (err as any).response?.data?.message || 'Failed to block dates';
+      const _err = err as { response?: { data?: { message?: string } } };
+      const message = _err.response?.data?.message || 'Failed to block dates';
       toast.error(message);
     } finally {
       setSubmitting(false);

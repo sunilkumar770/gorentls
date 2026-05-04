@@ -2,7 +2,7 @@
 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-interface RevenuePoint {
+export interface RevenuePoint {
   month: string;
   amount: number;
 }
@@ -48,7 +48,7 @@ export function RevenueChart({ data, className }: { data: RevenuePoint[], classN
                 color: '#fff'
               }}
               itemStyle={{ color: '#10b981' }}
-              formatter={(value: any) => [`₹${Number(value).toLocaleString('en-IN')}`, 'Revenue']}
+              formatter={(value: unknown) => [`₹${Number(value).toLocaleString('en-IN')}`, 'Revenue']}
               labelFormatter={(label) => {
                 const [year, month] = label.split('-');
                 const date = new Date(parseInt(year), parseInt(month) - 1);

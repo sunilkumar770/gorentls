@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Shield, CheckCircle, AlertCircle, Upload, Loader2, CreditCard, User, FileText } from 'lucide-react';
+import { X, Shield, CheckCircle, Upload, Loader2, CreditCard, User, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { submitKYC } from '@/services/user';
@@ -54,8 +54,9 @@ export default function KYCModal({ isOpen, onClose }: KYCModalProps) {
       updateUser(updated);
       setStep(2);
       toast.success('KYC documents submitted successfully!');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to submit KYC. Please try again.');
+    } catch (err: unknown) {
+      const _err = err as { response?: { data?: { message?: string } } };
+      toast.error(_err.response?.data?.message || 'Failed to submit KYC. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -94,7 +95,7 @@ export default function KYCModal({ isOpen, onClose }: KYCModalProps) {
                   <button
                     key={doc.id}
                     type="button"
-                    onClick={() => setDocType(doc.id as any)}
+                    onClick={() => setDocType(doc.id as 'aadhaar' | 'pan' | 'passport')}
                     className={`flex flex-col items-center gap-2 p-4 rounded-[var(--r-md)] border-2 transition-all ${
                       docType === doc.id 
                         ? 'border-[var(--primary)] bg-[var(--primary-light)] text-[var(--primary)]' 
@@ -159,7 +160,7 @@ export default function KYCModal({ isOpen, onClose }: KYCModalProps) {
             </div>
             <h2 className="text-3xl font-display font-black text-[#251913] mb-4">Submission Success!</h2>
             <p className="text-[#8c7164] font-medium mb-8 leading-relaxed">
-              Your identity documents have been submitted. Our safety team will review them within 24 hours. You'll be notified via email once approved.
+              Your identity documents have been submitted. Our safety team will review them within 24 hours. You&apos;ll be notified via email once approved.
             </p>
             <Button 
               onClick={onClose}

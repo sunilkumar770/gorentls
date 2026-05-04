@@ -18,7 +18,7 @@ interface ListingGridProps {
   emptyTitle?:   string;
   emptyBody?:    string;
   emptyAction?:  React.ReactNode;
-  filters?:      any;
+  filters?:      Record<string, unknown>;
 }
 
 // ── Skeleton ──────────────────────────────────────────────────

@@ -63,8 +63,8 @@ export default function ProfileSettingsPage() {
       updateUser(updated);
       toast.success('Profile updated successfully.');
       setEditing(false);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to update profile.');
+    } catch (err: unknown) { const _err = err as { response?: { data?: { message?: string; error?: string } }; message?: string };
+      toast.error(_err.response?.data?.message || 'Failed to update profile.');
     } finally {
       setSavingProfile(false);
     }
@@ -88,8 +88,8 @@ export default function ProfileSettingsPage() {
       });
       toast.success('Password updated successfully.');
       setCurrentPwd(''); setNewPwd(''); setConfirmPwd('');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to update password.');
+    } catch (err: unknown) { const _err = err as { response?: { data?: { message?: string; error?: string } }; message?: string };
+      toast.error(_err.response?.data?.message || 'Failed to update password.');
     } finally {
       setPwdLoading(false);
     }

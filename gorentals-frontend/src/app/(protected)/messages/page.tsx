@@ -20,7 +20,10 @@ export default function MessagesPage() {
     setLoading(true);
     setError(null);
     try   { setConversations(await getConversations()); }
-    catch (err: any) { setError(err?.response?.data?.message ?? 'Failed to load conversations.'); }
+    catch (err: unknown) { 
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error?.response?.data?.message ?? 'Failed to load conversations.'); 
+    }
     finally { setLoading(false); }
   }, [user]);
 

@@ -25,7 +25,7 @@ export const supabase = createClient(supabaseUrl || 'https://placeholder.supabas
  */
 export function subscribeToConversation(
   conversationId: string,
-  onMessage: (message: any) => void
+  onMessage: (message: Record<string, unknown>) => void
 ) {
   if (!supabaseUrl || !supabaseKey) return () => {}
 
@@ -43,8 +43,7 @@ export function subscribeToConversation(
         onMessage(payload.new)
       }
     )
-    .subscribe((status) => {
-    })
+    .subscribe()
 
   return () => {
     supabase.removeChannel(channel)

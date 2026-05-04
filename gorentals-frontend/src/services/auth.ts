@@ -9,28 +9,29 @@ export interface BackendAuthResponse {
   email: string;
   fullName: string;
   userId: string;
+  [key: string]: unknown;
 }
 
 /** 
  * Normalizes the backend auth response into a consistent frontend Profile shape.
  * Backend may return: role | userType, name | fullName, id | userId
  */
-export function buildProfile(data: any): Profile {
+export function buildProfile(data: Record<string, unknown>): Profile {
   const rawType: string = (data.userType as string) ?? (data.role as string) ?? '';
   const userType = rawType.replace(/^ROLE_/, '').toUpperCase();
 
   return {
     id:              (data.id as string)       ?? (data.userId as string)    ?? '',
     fullName:        (data.fullName as string) ?? (data.name as string)      ?? '',
-    email:           data.email    ?? '',
-    phone:           data.phone    ?? (data.phoneNumber as string) ?? '',
+    email:           (data.email as string)    ?? '',
+    phone:           (data.phone as string)    ?? (data.phoneNumber as string) ?? '',
     role:            userType as UserRole,
     userType:        userType as UserRole,
-    kycStatus:       data.kycStatus ?? 'PENDING',
-    isActive:        data.isActive ?? true,
-    isVerified:      data.isVerified ?? (data.verified as boolean) ?? false,
-    createdAt:       data.createdAt ?? new Date().toISOString(),
-    updatedAt:       data.updatedAt ?? new Date().toISOString(),
+    kycStatus:       (data.kycStatus as string) ?? 'PENDING',
+    isActive:        (data.isActive as boolean) ?? true,
+    isVerified:      (data.isVerified as boolean) ?? (data.verified as boolean) ?? false,
+    createdAt:       (data.createdAt as string) ?? new Date().toISOString(),
+    updatedAt:       (data.updatedAt as string) ?? new Date().toISOString(),
   } as Profile;
 }
 
@@ -71,14 +72,15 @@ export async function signIn(
     const token = response.data.accessToken;
     if (token) setToken(token);
     return { data: response.data };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string; error?: string }; statusText?: string; status?: number }; message?: string };
     const msg =
-      error.response?.data?.message ??
-      error.response?.data?.error   ??
-      error.response?.statusText    ??
-      error.message                 ??
+      err.response?.data?.message ??
+      err.response?.data?.error   ??
+      err.response?.statusText    ??
+      err.message                 ??
       'Login failed. Please try again.';
-    console.error('[signIn] HTTP', error.response?.status, msg);
+    console.error('[signIn] HTTP', err.response?.status, msg);
     return { error: msg };
   }
 }
@@ -100,14 +102,15 @@ export async function adminSignIn(
     const token = response.data.accessToken;
     if (token) setToken(token);
     return { data: response.data };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string; error?: string }; statusText?: string; status?: number }; message?: string };
     const msg =
-      error.response?.data?.message ??
-      error.response?.data?.error   ??
-      error.response?.statusText    ??
-      error.message                 ??
+      err.response?.data?.message ??
+      err.response?.data?.error   ??
+      err.response?.statusText    ??
+      err.message                 ??
       'Admin login failed.';
-    console.error('[adminSignIn] HTTP', error.response?.status, msg);
+    console.error('[adminSignIn] HTTP', err.response?.status, msg);
     return {
       error: msg,
     };
@@ -163,7 +166,8 @@ export async function signUp(
     const token = response.data.accessToken;
     if (token) setToken(token);
     return { data: response.data };
-  } catch (error: any) {
-    return { error: error.response?.data?.message || error.message || 'Failed to create account' };
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string } }; message?: string };
+    return { error: err.response?.data?.message || err.message || 'Failed to create account' };
   }
 }

@@ -98,8 +98,9 @@ export default function OwnerDashboardPage() {
     setListingsError(null);
     getOwnerListings(user.id)
       .then(setListings)
-      .catch((err: any) => {
-        const msg = err?.response?.data?.message ?? err?.message ?? 'Failed to load listings.';
+      .catch((err: unknown) => {
+        const _err = err as { response?: { data?: { message?: string } }, message?: string };
+        const msg = _err?.response?.data?.message ?? _err?.message ?? 'Failed to load listings.';
         setListingsError(msg);
         toast.error(msg);
       })
@@ -145,8 +146,9 @@ export default function OwnerDashboardPage() {
       await acceptBooking(id);
       toast.success('Reservation authorized.');
       refetch?.();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Authorization failed.');
+    } catch (err: unknown) {
+      const _err = err as { response?: { data?: { message?: string } } };
+      toast.error(_err?.response?.data?.message ?? 'Authorization failed.');
     } finally {
       setActionId(null);
     }
@@ -158,8 +160,9 @@ export default function OwnerDashboardPage() {
       await rejectBooking(id);
       toast.success('Reservation declined.');
       refetch?.();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Action failed.');
+    } catch (err: unknown) {
+      const _err = err as { response?: { data?: { message?: string } } };
+      toast.error(_err?.response?.data?.message ?? 'Action failed.');
     } finally {
       setActionId(null);
     }
@@ -174,9 +177,10 @@ export default function OwnerDashboardPage() {
       const updated = await toggleListingAvailability(id, nextAvailable);
       setListings(prev => prev.map(l => l.id === id ? updated : l));
       toast.success(nextAvailable ? 'Asset online.' : 'Asset suspended.');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const _err = err as { response?: { data?: { message?: string } } };
       setListings(prev => prev.map(l => l.id === id ? { ...l, is_available: prevAvailable } : l));
-      toast.error(err?.response?.data?.message ?? 'Failed to alter asset state.');
+      toast.error(_err?.response?.data?.message ?? 'Failed to alter asset state.');
     }
   };
 
@@ -185,8 +189,9 @@ export default function OwnerDashboardPage() {
       const updated = await publishListing(id);
       setListings(prev => prev.map(l => l.id === id ? updated : l));
       toast.success('Asset deployed to public archive.');
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Deployment failed.');
+    } catch (err: unknown) {
+      const _err = err as { response?: { data?: { message?: string } } };
+      toast.error(_err?.response?.data?.message ?? 'Deployment failed.');
     }
   };
 

@@ -82,6 +82,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     // ── LOGGED IN ─────────────────────────────────────────────────────────
 
     // 1. Load initial badge count from REST
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshUnread();
 
     // 2. Connect WS + subscribe to personal inbox queue

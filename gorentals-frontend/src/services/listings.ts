@@ -4,8 +4,21 @@
 import api from '@/lib/axios';
 import type { Listing, SearchFilters } from '@/types';
 
-function mapListingResponse(data: Record<string, any>): Listing {
+interface ListingBackendResponse {
+  id?: string | number;
+  owner?: { id?: string | number; fullName?: string };
+  title?: string; description?: string; category?: string; type?: string;
+  pricePerDay?: number | string; securityDeposit?: number | string;
+  isPublished?: boolean; isAvailable?: boolean; createdAt?: string;
+  images?: string[]; city?: string;
+  ratingCount?: number; totalRatings?: number;
+  [key: string]: unknown;
+}
+
+function mapListingResponse(data: ListingBackendResponse): Listing {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const ratingCount  = data.ratingCount  ?? 0;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const totalRatings = data.totalRatings ?? 0;
 
   return {
@@ -63,8 +76,9 @@ export async function getListings(filters: SearchFilters = {}): Promise<Listing[
 
     const res = await api.get('/listings/search', { params });
     return (res.data.content ?? []).map(mapListingResponse);
-  } catch (err: any) {
-    console.error('[listings] getListings failed:', err?.response?.data ?? err.message);
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: unknown }; message?: string };
+    console.error('[listings] getListings failed:', error?.response?.data ?? error.message);
     return [];
   }
 }
@@ -73,17 +87,19 @@ export async function getListing(id: string): Promise<Listing | null> {
   try {
     const res = await api.get(`/listings/${id}`);
     return mapListingResponse(res.data);
-  } catch (err: any) {
-    console.error(`[listings] getListing(${id}) failed:`, err?.response?.data ?? err.message);
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: unknown }; message?: string };
+    console.error(`[listings] getListing(${id}) failed:`, error?.response?.data ?? error.message);
     return null;
   }
 }
 
 // _ownerId ignored — backend reads owner from JWT at /owner/mine
 // No try/catch — caller must show real error state, not silent empty list
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function getOwnerListings(_ownerId?: string): Promise<Listing[]> {
   const res = await api.get('/listings/owner/mine');
-  const items: Record<string, any>[] = Array.isArray(res.data) ? res.data : (res.data.content ?? []);
+  const items: ListingBackendResponse[] = Array.isArray(res.data) ? res.data : (res.data.content ?? []);
   return items.map(mapListingResponse);
 }
 
@@ -165,14 +181,17 @@ export async function updateListingImages(listingId: string, imageUrls: string[]
 }
 
 // Keeping these as no-ops or removing if they are replaced by direct listing update logic
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function uploadListingImages(_listingId: string, _files: File[]): Promise<void> {
   console.warn('Use direct Supabase upload instead of uploadListingImages');
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function deleteListingImage(_listingId: string, _imageId: string): Promise<void> {
   console.warn('Handle deletion via updateListingImages');
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function setPrimaryImage(_listingId: string, _imageId: string): Promise<void> {
   console.warn('Handle primary image via order in updateListingImages');
 }

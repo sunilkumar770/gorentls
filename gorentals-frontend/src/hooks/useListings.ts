@@ -18,12 +18,13 @@ export function useListings(filters: ListingSearchParams = {}) {
     try {
       const data = await getAllListings(filters);
       // Ensure we extract the array from PagedResponse if needed
-      setListings(Array.isArray(data) ? data : (data as any).content || []);
+      setListings(Array.isArray(data) ? data : (data as { content?: Listing[] }).content || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch listings');
     } finally {
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterKey]); // Re-run when serialized filters change
 
   useEffect(() => {

@@ -10,6 +10,7 @@ export function useWishlist() {
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem(KEY) ?? '[]') as string[];
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIds(new Set(stored));
     } catch { /* noop */ }
   }, []);

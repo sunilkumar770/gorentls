@@ -1,5 +1,5 @@
 import api from '@/lib/axios';
-import type { Notification, NotificationPage } from '@/types';
+import type { NotificationPage } from '@/types';
 
 export async function getNotifications(
   page = 0,

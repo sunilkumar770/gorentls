@@ -43,15 +43,16 @@ export default function MyBookingsPage() {
       await cancelBooking(bookingId);
       toast.success('Booking cancelled successfully');
       await loadBookings(); // Reload to get updated status
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to cancel booking');
+    } catch (error: unknown) { 
+      const _err = error as { response?: { data?: { message?: string; error?: string } }; message?: string };
+      toast.error(_err.response?.data?.message || 'Failed to cancel booking');
     } finally {
       setCancellingId(null);
     }
   };
 
   const getStatusConfig = (status: string) => {
-    const config: Record<string, { color: string; icon: any; label: string; bg: string }> = {
+    const config: Record<string, { color: string; icon: React.ElementType; label: string; bg: string }> = {
       PENDING_PAYMENT: { color: 'text-amber-600', bg: 'bg-amber-50', icon: Clock, label: 'Pending Payment' },
       CONFIRMED: { color: 'text-green-600', bg: 'bg-green-50', icon: CheckCircle2, label: 'Confirmed' },
       IN_USE: { color: 'text-blue-600', bg: 'bg-blue-50', icon: Package, label: 'In Use' },

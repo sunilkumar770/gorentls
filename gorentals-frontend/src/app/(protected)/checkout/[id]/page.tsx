@@ -11,12 +11,13 @@ import { Shield, MapPin, Calendar, ChevronLeft, AlertCircle, CheckCircle2 } from
 import { toast } from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
 import { calcQuotePhase1 } from '@/lib/pricing';
+import type { Booking } from '@/types';
 
 export default function CheckoutPage() {
   const { id: bookingId } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [booking,  setBooking]  = useState<any | null>(null);
+  const [booking,  setBooking]  = useState<Booking | null>(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
   const { escrow, refresh: refreshEscrow } = useEscrow(bookingId as string);

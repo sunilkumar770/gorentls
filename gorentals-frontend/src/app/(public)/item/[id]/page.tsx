@@ -85,11 +85,12 @@ export default function ItemDetailPage() {
       } else {
         throw new Error('Booking created but ID is missing');
       }
-    } catch (err: any) {
-      if (err.response?.status === 409) {
+    } catch (err: unknown) { 
+      const _err = err as { response?: { status?: number; data?: { message?: string; error?: string } }; message?: string };
+      if (_err.response?.status === 409) {
         toast.error('Selected dates are no longer available.');
       } else {
-        toast.error(err?.response?.data?.message ?? 'Booking initialization failed. Please try again.');
+        toast.error(_err?.response?.data?.message ?? 'Booking initialization failed. Please try again.');
       }
       setBooking(false);
     }
