@@ -51,3 +51,30 @@ export async function completeBooking(bookingId: string): Promise<Booking> {
   const res = await api.patch<Booking>(`/bookings/${bookingId}/complete`);
   return res.data;
 }
+
+/**
+ * Fetch the PDF receipt bytes for a booking.
+ * Returns a Blob ready to be used with URL.createObjectURL().
+ */
+export async function downloadReceipt(bookingId: string): Promise<Blob> {
+  const res = await api.get(`/bookings/${bookingId}/receipt`, {
+    responseType: 'blob',
+  });
+  return res.data as Blob;
+}
+
+/**
+ * Trigger browser PDF download for a booking receipt.
+ * Creates a temporary <a> element, clicks it, then cleans up.
+ */
+export async function triggerReceiptDownload(bookingId: string): Promise<void> {
+  const blob = await downloadReceipt(bookingId);
+  const url  = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `receipt-${bookingId}.pdf`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
