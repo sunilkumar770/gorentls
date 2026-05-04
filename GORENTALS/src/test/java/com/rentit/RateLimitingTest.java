@@ -3,17 +3,28 @@ package com.rentit;
 import com.rentit.config.RateLimitConfig;
 import io.github.bucket4j.Bucket;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+
 import static org.junit.jupiter.api.Assertions.*;
 
+@ExtendWith(SpringExtension.class)
+@ContextConfiguration(classes = RateLimitConfig.class, initializers = ConfigDataApplicationContextInitializer.class)
+@ActiveProfiles("test")
 public class RateLimitingTest {
 
-    private final RateLimitConfig config = new RateLimitConfig();
+    @Autowired
+    private RateLimitConfig config;
 
     @Test
     public void testAuthenticationRateLimit() {
         Bucket bucket = config.getBucketForIp("auth", "192.168.1.1", config::createAuthBucket);
         
-        // Should allow 5 requests (new limit)
+        // Should allow 5 requests (based on application-test.yml)
         for (int i = 0; i < 5; i++) {
             assertTrue(bucket.tryConsume(1), "Request " + (i + 1) + " should be allowed");
         }
