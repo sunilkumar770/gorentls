@@ -228,17 +228,11 @@ public class BookingService {
 
         if (current == BookingStatus.PENDING_PAYMENT) {
             escrowService.confirmOwnerAcceptance(booking);
-            return mapToBookingResponse(
-                    bookingRepository.findById(bookingId)
-                            .orElseThrow(() -> BusinessException.notFound("Booking", bookingId))
-            );
+            return mapToBookingResponse(booking);
         } else if (current == BookingStatus.CONFIRMED
                 && (escrow == EscrowStatus.ADVANCE_HELD || escrow == EscrowStatus.FULL_HELD)) {
             escrowService.markHandoverAndStartUse(booking);
-            return mapToBookingResponse(
-                    bookingRepository.findById(bookingId)
-                            .orElseThrow(() -> BusinessException.notFound("Booking", bookingId))
-            );
+            return mapToBookingResponse(booking);
         } else {
             throw BusinessException.badRequest(
                     "Cannot confirm booking in current state: " + current + " / " + escrow
@@ -323,8 +317,44 @@ public class BookingService {
         boolean isRenter = booking.getRenter().getEmail().equals(callerEmail);
         boolean isAdmin  = caller.getUserType() == User.UserType.ADMIN;
 
-        // ── Authorization matrix ─────────────────────────────────────────────
-        // BUG-09 FIX: IN_USE added as an owner-only action (mark handover)
+        validateStatusTransitionAuthorization(newStatus, isOwner, isRenter, isAdmin);
+
+        BookingStatus current = booking.getBookingStatus();
+        if (!isValidTransition(current, newStatus)) {
+            throw new IllegalStateException(
+                "Invalid booking transition: " + current + " → " + newStatus
+                + " (booking: " + bookingId + ")");
+        }
+
+        handleBlockedDateSideEffects(booking, newStatus);
+
+        // ── Escrow Side-Effects ──────────────────────────────────────────────
+        if (newStatus == BookingStatus.IN_USE) {
+            escrowService.markHandoverAndStartUse(booking);
+            return mapToBookingResponse(booking);
+        } else if (newStatus == BookingStatus.RETURNED) {
+            escrowService.markReturn(booking);
+            return mapToBookingResponse(booking);
+        }
+
+        booking.setBookingStatus(newStatus);
+        booking.setUpdatedAt(LocalDateTime.now());
+        
+        if (newStatus == BookingStatus.CANCELLED) {
+            processCancellationEscrowRefund(booking, isRenter);
+        }
+
+        Booking saved = bookingRepository.save(booking);
+
+        sendPostTransitionNotifications(saved, newStatus, caller, isRenter);
+
+        log.info("Booking {} transitioned {} → {} by {}",
+            bookingId, current, newStatus, callerEmail);
+
+        return mapToBookingResponse(saved);
+    }
+
+    private void validateStatusTransitionAuthorization(BookingStatus newStatus, boolean isOwner, boolean isRenter, boolean isAdmin) {
         switch (newStatus) {
             case IN_USE, RETURNED, COMPLETED, NO_SHOW, DISPUTED -> {
                 if (!isOwner && !isAdmin)
@@ -337,12 +367,10 @@ public class BookingService {
             default -> throw new IllegalArgumentException(
                 "Unsupported direct status transition to: " + newStatus);
         }
+    }
 
-        // ── State machine guard ──────────────────────────────────────────────
-        // BUG-05 FIX: PENDING → ACCEPTED (not CONFIRMED)
-        // BUG-06 FIX: IN_USE is now a valid precondition for COMPLETED
-        BookingStatus current = booking.getBookingStatus();
-        boolean validTransition = switch (current) {
+    private boolean isValidTransition(BookingStatus current, BookingStatus newStatus) {
+        return switch (current) {
             case PENDING_PAYMENT -> newStatus == BookingStatus.CONFIRMED || newStatus == BookingStatus.CANCELLED;
             case CONFIRMED       -> newStatus == BookingStatus.IN_USE || newStatus == BookingStatus.CANCELLED || newStatus == BookingStatus.NO_SHOW;
             case IN_USE          -> newStatus == BookingStatus.RETURNED || newStatus == BookingStatus.DISPUTED;
@@ -350,13 +378,9 @@ public class BookingService {
             case DISPUTED        -> newStatus == BookingStatus.COMPLETED || newStatus == BookingStatus.CANCELLED;
             default              -> false; // COMPLETED, CANCELLED, NO_SHOW are terminal
         };
+    }
 
-        if (!validTransition)
-            throw new IllegalStateException(
-                "Invalid booking transition: " + current + " → " + newStatus
-                + " (booking: " + bookingId + ")");
-
-        // ── Blocked-date side-effects ────────────────────────────────────────
+    private void handleBlockedDateSideEffects(Booking booking, BookingStatus newStatus) {
         if (newStatus == BookingStatus.CONFIRMED) {
             if (blockedDateRepository
                     .findByListing_IdAndBooking_Id(booking.getListing().getId(), booking.getId())
@@ -373,30 +397,33 @@ public class BookingService {
             blockedDateRepository.deleteByListing_IdAndBooking_Id(
                 booking.getListing().getId(), booking.getId());
         }
+    }
 
-        // ── Escrow Side-Effects ──────────────────────────────────────────────
-        // Sync the escrow service if the status change is a lifecycle event.
-        if (newStatus == BookingStatus.IN_USE) {
-            escrowService.markHandoverAndStartUse(booking);
-            return mapToBookingResponse(
-                    bookingRepository.findById(bookingId)
-                            .orElseThrow(() -> BusinessException.notFound("Booking", bookingId))
-            );
-        } else if (newStatus == BookingStatus.RETURNED) {
-            escrowService.markReturn(booking);
-            return mapToBookingResponse(
-                    bookingRepository.findById(bookingId)
-                            .orElseThrow(() -> BusinessException.notFound("Booking", bookingId))
-            );
+    private void processCancellationEscrowRefund(Booking booking, boolean isRenter) {
+        EscrowStatus escrow = booking.getEscrowStatus();
+        if (escrow == EscrowStatus.ADVANCE_HELD || escrow == EscrowStatus.FULL_HELD) {
+            BigDecimal refundAmount = (escrow == EscrowStatus.FULL_HELD) 
+                ? booking.getTotalAmount() : booking.getAdvanceAmount();
+            
+            try {
+                String refundId = null;
+                if (booking.getRazorpayPaymentId() != null) {
+                    refundId = razorpayService.createRefund(
+                        booking.getRazorpayPaymentId(),
+                        refundAmount,
+                        "Booking cancelled by " + (isRenter ? "renter" : "owner"),
+                        booking.getId()
+                    );
+                }
+                escrowService.cancelAndRefund(booking, refundAmount, 
+                    "Cancellation by " + (isRenter ? "renter" : "owner"), refundId);
+            } catch (Exception e) {
+                log.error("Refund failed during cancellation for booking {}: {}", booking.getId(), e.getMessage());
+            }
         }
+    }
 
-        booking.setBookingStatus(newStatus);
-        booking.setUpdatedAt(LocalDateTime.now());
-        Booking saved = bookingRepository.save(booking);
-
-        // ── Post-transition notifications ────────────────────────────────────
-        // BUG-10 FIX: one clear notification per outcome; no spurious refund
-        //             notification unless payment was actually completed.
+    private void sendPostTransitionNotifications(Booking booking, BookingStatus newStatus, User caller, boolean isRenter) {
         switch (newStatus) {
             case PENDING_PAYMENT -> notificationService.sendNotification(
                 booking.getRenter().getId(), "Booking Requested",
@@ -412,30 +439,6 @@ public class BookingService {
                     String.format("Booking for '%s' was cancelled by %s.",
                         booking.getListing().getTitle(), caller.getFullName()),
                     "BOOKING_CANCELLED");
-
-                // CRITICAL FIX: Trigger actual escrow refund if money was held
-                EscrowStatus escrow = booking.getEscrowStatus();
-                if (escrow == EscrowStatus.ADVANCE_HELD || escrow == EscrowStatus.FULL_HELD) {
-                    BigDecimal refundAmount = (escrow == EscrowStatus.FULL_HELD) 
-                        ? booking.getTotalAmount() : booking.getAdvanceAmount();
-                    
-                    try {
-                        String refundId = null;
-                        if (booking.getRazorpayPaymentId() != null) {
-                            refundId = razorpayService.createRefund(
-                                booking.getRazorpayPaymentId(),
-                                refundAmount,
-                                "Booking cancelled by " + (isRenter ? "renter" : "owner"),
-                                bookingId
-                            );
-                        }
-                        escrowService.cancelAndRefund(booking, refundAmount, 
-                            "Cancellation by " + (isRenter ? "renter" : "owner"), refundId);
-                    } catch (Exception e) {
-                        log.error("Refund failed during cancellation for booking {}: {}", bookingId, e.getMessage());
-                        // Status update still proceeds, but ledger might need manual intervention
-                    }
-                }
 
                 if ("COMPLETED".equals(booking.getPaymentStatus()) && isRenter) {
                     notificationService.sendNotification(
@@ -458,14 +461,8 @@ public class BookingService {
                         "DEPOSIT_REFUND");
                 }
             }
-
             default -> { /* IN_USE, RETURNED, etc. — no notification needed */ }
         }
-
-        log.info("Booking {} transitioned {} → {} by {}",
-            bookingId, current, newStatus, callerEmail);
-
-        return mapToBookingResponse(saved);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
