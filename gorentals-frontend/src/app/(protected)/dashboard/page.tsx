@@ -5,16 +5,19 @@ export const dynamic = 'force-dynamic';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRenterBookings } from '@/hooks/useBookings';
+import { useFavorites } from '@/hooks/useFavorites';
 import { formatDate } from '@/lib/utils';
 import {
   Calendar, Package, Loader2,
   TrendingUp, Clock, ArrowRight,
   ShieldAlert, BadgeCheck, Zap,
-  XCircle, RotateCcw, Box
+  XCircle, RotateCcw, Box, Heart
 } from 'lucide-react';
 import Link from 'next/link';
 import { cancelBooking } from '@/services/bookings';
 import { toast } from 'react-hot-toast';
+import { ErrorBoundary } from 'react-error-boundary';
+import { ErrorFallback } from '@/components/ui/ErrorFallback';
 
 // ── Status config mapped to Deep Teal vibes ────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; pill: string; icon: React.ElementType }> = {
@@ -45,6 +48,8 @@ function BookingSkeleton() {
 export default function DashboardPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const { bookings, loading: bookingsLoading, refetch } = useRenterBookings(user?.id);
+  const { favorites, loading: favoritesLoading, removeFavorite } = useFavorites();
+  const [activeTab, setActiveTab] = useState<'bookings' | 'favorites'>('bookings');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   if (authLoading || !user) {
@@ -160,109 +165,165 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Recent Bookings ──────────────────────────────────────────── */}
-        <div className="flex items-end justify-between mb-6 pb-4 border-b border-[var(--border)]">
-          <div>
-            <h2 className="text-xl font-display font-bold text-[var(--text)] tracking-tight">Activity Log</h2>
-            <p className="text-sm text-[var(--text-muted)]">Your most recent rental requests</p>
-          </div>
-          <Link href="/my-bookings"
-                className="text-sm text-[var(--primary)] font-bold hover:text-[var(--primary-hover)] transition-colors flex items-center gap-1.5 uppercase tracking-widest">
-            Complete Log <ArrowRight className="w-4 h-4" />
-          </Link>
+        {/* ── Tabs ────────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-6 mb-8 border-b border-[var(--border)]">
+          <button 
+            onClick={() => setActiveTab('bookings')}
+            className={`text-xl font-display font-bold tracking-tight pb-2 transition-colors ${activeTab === 'bookings' ? 'text-[var(--text)] border-b-2 border-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>
+            Activity Log
+          </button>
+          <button 
+            onClick={() => setActiveTab('favorites')}
+            className={`text-xl font-display font-bold tracking-tight pb-2 transition-colors ${activeTab === 'favorites' ? 'text-[var(--text)] border-b-2 border-[#ec4899]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>
+            Saved Items ({favorites.length})
+          </button>
         </div>
 
-        {bookingsLoading ? (
-          <div className="flex flex-col gap-5">
-            {[1, 2, 3].map(i => <BookingSkeleton key={i} />)}
-          </div>
-        ) : recentBookings.length === 0 ? (
-          <div className="bg-[var(--bg-card)] rounded-[var(--r-xl)] shadow-sm border border-[var(--border)] p-16 text-center shadow-card">
-            <div className="w-16 h-16 bg-[var(--bg-subtle)] rounded-full flex items-center justify-center mx-auto mb-5">
-              <Calendar className="w-8 h-8 text-[var(--text-faint)]" />
+        <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => refetch?.()}>
+          {activeTab === 'bookings' && bookingsLoading && (
+            <div className="flex flex-col gap-5">
+              {[1, 2, 3].map(i => <BookingSkeleton key={i} />)}
             </div>
-            <h3 className="font-display text-xl font-bold text-[var(--text)] mb-2">Archive Empty</h3>
-            <p className="text-[var(--text-muted)] text-sm mb-6 max-w-sm mx-auto">You have no active or historical bookings. Explore our curated directory to find professional equipment.</p>
-            <Link href="/search"
-                  className="inline-flex h-12 items-center justify-center px-8 gradient-teal text-white text-sm font-bold rounded-[var(--r-md)] shadow-card hover:shadow-card-hover transition-all">
-              Initialize Search
-            </Link>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-5">
-            {recentBookings.map(booking => {
-              const cfg = STATUS_CONFIG[booking.status]
-                ?? { label: booking.status, pill: 'bg-[var(--bg-subtle)] text-[var(--text-muted)] border border-[var(--border)]', icon: ShieldAlert };
-              
-              const StatusIcon = cfg.icon;
-              const canCancel = booking.status === 'PENDING_PAYMENT' || booking.status === 'CONFIRMED';
+          )}
+          
+          {activeTab === 'bookings' && !bookingsLoading && recentBookings.length === 0 && (
+            <div className="bg-[var(--bg-card)] rounded-[var(--r-xl)] shadow-sm border border-[var(--border)] p-16 text-center shadow-card">
+              <div className="w-16 h-16 bg-[var(--bg-subtle)] rounded-full flex items-center justify-center mx-auto mb-5">
+                <Calendar className="w-8 h-8 text-[var(--text-faint)]" />
+              </div>
+              <h3 className="font-display text-xl font-bold text-[var(--text)] mb-2">Archive Empty</h3>
+              <p className="text-[var(--text-muted)] text-sm mb-6 max-w-sm mx-auto">You have no active or historical bookings. Explore our curated directory to find professional equipment.</p>
+              <Link href="/search"
+                    className="inline-flex h-12 items-center justify-center px-8 gradient-teal text-white text-sm font-bold rounded-[var(--r-md)] shadow-card hover:shadow-card-hover transition-all">
+                Initialize Search
+              </Link>
+            </div>
+          )}
 
-              return (
-                <div key={booking.id}
-                     className="bg-[var(--bg-card)] rounded-[var(--r-xl)] shadow-sm hover:shadow-card border border-[var(--border)] p-5 flex flex-col sm:flex-row gap-5 items-start sm:items-center transition-all group">
-                  
-                  {/* Thumbnail */}
-                  <div className="w-full sm:w-28 h-32 sm:h-24 bg-[var(--bg-subtle)] rounded-[var(--r-lg)] flex-shrink-0 overflow-hidden relative">
-                    {booking.listing?.images?.[0] || booking.listing?.listing_images?.[0]?.image_url ? (
-                      <img src={booking.listing.images?.[0] || booking.listing.listing_images?.[0]?.image_url}
-                           alt={booking.listing?.title}
-                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Package className="w-6 h-6 text-[var(--text-faint)]" />
+          {activeTab === 'bookings' && !bookingsLoading && recentBookings.length > 0 && (
+            <div className="flex flex-col gap-5">
+              {recentBookings.map(booking => {
+                const cfg = STATUS_CONFIG[booking.status]
+                  ?? { label: booking.status, pill: 'bg-[var(--bg-subtle)] text-[var(--text-muted)] border border-[var(--border)]', icon: ShieldAlert };
+                
+                const StatusIcon = cfg.icon;
+                const canCancel = booking.status === 'PENDING_PAYMENT' || booking.status === 'CONFIRMED';
+
+                return (
+                  <div key={booking.id}
+                       className="bg-[var(--bg-card)] rounded-[var(--r-xl)] shadow-sm hover:shadow-card border border-[var(--border)] p-5 flex flex-col sm:flex-row gap-5 items-start sm:items-center transition-all group">
+                    
+                    {/* Thumbnail */}
+                    <div className="w-full sm:w-28 h-32 sm:h-24 bg-[var(--bg-subtle)] rounded-[var(--r-lg)] flex-shrink-0 overflow-hidden relative">
+                      {booking.listing?.images?.[0] || booking.listing?.listing_images?.[0]?.image_url ? (
+                        <img src={booking.listing.images?.[0] || booking.listing.listing_images?.[0]?.image_url}
+                             alt={booking.listing?.title}
+                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Package className="w-6 h-6 text-[var(--text-faint)]" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-center w-full">
+                      <p className="font-display font-bold text-[var(--text)] text-lg mb-1 truncate">
+                        {booking.listing?.title ?? 'Unknown Resource'}
+                      </p>
+                      <p className="text-sm text-[var(--text-muted)] font-medium mb-3">
+                        {booking.startDate && booking.endDate
+                          ? `${formatDate(booking.startDate)} → ${formatDate(booking.endDate)}`
+                          : 'Dates undefined'}
+                      </p>
+                      <div className="flex items-center gap-2">
+                         <span className={`inline-flex items-center gap-1.5 text-[11px] px-3 py-1 rounded-[var(--r-pill)] font-bold uppercase tracking-widest ${cfg.pill}`}>
+                           <StatusIcon className="w-3.5 h-3.5" /> {cfg.label}
+                         </span>
                       </div>
-                    )}
-                  </div>
+                    </div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0 flex flex-col justify-center w-full">
-                    <p className="font-display font-bold text-[var(--text)] text-lg mb-1 truncate">
-                      {booking.listing?.title ?? 'Unknown Resource'}
-                    </p>
-                    <p className="text-sm text-[var(--text-muted)] font-medium mb-3">
-                      {booking.startDate && booking.endDate
-                        ? `${formatDate(booking.startDate)} → ${formatDate(booking.endDate)}`
-                        : 'Dates undefined'}
-                    </p>
-                    <div className="flex items-center gap-2">
-                       <span className={`inline-flex items-center gap-1.5 text-[11px] px-3 py-1 rounded-[var(--r-pill)] font-bold uppercase tracking-widest ${cfg.pill}`}>
-                         <StatusIcon className="w-3.5 h-3.5" /> {cfg.label}
-                       </span>
+                    {/* Financials & Actions */}
+                    <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto gap-4 pt-4 sm:pt-0 border-t border-[var(--border)] sm:border-none">
+                      <p className="text-lg font-display font-bold text-[var(--text)] tracking-tight">
+                        ₹{(booking.totalAmount || 0).toLocaleString('en-IN')}
+                      </p>
+                      {canCancel ? (
+                        <button disabled={cancellingId === booking.id}
+                                onClick={() => handleCancel(booking.id)}
+                                className="px-4 py-2 text-xs font-bold text-[#b91c1c] bg-[#fef2f2] rounded-[var(--r-md)] hover:bg-[#fee2e2] disabled:opacity-50 transition-colors uppercase tracking-widest flex items-center gap-1.5 border border-[#fecaca]">
+                          {cancellingId === booking.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                          {cancellingId === booking.id ? 'Aborting' : 'Abort'}
+                        </button>
+                      ) : (
+                         <Link href={`/messages`}
+                               className="px-4 py-2 text-xs font-bold text-[var(--text-muted)] bg-[var(--bg-subtle)] rounded-[var(--r-md)] hover:bg-[var(--border)] transition-colors uppercase tracking-widest border border-[var(--border)]">
+                            Contact
+                         </Link>
+                      )}
                     </div>
                   </div>
+                );
+              })}
 
-                  {/* Financials & Actions */}
-                  <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto gap-4 pt-4 sm:pt-0 border-t border-[var(--border)] sm:border-none">
-                    <p className="text-lg font-display font-bold text-[var(--text)] tracking-tight">
-                      ₹{(booking.totalAmount || 0).toLocaleString('en-IN')}
-                    </p>
-                    {canCancel ? (
-                      <button disabled={cancellingId === booking.id}
-                              onClick={() => handleCancel(booking.id)}
-                              className="px-4 py-2 text-xs font-bold text-[#b91c1c] bg-[#fef2f2] rounded-[var(--r-md)] hover:bg-[#fee2e2] disabled:opacity-50 transition-colors uppercase tracking-widest flex items-center gap-1.5 border border-[#fecaca]">
-                        {cancellingId === booking.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                        {cancellingId === booking.id ? 'Aborting' : 'Abort'}
-                      </button>
+              {bookings.length > 3 && (
+                <Link href="/my-bookings"
+                      className="flex w-full items-center justify-center gap-2 text-sm text-[var(--primary)] font-bold
+                                 py-4 rounded-[var(--r-md)] hover:bg-[var(--primary-light)] border border-[var(--border)] bg-[var(--bg-card)] transition-colors uppercase tracking-widest mt-2">
+                  Launch Full Archive ({bookings.length}) <ArrowRight className="w-4 h-4 ml-1" />
+                </Link>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'favorites' && favoritesLoading && (
+            <div className="flex flex-col gap-5">
+              {[1, 2].map(i => <BookingSkeleton key={i} />)}
+            </div>
+          )}
+
+          {activeTab === 'favorites' && !favoritesLoading && favorites.length === 0 && (
+            <div className="bg-[var(--bg-card)] rounded-[var(--r-xl)] shadow-sm border border-[var(--border)] p-16 text-center shadow-card">
+              <div className="w-16 h-16 bg-[#fce7f3] rounded-full flex items-center justify-center mx-auto mb-5">
+                <Heart className="w-8 h-8 text-[#db2777]" />
+              </div>
+              <h3 className="font-display text-xl font-bold text-[var(--text)] mb-2">No Saved Items</h3>
+              <p className="text-[var(--text-muted)] text-sm mb-6 max-w-sm mx-auto">You haven't saved any items yet. Click the heart icon on any listing to save it for later.</p>
+              <Link href="/search"
+                    className="inline-flex h-12 items-center justify-center px-8 gradient-teal text-white text-sm font-bold rounded-[var(--r-md)] shadow-card hover:shadow-card-hover transition-all">
+                Explore Directory
+              </Link>
+            </div>
+          )}
+
+          {activeTab === 'favorites' && !favoritesLoading && favorites.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {favorites.map(fav => (
+                <div key={fav.id} className="bg-[var(--bg-card)] rounded-[var(--r-xl)] shadow-sm hover:shadow-card border border-[var(--border)] p-5 flex flex-col sm:flex-row gap-5 items-start sm:items-center transition-all group">
+                  <div className="w-full sm:w-28 h-32 sm:h-24 bg-[var(--bg-subtle)] rounded-[var(--r-lg)] flex-shrink-0 overflow-hidden relative">
+                    {fav.listing?.images?.[0] ? (
+                      <img src={fav.listing.images[0]} alt={fav.listing?.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
-                       <Link href={`/messages`}
-                             className="px-4 py-2 text-xs font-bold text-[var(--text-muted)] bg-[var(--bg-subtle)] rounded-[var(--r-md)] hover:bg-[var(--border)] transition-colors uppercase tracking-widest border border-[var(--border)]">
-                          Contact
-                       </Link>
+                      <div className="w-full h-full flex items-center justify-center"><Package className="w-6 h-6 text-[var(--text-faint)]" /></div>
                     )}
                   </div>
+                  <div className="flex-1 min-w-0 flex flex-col justify-center w-full">
+                    <p className="font-display font-bold text-[var(--text)] text-lg mb-1 truncate">{fav.listing?.title}</p>
+                    <p className="text-sm text-[var(--text-muted)] font-medium mb-3">₹{fav.listing?.price_per_day}/day</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Link href={`/items/${fav.listing?.id}`} className="px-4 py-2 text-xs font-bold text-[var(--primary)] bg-[var(--primary-light)] rounded-[var(--r-md)] hover:bg-[var(--primary)] hover:text-white transition-colors uppercase tracking-widest border border-[var(--primary)]">
+                      View
+                    </Link>
+                    <button onClick={() => removeFavorite(fav.listing?.id as unknown as string)} className="p-2 text-[#db2777] bg-[#fce7f3] rounded-[var(--r-md)] hover:bg-[#fbcfe8] transition-colors border border-[#fbcfe8]" title="Remove from saved">
+                      <Heart className="w-4 h-4 fill-current" />
+                    </button>
+                  </div>
                 </div>
-              );
-            })}
-
-            {bookings.length > 3 && (
-              <Link href="/my-bookings"
-                    className="flex w-full items-center justify-center gap-2 text-sm text-[var(--primary)] font-bold
-                               py-4 rounded-[var(--r-md)] hover:bg-[var(--primary-light)] border border-[var(--border)] bg-[var(--bg-card)] transition-colors uppercase tracking-widest mt-2">
-                Launch Full Archive ({bookings.length}) <ArrowRight className="w-4 h-4 ml-1" />
-              </Link>
-            )}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </ErrorBoundary>
       </div>
     </div>
   );

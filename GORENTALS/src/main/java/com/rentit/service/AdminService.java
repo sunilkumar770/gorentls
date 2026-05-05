@@ -19,6 +19,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +37,8 @@ public class AdminService {
         private final NotificationService notificationService;
         private final AdminAuditLogRepository auditLogRepository;
 
+        private static final Logger logger = LoggerFactory.getLogger(AdminService.class);
+
         // ── Helpers ──────────────────────────────────────────────────────────────
 
         /**
@@ -42,7 +47,12 @@ public class AdminService {
          */
         private String likePattern(String search) {
                 if (search == null || search.isBlank()) return "%%";
-                return "%" + search.trim() + "%";
+                // Escape % and _ to prevent malformed LIKE queries
+                String escaped = search.trim()
+                        .replace("\\", "\\\\")
+                        .replace("%", "\\%")
+                        .replace("_", "\\_");
+                return "%" + escaped + "%";
         }
 
         private void logAction(String action, String entityType, String entityId, String description) {
@@ -54,11 +64,15 @@ public class AdminService {
                                 log.setEntityId(UUID.fromString(entityId));
                         }
                         log.setDescription(description);
-                        // In production, we'd pull this from SecurityContextHolder
-                        log.setAdminEmail("admin@gorentals.com"); 
+                        
+                        // Pull current admin from Security Context
+                        var auth = SecurityContextHolder.getContext().getAuthentication();
+                        String adminEmail = (auth != null) ? auth.getName() : "system@gorentals.com";
+                        log.setAdminEmail(adminEmail); 
+                        
                         auditLogRepository.save(log);
                 } catch (Exception e) {
-                        // Log locally but don't break the UI flow if DB audit fails
+                        logger.error("Failed to save admin audit log for action={}: {}", action, e.getMessage());
                 }
         }
 
@@ -303,7 +317,7 @@ public class AdminService {
         // ── DTO Mappers ───────────────────────────────────────────────────────────
 
         private UserResponse mapToUserResponse(User user) {
-                UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElse(null);
+                UserProfile profile = user.getProfile();
                 boolean isVerified  = profile != null && profile.getKycStatus() == UserProfile.KYCStatus.APPROVED;
 
                 return UserResponse.builder()
@@ -324,7 +338,7 @@ public class AdminService {
         }
 
         private UserPublicResponse mapToUserPublicResponse(User user) {
-                UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElse(null);
+                UserProfile profile = user.getProfile();
                 boolean isVerified  = profile != null && profile.getKycStatus() == UserProfile.KYCStatus.APPROVED;
 
                 return UserPublicResponse.builder()

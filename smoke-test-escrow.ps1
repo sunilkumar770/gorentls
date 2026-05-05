@@ -18,9 +18,9 @@ try {
 Write-Host "`n=== STEP 0.5: Admin Login ===" -ForegroundColor Cyan
 $adminLogin = @{
     email = "admin@gorentals.com"
-    password = "Admin@123"
+    password = "Admin@GoRentals2025!"
 } | ConvertTo-Json
-$adminRes = Invoke-RestMethod -Uri "$BaseUrl/auth/login" -Method POST `
+$adminRes = Invoke-RestMethod -Uri "$BaseUrl/auth/admin-login" -Method POST `
     -ContentType "application/json" -Body $adminLogin
 $adminToken = $adminRes.accessToken
 Write-Host "Admin logged in: $($adminRes.email)"
@@ -30,15 +30,33 @@ Write-Host "`n=== STEP 1: Register Test Users ===" -ForegroundColor Cyan
 $rand = Get-Random
 
 function Register-TestUser($Email, $Type) {
-    $body = @{
-        email = $Email
-        password = "SmokeTest123!"
-        fullName = "Smoke $Type"
-        phone = "90000$($rand.ToString().Substring(0,5))"
-        userType = $Type
-    } | ConvertTo-Json
-    return Invoke-RestMethod -Uri "$BaseUrl/auth/register" -Method POST `
-        -ContentType "application/json" -Body $body
+    if ($Type -eq "OWNER") {
+        $body = @{
+            email = $Email
+            password = "SmokeTest123!"
+            fullName = "Smoke Owner"
+            phone = "90000$($rand.ToString().Substring(0,5))"
+            businessName = "Smoke Business"
+            businessType = "Rental"
+            businessAddress = "123 Smoke St"
+            businessCity = "Hyderabad"
+            businessState = "Telangana"
+            businessPincode = "500081"
+            businessPhone = "9000012345"
+            businessEmail = "business@smoke.com"
+        } | ConvertTo-Json
+        return Invoke-RestMethod -Uri "$BaseUrl/auth/register-owner" -Method POST `
+            -ContentType "application/json" -Body $body
+    } else {
+        $body = @{
+            email = $Email
+            password = "SmokeTest123!"
+            fullName = "Smoke Renter"
+            phone = "90000$($rand.ToString().Substring(0,5))"
+        } | ConvertTo-Json
+        return Invoke-RestMethod -Uri "$BaseUrl/auth/register" -Method POST `
+            -ContentType "application/json" -Body $body
+    }
 }
 
 $renterRes = Register-TestUser -Email "smoke-renter-$rand@test.com" -Type "RENTER"

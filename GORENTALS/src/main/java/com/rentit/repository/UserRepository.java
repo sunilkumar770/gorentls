@@ -49,8 +49,14 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      * Used by the admin dashboard search bar.
      * Returns ALL users when search is blank (caller passes "%%").
      */
-    @Query("""
+    @Query(value = """
         SELECT u FROM User u
+        LEFT JOIN FETCH u.profile
+        WHERE LOWER(u.email)    LIKE LOWER(:search)
+           OR LOWER(u.fullName) LIKE LOWER(:search)
+           OR LOWER(u.phone)    LIKE LOWER(:search)
+        """, countQuery = """
+        SELECT COUNT(u) FROM User u
         WHERE LOWER(u.email)    LIKE LOWER(:search)
            OR LOWER(u.fullName) LIKE LOWER(:search)
            OR LOWER(u.phone)    LIKE LOWER(:search)
@@ -60,8 +66,15 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     /**
      * Same search but scoped to a specific UserType — used for Owners tab.
      */
-    @Query("""
+    @Query(value = """
         SELECT u FROM User u
+        LEFT JOIN FETCH u.profile
+        WHERE u.userType = :userType
+          AND (LOWER(u.email)    LIKE LOWER(:search)
+           OR  LOWER(u.fullName) LIKE LOWER(:search)
+           OR  LOWER(u.phone)    LIKE LOWER(:search))
+        """, countQuery = """
+        SELECT COUNT(u) FROM User u
         WHERE u.userType = :userType
           AND (LOWER(u.email)    LIKE LOWER(:search)
            OR  LOWER(u.fullName) LIKE LOWER(:search)

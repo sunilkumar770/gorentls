@@ -51,11 +51,12 @@ public class ReceiptController {
             .orElseThrow(() -> BusinessException.notFound("User", userDetails.getUsername()));
 
         boolean isRenter = booking.getRenter().getId().equals(caller.getId());
+        boolean isOwner  = booking.getListing().getOwner().getId().equals(caller.getId());
         boolean isAdmin  = caller.getUserType() == User.UserType.ADMIN;
 
-        if (!isRenter && !isAdmin) {
+        if (!isRenter && !isOwner && !isAdmin) {
             throw BusinessException.forbidden(
-                "Only the renter or an admin can download this receipt.");
+                "Only the renter, owner, or an admin can download this receipt.");
         }
 
         byte[] pdf = receiptService.generateBookingReceipt(bookingId);

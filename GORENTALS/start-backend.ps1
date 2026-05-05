@@ -33,4 +33,13 @@ if (-not $port) { $port = "8080" }
 Write-Host "API URL: http://localhost:$port/api" -ForegroundColor Cyan
 Write-Host ""
 
-& .\mvnw.cmd spring-boot:run
+# Build the -D arguments list for mvnw
+$mvnArgs = @(
+    "spring-boot:run",
+    "-Dmaven.test.skip=true"
+)
+
+# Also ensure env vars are in current process so Spring picks them from System.getenv()
+Write-Host "Launching backend with environment variables..." -ForegroundColor Green
+& .\mvnw.cmd @mvnArgs
+

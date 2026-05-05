@@ -152,14 +152,14 @@ class DisputeServiceIntegrationTest extends IntegrationTestBase {
         Dispute resolved = disputeService.resolveRefund(
             d.getId(), adminId,
             "GPS logs confirm non-delivery.",
-            "pay_test_001",
+            "pay_12345",
             new BigDecimal("600.00")
         );
 
         assertThat(resolved.getStatus()).isEqualTo(DisputeStatus.RESOLVED_REFUND);
         assertThat(resolved.getRenterRefundAmt()).isEqualByComparingTo("600.00");
         verify(escrowService).processFullRefund(
-            any(), eq(new BigDecimal("600.00")), any(), eq("rfnd_001")
+            any(), eq(new BigDecimal("600.00")), any(), eq("MULTI_REFUND")
         );
     }
 

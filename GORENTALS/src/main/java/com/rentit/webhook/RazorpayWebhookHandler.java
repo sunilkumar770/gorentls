@@ -195,12 +195,11 @@ public class RazorpayWebhookHandler {
             rpRefundId, rpPaymentId, amountINR);
 
         paymentRepo.findByRazorpayPaymentId(rpPaymentId).ifPresent(p -> {
-            // Note: need to add setRefundId and setRefundStatus to Payment class if we use it here.
-            // Let's modify the Payment class afterwards.
-            p.setPaymentType("REFUND"); // temporary hack or add real fields
-            p.setStatus("REFUND_PROCESSED");
+            p.setRefundId(rpRefundId);
+            p.setRefundStatus("PROCESSED");
+            p.setStatus("REFUNDED");
             paymentRepo.save(p);
-            log.info("refund.processed: payment {} marked refund confirmed", rpPaymentId);
+            log.info("refund.processed: payment {} marked as REFUNDED with refundId={}", rpPaymentId, rpRefundId);
         });
     }
 

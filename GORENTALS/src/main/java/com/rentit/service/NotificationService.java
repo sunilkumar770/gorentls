@@ -34,9 +34,7 @@ public class NotificationService {
 
     @Transactional
     public void broadcastNotification(String title, String message, String type) {
-        userRepository.findAll().forEach(user -> {
-            sendNotification(user.getId(), title, message, type);
-        });
+        notificationRepository.broadcast(title, message, type);
     }
 
     public void sendNotification(String userId, String title, String message, String type) {
@@ -68,11 +66,7 @@ public class NotificationService {
 
     @Transactional
     public void markAllAsRead(UUID userId) {
-        notificationRepository.findByUserIdAndIsReadFalse(userId)
-            .forEach(n -> {
-                n.setIsRead(true);
-                notificationRepository.save(n);
-            });
+        notificationRepository.markAllRead(userId);
     }
 
     // ─── DELETE ───────────────────────────────────────────────────────────────

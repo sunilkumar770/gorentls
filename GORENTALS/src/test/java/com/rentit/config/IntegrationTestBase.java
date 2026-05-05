@@ -26,8 +26,8 @@ public abstract class IntegrationTestBase {
 
     @BeforeAll
     static void setup() {
-        boolean enabled = Boolean.parseBoolean(System.getProperty("testcontainers.enabled", "false"));
-        Assumptions.assumeTrue(enabled, "Skipping: testcontainers.enabled is not true");
+        boolean enabled = Boolean.parseBoolean(System.getProperty("testcontainers.enabled", "true"));
+        Assumptions.assumeTrue(enabled, "Skipping: testcontainers.enabled is false");
         
         try {
             if (!POSTGRES.isRunning()) {

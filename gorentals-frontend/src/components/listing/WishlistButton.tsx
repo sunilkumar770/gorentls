@@ -1,7 +1,7 @@
 'use client';
 
 import { Heart } from 'lucide-react';
-import { useWishlist } from '@/hooks/useWishlist';
+import { useFavorites } from '@/hooks/useFavorites';
 import { toast } from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 
@@ -14,16 +14,29 @@ export function WishlistButton({
   size?:     'sm' | 'md';
   className?: string;
 }) {
-  const { toggle, isWishlisted } = useWishlist();
-  const saved = isWishlisted(listingId);
+  const { favorites, addFavorite, removeFavorite } = useFavorites();
+  const saved = favorites.some(f => f.listing?.id === listingId);
 
-  function handleClick(e: React.MouseEvent) {
+  async function handleClick(e: React.MouseEvent) {
     e.preventDefault();    // don't navigate when inside a Link
     e.stopPropagation();
-    toggle(listingId);
-    toast(saved ? 'Removed from wishlist' : '❤️ Saved to wishlist', {
-      duration: 1500,
-    });
+    
+    let success = false;
+    if (saved) {
+      success = await removeFavorite(listingId);
+    } else {
+      success = await addFavorite(listingId);
+    }
+    
+    if (success) {
+      toast(saved ? 'Removed from favorites' : '❤️ Saved to favorites', {
+        duration: 1500,
+      });
+    } else {
+      toast.error('Failed to update favorites. Please login.', {
+        duration: 2000,
+      });
+    }
   }
 
   const iconSize = size === 'sm' ? 'w-3.5 h-3.5' : 'w-4.5 h-4.5';
@@ -32,7 +45,7 @@ export function WishlistButton({
   return (
     <button
       onClick={handleClick}
-      aria-label={saved ? 'Remove from wishlist' : 'Save to wishlist'}
+      aria-label={saved ? 'Remove from favorites' : 'Save to favorites'}
       className={cn(
         `${btnSize} rounded-full flex items-center justify-center
          transition-all duration-200 active:scale-90 shadow-sm`,

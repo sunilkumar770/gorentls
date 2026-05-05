@@ -113,6 +113,14 @@ public class RateLimitingIntegrationTest {
     @MockBean
     private UserProfileRepository userProfileRepository;
 
+    // ── New beans added during Favourites feature ─────────────────────────────
+
+    @MockBean
+    private FavoriteRepository favoriteRepository;
+
+    @MockBean
+    private FavoriteService favoriteService;
+
     @Test
     public void testAuthenticationRateLimitingReturns429() throws Exception {
         // Make 5 requests to /api/auth/login (limit is 5 per 15 min)

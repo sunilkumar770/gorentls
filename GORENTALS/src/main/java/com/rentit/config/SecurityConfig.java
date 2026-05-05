@@ -66,6 +66,7 @@ public class SecurityConfig {
             .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
+    @Bean
     public AuthenticationManager authenticationManager(
             AuthenticationConfiguration cfg) throws Exception {
         return cfg.getAuthenticationManager();
