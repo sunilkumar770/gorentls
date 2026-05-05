@@ -78,7 +78,7 @@ export async function getListings(filters: SearchFilters = {}): Promise<Listing[
     return (res.data.content ?? []).map(mapListingResponse);
   } catch (err: unknown) {
     const error = err as { response?: { data?: unknown }; message?: string };
-    console.error('[listings] getListings failed:', error?.response?.data ?? error.message);
+    if (process.env.NODE_ENV === "development") console.error('[listings] getListings failed:', error?.response?.data ?? error.message);
     return [];
   }
 }
@@ -89,7 +89,7 @@ export async function getListing(id: string): Promise<Listing | null> {
     return mapListingResponse(res.data);
   } catch (err: unknown) {
     const error = err as { response?: { data?: unknown }; message?: string };
-    console.error(`[listings] getListing(${id}) failed:`, error?.response?.data ?? error.message);
+    if (process.env.NODE_ENV === "development") console.error(`[listings] getListing(${id}) failed:`, error?.response?.data ?? error.message);
     return null;
   }
 }
@@ -183,16 +183,16 @@ export async function updateListingImages(listingId: string, imageUrls: string[]
 // Keeping these as no-ops or removing if they are replaced by direct listing update logic
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function uploadListingImages(_listingId: string, _files: File[]): Promise<void> {
-  console.warn('Use direct Supabase upload instead of uploadListingImages');
+  if (process.env.NODE_ENV === "development") console.warn('Use direct Supabase upload instead of uploadListingImages');
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function deleteListingImage(_listingId: string, _imageId: string): Promise<void> {
-  console.warn('Handle deletion via updateListingImages');
+  if (process.env.NODE_ENV === "development") console.warn('Handle deletion via updateListingImages');
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function setPrimaryImage(_listingId: string, _imageId: string): Promise<void> {
-  console.warn('Handle primary image via order in updateListingImages');
+  if (process.env.NODE_ENV === "development") console.warn('Handle primary image via order in updateListingImages');
 }
 

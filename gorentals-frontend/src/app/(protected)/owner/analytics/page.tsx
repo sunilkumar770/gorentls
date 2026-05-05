@@ -16,7 +16,7 @@ export default function OwnerAnalyticsPage() {
         const response = await api.get('/owner/analytics');
         setData(response.data);
       } catch (error) {
-        console.error('Failed to fetch analytics:', error);
+        if (process.env.NODE_ENV === "development") console.error('Failed to fetch analytics:', error);
         toast.error('Could not load analytics data. Please try again later.');
       } finally {
         setLoading(false);

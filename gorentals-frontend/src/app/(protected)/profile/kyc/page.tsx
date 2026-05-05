@@ -74,7 +74,7 @@ export default function KYCPage() {
       setStep(3); // Success/Processing step
     } catch (err: unknown) { 
       const _err = err as { response?: { data?: { message?: string; error?: string } }; message?: string };
-      console.error(err);
+      if (process.env.NODE_ENV === "development") console.error(err);
       toast.error(_err.response?.data?.message || "Failed to submit KYC");
     } finally {
       setLoading(false);

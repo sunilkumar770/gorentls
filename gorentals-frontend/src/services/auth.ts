@@ -80,7 +80,7 @@ export async function signIn(
       err.response?.statusText    ??
       err.message                 ??
       'Login failed. Please try again.';
-    console.error('[signIn] HTTP', err.response?.status, msg);
+    if (process.env.NODE_ENV === "development") console.error('[signIn] HTTP', err.response?.status, msg);
     return { error: msg };
   }
 }
@@ -110,7 +110,7 @@ export async function adminSignIn(
       err.response?.statusText    ??
       err.message                 ??
       'Admin login failed.';
-    console.error('[adminSignIn] HTTP', err.response?.status, msg);
+    if (process.env.NODE_ENV === "development") console.error('[adminSignIn] HTTP', err.response?.status, msg);
     return {
       error: msg,
     };
