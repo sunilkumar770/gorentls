@@ -149,12 +149,17 @@ public class RazorpayWebhookHandler {
         payment.setAmount(amountINR);
         payment.setKind(kind);
         payment.setStatus("CAPTURED");
-        payment.setBooking(booking); // Assuming there's a setBooking method taking a Booking entity
+        payment.setBooking(booking); 
         paymentRepo.save(payment);
 
+        // SYNC: Link the latest captured payment ID to the booking for receipt generation
+        booking.setRazorpayPaymentId(rpPaymentId);
+        booking.setPaymentStatus("CAPTURED");
+        
         escrowService.applyPayment(booking, payment);
 
-        log.info("payment.captured: applied ₹{} kind={} to booking={}", amountINR, kind, bookingId);
+        log.info("payment.captured: applied ₹{} kind={} to booking={} (paymentId={})", 
+            amountINR, kind, bookingId, rpPaymentId);
     }
 
     private void handlePaymentFailed(JSONObject payload) {

@@ -211,8 +211,7 @@ export function Navbar() {
                           </div>
 
                           {[
-                            { href: '/dashboard',   label: 'My Rentals',  icon: LayoutDashboard },
-                            { href: '/my-bookings', label: 'My Bookings', icon: Calendar       },
+                            { href: '/my-rentals', label: 'My Rentals', icon: LayoutDashboard },
                           ].map(({ href, label, icon: Icon }) => (
                             <Link key={href} href={href} onClick={() => setMenuOpen(false)}
                               className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f7f6f2] hover:text-[#1a1a18] transition-colors">
