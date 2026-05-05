@@ -54,8 +54,12 @@ public class AdminService {
                                 log.setEntityId(UUID.fromString(entityId));
                         }
                         log.setDescription(description);
-                        // In production, we'd pull this from SecurityContextHolder
-                        log.setAdminEmail("admin@gorentals.com"); 
+
+                        // C11 FIX: pull admin email from SecurityContext instead of hardcoded default
+                        String adminEmail = org.springframework.security.core.context.SecurityContextHolder
+                                .getContext().getAuthentication().getName();
+                        log.setAdminEmail(adminEmail != null ? adminEmail : "system@gorentals.com");
+
                         auditLogRepository.save(log);
                 } catch (Exception e) {
                         // Log locally but don't break the UI flow if DB audit fails

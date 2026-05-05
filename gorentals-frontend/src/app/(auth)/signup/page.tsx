@@ -56,7 +56,7 @@ export default function SignupPage() {
       
     } catch (err: unknown) {
       const error = err as { message?: string };
-      console.error('[Signup] Client Error:', error);
+      if (process.env.NODE_ENV === "development") console.error('[Signup] Client Error:', error);
       toast.error(error.message || 'Signup encountered an unexpected error.');
     } finally {
       setLoading(false);

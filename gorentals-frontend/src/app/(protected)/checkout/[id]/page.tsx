@@ -32,7 +32,7 @@ export default function CheckoutPage() {
         setLoading(false);
       })
       .catch((err) => {
-        console.error('[Checkout] Failed to load booking:', err);
+        if (process.env.NODE_ENV === "development") console.error('[Checkout] Failed to load booking:', err);
         setError('Could not load booking details. Please try again.');
         setLoading(false);
       });

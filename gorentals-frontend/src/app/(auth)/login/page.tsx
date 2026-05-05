@@ -67,7 +67,7 @@ export default function LoginPage() {
       
     } catch (err: unknown) {
       const error = err as { message?: string };
-      console.error('[Login] Client Error:', error);
+      if (process.env.NODE_ENV === "development") console.error('[Login] Client Error:', error);
       toast.error(error.message || 'Sign-in encountered an unexpected error.');
     } finally {
       setLoading(false);

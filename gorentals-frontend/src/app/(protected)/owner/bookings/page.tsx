@@ -54,7 +54,7 @@ export default function OwnerBookingsPage() {
       setBookings(response.data.content);
     } catch (error) {
       const message = handleApiError(error);
-      console.error('Fetch bookings failed:', message);
+      if (process.env.NODE_ENV === "development") console.error('Fetch bookings failed:', message);
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ export default function OwnerBookingsPage() {
       await fetchBookings();
     } catch (error) {
       const message = handleApiError(error);
-      console.error(`Action ${action} failed:`, message);
+      if (process.env.NODE_ENV === "development") console.error(`Action ${action} failed:`, message);
     } finally {
       setActionLoading(null);
     }

@@ -55,7 +55,7 @@ export function Navbar() {
         setUnreadNotifications(count);
         setUnreadCount(count);
       } catch (err) {
-        console.error('[Navbar] Failed to fetch unread count', err);
+        if (process.env.NODE_ENV === "development") console.error('[Navbar] Failed to fetch unread count', err);
       }
     };
 
