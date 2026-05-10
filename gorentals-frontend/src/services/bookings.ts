@@ -22,14 +22,20 @@ export async function getBooking(bookingId: string): Promise<Booking> {
   return res.data;
 }
 
-export async function getMyBookings(page = 0, size = 20) {
-  const res = await api.get(`/bookings/my-bookings?page=${page}&size=${size}`);
-  return res.data;
+export function normaliseBookings(data: any): Booking[] {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === 'object' && 'content' in data) return data.content;
+  return [];
 }
 
-export async function getOwnerBookings(page = 0, size = 20) {
-  const res = await api.get(`/bookings/owner/bookings?page=${page}&size=${size}`);
-  return res.data;
+export async function getMyBookings(page = 0, size = 20): Promise<Booking[]> {
+  const res = await api.get(`/bookings/my-bookings?page=${page}&size=${size}&sort=createdAt,desc`);
+  return normaliseBookings(res.data);
+}
+
+export async function getOwnerBookings(page = 0, size = 20): Promise<Booking[]> {
+  const res = await api.get(`/bookings/owner/bookings?page=${page}&size=${size}&sort=createdAt,desc`);
+  return normaliseBookings(res.data);
 }
 
 export async function cancelBooking(bookingId: string): Promise<Booking> {

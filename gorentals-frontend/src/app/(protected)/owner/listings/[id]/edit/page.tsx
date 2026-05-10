@@ -120,7 +120,7 @@ export default function EditListingPage() {
 
   if (loading || !form) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="w-9 h-9 rounded-full border-4 border-[#16a34a]/20 border-t-[#16a34a] animate-spin" />
+      <div className="w-9 h-9 rounded-full border-4 border-[#4f46e5]/20 border-t-[#4f46e5] animate-spin" />
     </div>
   );
 
@@ -137,7 +137,7 @@ export default function EditListingPage() {
 
         <form onSubmit={handleSave} className="space-y-5">
           {/* Visibility toggles */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="bg-card rounded-2xl border border-border shadow-sm p-5">
             <h2 className="font-semibold text-gray-900 mb-4">Visibility</h2>
             <div className="space-y-3">
               {(
@@ -158,8 +158,8 @@ export default function EditListingPage() {
                            onChange={handleChange}
                            className="sr-only peer" />
                     <div className="w-11 h-6 bg-gray-200 rounded-full peer
-                                    peer-checked:bg-[#16a34a] transition-colors" />
-                    <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full
+                                    peer-checked:bg-[#4f46e5] transition-colors" />
+                    <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-card rounded-full
                                     shadow-sm transition-transform peer-checked:translate-x-5" />
                   </div>
                 </label>
@@ -171,7 +171,7 @@ export default function EditListingPage() {
           <CalendarManager listingId={id as string} />
 
           {/* Item details */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <div className="bg-card rounded-2xl border border-border shadow-sm p-5 space-y-4">
             <h2 className="font-semibold text-gray-900">Item details</h2>
 
             <div>
@@ -180,7 +180,7 @@ export default function EditListingPage() {
               </label>
               <input name="title" value={form.title} onChange={handleChange} required
                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm
-                                focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a]" />
+                                focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/30 focus:border-[#4f46e5]" />
             </div>
 
             <div>
@@ -190,8 +190,8 @@ export default function EditListingPage() {
               <textarea name="description" rows={4} value={form.description}
                         onChange={handleChange} maxLength={1000} required
                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm
-                                   resize-none focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30
-                                   focus:border-[#16a34a]" />
+                                   resize-none focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/30
+                                   focus:border-[#4f46e5]" />
               <p className="text-xs text-gray-400 mt-1 text-right">
                 {form.description.length}/1000
               </p>
@@ -202,7 +202,7 @@ export default function EditListingPage() {
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Category</label>
                 <select name="category" value={form.category} onChange={handleChange}
                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm
-                                   bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30">
+                                   bg-card focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/30">
                   {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
@@ -210,7 +210,7 @@ export default function EditListingPage() {
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Condition</label>
                 <select name="condition" value={form.condition} onChange={handleChange}
                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm
-                                   bg-white focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30">
+                                   bg-card focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/30">
                   {CONDITIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
@@ -218,7 +218,7 @@ export default function EditListingPage() {
           </div>
 
           {/* Pricing */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <div className="bg-card rounded-2xl border border-border shadow-sm p-5 space-y-4">
             <h2 className="font-semibold text-gray-900">Pricing</h2>
             <div className="grid grid-cols-2 gap-4">
               {(['pricePerDay', 'securityDeposit'] as const).map(field => (
@@ -232,7 +232,7 @@ export default function EditListingPage() {
                            onChange={handleChange} min="0"
                            required={field === 'pricePerDay'}
                            className="w-full pl-7 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm
-                                      focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a]" />
+                                      focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/30 focus:border-[#4f46e5]" />
                   </div>
                 </div>
               ))}
@@ -240,7 +240,7 @@ export default function EditListingPage() {
           </div>
 
           {/* Location with Google Maps */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <div className="bg-card rounded-2xl border border-border shadow-sm p-5 space-y-4">
             <h2 className="font-semibold text-gray-900">Location</h2>
             <AddressPicker
               location={form.address}
@@ -257,8 +257,8 @@ export default function EditListingPage() {
               Cancel
             </button>
             <button type="submit" disabled={saving}
-                    className="flex-1 py-3 bg-[#16a34a] text-white font-bold rounded-2xl
-                               flex items-center justify-center gap-2 hover:bg-[#15803d]
+                    className="flex-1 py-3 bg-[#4f46e5] text-white font-bold rounded-2xl
+                               flex items-center justify-center gap-2 hover:bg-[#4338ca]
                                disabled:opacity-60 transition-colors text-sm">
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
               {saving ? 'Saving…' : '💾 Save Changes'}

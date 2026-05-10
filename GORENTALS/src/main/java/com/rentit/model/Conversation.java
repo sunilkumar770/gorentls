@@ -45,6 +45,12 @@ public class Conversation {
     @Column(name = "renter_unread", nullable = false)
     private int renterUnread = 0;
 
+    @Column(name = "last_message_text", length = 1000)
+    private String lastMessageText;
+
+    @Column(name = "last_message_at")
+    private LocalDateTime lastMessageAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -67,6 +73,10 @@ public class Conversation {
     public void              setOwnerUnread(int n)   { this.ownerUnread = n; }
     public int               getRenterUnread()       { return renterUnread; }
     public void              setRenterUnread(int n)  { this.renterUnread = n; }
+    public String            getLastMessageText()    { return lastMessageText; }
+    public void              setLastMessageText(String s) { this.lastMessageText = s; }
+    public LocalDateTime     getLastMessageAt()      { return lastMessageAt; }
+    public void              setLastMessageAt(LocalDateTime d) { this.lastMessageAt = d; }
     public LocalDateTime     getCreatedAt()          { return createdAt; }
     public LocalDateTime     getUpdatedAt()          { return updatedAt; }
 }

@@ -67,7 +67,7 @@ export function BookingActionBar({ booking, role, onUpdate }: BookingActionBarPr
   }
 
   const variantStyles: Record<string, string> = {
-    green: 'bg-[#16a34a] text-white hover:bg-[#15803d]',
+    green: 'bg-[#4f46e5] text-white hover:bg-[#4338ca]',
     red:   'bg-red-500 text-white hover:bg-red-600',
     blue:  'bg-blue-500 text-white hover:bg-blue-600',
     gray:  'bg-gray-100 text-gray-700 hover:bg-gray-200',

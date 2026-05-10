@@ -27,10 +27,10 @@ export function VerifiedBadge({
 
   return (
     <div 
-      className={`inline-flex items-center rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-600 ${containerClasses[size]} ${className}`}
+      className={`inline-flex items-center rounded-full bg-red-500/10 border border-red-500/20 text-red-600 ${containerClasses[size]} ${className}`}
       title="Verified Identity & Documentation"
     >
-      <ShieldCheck className={`${sizeClasses[size]} fill-teal-600/10`} />
+      <ShieldCheck className={`${sizeClasses[size]} fill-indigo-600/10`} />
       {showText && (
         <span className={`font-bold uppercase tracking-wider ${size === 'sm' ? 'text-[8px]' : size === 'lg' ? 'text-xs' : 'text-[10px]'}`}>
           Verified

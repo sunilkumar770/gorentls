@@ -3,55 +3,72 @@
 
 @import "tailwindcss";
 
-/* ── GoRentals Design System v3.0 — Deep Teal ── */
+/* ── GoRentals Design System v3.0 — Indigo ── */
 :root {
-  /* Brand */
-  --primary:           #01696f;
-  --primary-hover:     #015a5f;
-  --primary-light:     #e6f4f4;
-  --primary-muted:     #014a4e;
+  --color-primary: #0F766E;
+  --color-primary-hover: #115E59;
+  --color-primary-active: #991B1B;
+  --color-primary-soft: #CCFBF1;
+  --color-primary-border: #FECACA;
+  --color-focus: #EF4444;
 
-  /* Surfaces */
-  --bg:                #f7f6f2;
-  --bg-card:           #ffffff;
-  --bg-subtle:         #eeeee9;
-  --border:            rgba(1, 105, 111, 0.12);
-  --border-strong:     rgba(1, 105, 111, 0.25);
+  --color-accent: #4F46E5;
+  --color-accent-hover: #4338CA;
 
-  /* Text */
-  --text:              #1a1a18;
-  --text-muted:        #6b6b65;
-  --text-faint:        #9b9b93;
+  --color-text: #111827;
+  --color-text-secondary: #475569;
+  --color-border: #CBD5E1;
+  --color-bg: #FAFAF9;
+  --color-surface: #FFFFFF;
+  --color-surface-muted: #F1F5F9;
 
-  /* Radius */
-  --r-sm:              6px;
-  --r-md:              8px;
-  --r-lg:              12px;
-  --r-xl:              16px;
-  --r-2xl:             24px;
-  --r-pill:            9999px;
+  /* Legacy aliases mapping for components that still use var(--primary) etc. */
+  --primary: var(--color-primary);
+  --primary-hover: var(--color-primary-hover);
+  --primary-light: var(--color-primary-soft);
+  --primary-muted: var(--color-primary-active);
+  --accent: var(--color-accent);
+  --error: #EF4444;
 
-  /* Shadows */
-  --shadow-card:       0 2px 8px rgba(1, 105, 111, 0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-hover:      0 8px 24px rgba(1, 105, 111, 0.12), 0 2px 6px rgba(0,0,0,0.06);
-  --shadow-nav:        0 1px 0 var(--border), 0 4px 16px rgba(0,0,0,0.04);
+  --bg: var(--color-bg);
+  --bg-card: var(--color-surface);
+  --bg-subtle: var(--color-surface-muted);
+  --border: var(--color-border);
+  --border-strong: #94A3B8;
+
+  --text: var(--color-text);
+  --text-muted: var(--color-text-secondary);
+  --text-faint: #94A3B8;
+
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-2xl: 24px;
+  --r-pill: 9999px;
+
+  --shadow-card: 0 2px 8px rgba(15, 118, 110, 0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-hover: 0 8px 24px rgba(15, 118, 110, 0.12), 0 2px 6px rgba(0,0,0,0.06);
+  --shadow-nav: 0 1px 0 var(--border), 0 4px 16px rgba(0,0,0,0.04);
 }
 
 .dark {
-  --primary:           #02878e;
-  --primary-hover:     #029aa3;
-  --primary-light:     rgba(2, 135, 142, 0.15);
-  --primary-muted:     #01696f;
+  --primary:           #6366F1;
+  --primary-hover:     #818CF8;
+  --primary-light:     rgba(99, 102, 241, 0.15);
+  --primary-muted:     #4F46E5;
+  --accent:            #FBBF24;
+  --error:             #F87171;
 
-  --bg:                #0f1115;
-  --bg-card:           #1a1d22;
-  --bg-subtle:         #22262d;
+  --bg:                #0B1120;
+  --bg-card:           #0F172A;
+  --bg-subtle:         #1E293B;
   --border:            rgba(255,255,255,0.08);
   --border-strong:     rgba(255,255,255,0.15);
 
-  --text:              #f0f0ed;
-  --text-muted:        #9b9b93;
-  --text-faint:        #6b6b65;
+  --text:              #F8FAFC;
+  --text-muted:        #94A3B8;
+  --text-faint:        #64748B;
 
   --shadow-card:       0 2px 8px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
   --shadow-hover:      0 8px 24px rgba(0,0,0,0.4);
@@ -73,6 +90,8 @@
   --color-muted:         var(--text-muted);
   --color-faint:         var(--text-faint);
   --color-border:        var(--border);
+  --color-accent:        var(--accent);
+  --color-error:         var(--error);
 }
 
 @layer base {
@@ -98,25 +117,26 @@
   }
 
   ::selection {
-    background: rgba(1, 105, 111, 0.15);
+    background: rgba(79, 70, 229, 0.15);
     color: var(--primary);
   }
 }
 
 @layer utilities {
-  /* ── Teal gradient CTA ── */
+  /* ── Indigo gradient CTA ── */
+  .gradient-brand,
   .gradient-teal {
-    background: linear-gradient(135deg, #01878e 0%, #01696f 100%);
+    background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
   }
 
   /* ── Frosted glass navbar ── */
   .glass-nav {
-    background: rgba(247, 246, 242, 0.85);
+    background: rgba(248, 250, 252, 0.85);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
   }
   .dark .glass-nav {
-    background: rgba(15, 17, 21, 0.85);
+    background: rgba(11, 17, 32, 0.85);
   }
 
   /* ── Card shadow ── */

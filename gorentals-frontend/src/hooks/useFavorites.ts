@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/axios';
 import type { Listing } from '@/types';
+import { safeStorage } from '@/lib/safeStorage';
 
 export interface FavoriteDto {
   id: number;
@@ -16,7 +17,7 @@ export function useFavorites() {
   const [error, setError] = useState<string | null>(null);
 
   const refetch = useCallback(async () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('gr_token') : null;
+    const token = typeof window !== 'undefined' ? safeStorage.getItem('gr_token') : null;
     if (!token) {
       setFavorites([]);
       setLoading(false);

@@ -39,7 +39,7 @@ export default function OwnerAnalyticsPage() {
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center space-y-4">
           <h2 className="text-2xl font-bold text-white">No data available</h2>
-          <p className="text-slate-400">Start listing your assets to see analytics here.</p>
+          <p className="text-faint">Start listing your assets to see analytics here.</p>
         </div>
       </div>
     );

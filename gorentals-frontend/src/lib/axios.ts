@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { safeStorage } from './safeStorage';
 
 const TOKEN_KEY = 'gr_token';  // matches your existing localStorage key
 
@@ -14,7 +15,7 @@ const api = axios.create({
 // ── Request: attach JWT ───────────────────────────────────────
 api.interceptors.request.use(config => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = safeStorage.getItem(TOKEN_KEY);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -72,7 +73,7 @@ api.interceptors.response.use(
       typeof window !== 'undefined' &&
       !window.location.pathname.includes('/login')
     ) {
-      localStorage.removeItem(TOKEN_KEY);
+      safeStorage.removeItem(TOKEN_KEY);
       const params = new URLSearchParams({
         reason: 'session_expired',
         redirect: window.location.pathname,

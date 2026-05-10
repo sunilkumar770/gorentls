@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -83,4 +84,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Page<User> searchByUserType(@Param("search") String search,
                                 @Param("userType") User.UserType userType,
                                 Pageable pageable);
+    @Query(value = """
+        SELECT TO_CHAR(createdAt, 'Mon YYYY') as month, COUNT(*) as count
+        FROM users
+        WHERE createdAt >= :since
+        GROUP BY TO_CHAR(createdAt, 'Mon YYYY'), DATE_TRUNC('month', createdAt)
+        ORDER BY DATE_TRUNC('month', createdAt) ASC
+        """, nativeQuery = true)
+    List<Object[]> getMonthlyRegistrations(@Param("since") LocalDateTime since);
 }

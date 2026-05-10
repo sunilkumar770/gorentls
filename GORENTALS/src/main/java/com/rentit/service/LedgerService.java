@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -207,7 +208,9 @@ public class LedgerService {
         BigDecimal netAmount,
         String rpPayoutId
     ) {
-        Map<String, Object> meta = Map.of("rp_payout_id", rpPayoutId);
+        Map<String, Object> meta = new HashMap<>();
+        if (rpPayoutId != null) meta.put("rp_payout_id", rpPayoutId);
+        
         post(bookingId, null,
             LedgerAccount.OWNER_ESCROW, LedgerAccount.BANK_SETTLEMENT,
             netAmount, "Net payout transferred to owner bank/UPI", meta);
@@ -233,7 +236,9 @@ public class LedgerService {
         String reason,
         String rpRefundId
     ) {
-        Map<String, Object> meta = Map.of("rp_refund_id", rpRefundId);
+        Map<String, Object> meta = new HashMap<>();
+        if (rpRefundId != null) meta.put("rp_refund_id", rpRefundId);
+        
         post(bookingId, null,
             LedgerAccount.RENTER_ESCROW, LedgerAccount.BANK_SETTLEMENT,
             refundAmount, "Refund to renter: " + reason, meta);

@@ -40,13 +40,13 @@ public interface PayoutRepository extends JpaRepository<Payout, UUID> {
     /**
      * Retry query — returns FAILED payouts that are eligible for retry.
      * PayoutEngine retries failed payouts up to 3 attempts with exponential back-off.
-     * (Retry logic tracks attempt count in metadata — not added here to keep scope minimal.)
      */
     @Query("""
         SELECT p FROM Payout p
         WHERE  p.status = com.rentit.model.enums.PayoutStatus.FAILED
-          AND  p.scheduledAt <= :now
-        ORDER  BY p.updatedAt ASC
+          AND  p.nextRetryAt <= :now
+          AND  p.retryCount <= 3
+        ORDER  BY p.nextRetryAt ASC
         """)
     List<Payout> findFailedForRetry(@Param("now") Instant now);
 

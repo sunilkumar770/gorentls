@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -46,11 +47,16 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     @EntityGraph(attributePaths = {"listing", "listing.owner", "renter", "payments"})
     Optional<Booking> findById(UUID id);
 
+    @Override
+    @EntityGraph(attributePaths = {"listing", "listing.owner", "renter"})
+    Page<Booking> findAll(Pageable pageable);
+
     /**
      * Find bookings by renter ID — eager-fetches listing + owner to prevent N+1.
      */
     @EntityGraph(attributePaths = {"listing", "listing.owner"})
-    Page<Booking> findByRenterId(UUID renterId, Pageable pageable);
+    @Query("SELECT b FROM Booking b WHERE b.renter.id = :renterId ORDER BY b.createdAt DESC")
+    Page<Booking> findByRenterId(@Param("renterId") UUID renterId, Pageable pageable);
 
     /**
      * Find bookings by listing ID — eager-fetches renter + payments.
@@ -221,4 +227,21 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     @Query("SELECT b FROM Booking b WHERE b.listing.owner.id = :ownerId AND b.createdAt BETWEEN :start AND :end")
     List<Booking> findByOwnerIdAndCreatedAtBetween(@Param("ownerId") UUID ownerId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.listing.owner.id = :ownerId AND b.bookingStatus IN :statuses")
+    long countByOwnerIdAndBookingStatusIn(@Param("ownerId") UUID ownerId, @Param("statuses") List<BookingStatus> statuses);
+
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.listing.owner.id = :ownerId AND b.bookingStatus = :status")
+    long countByOwnerIdAndBookingStatus(@Param("ownerId") UUID ownerId, @Param("status") BookingStatus status);
+
+    @Query("SELECT COALESCE(SUM(b.totalAmount), 0) FROM Booking b WHERE b.listing.owner.id = :ownerId AND b.bookingStatus = :status")
+    BigDecimal sumTotalAmountByOwnerIdAndBookingStatus(@Param("ownerId") UUID ownerId, @Param("status") BookingStatus status);
+
+    @Query("SELECT COALESCE(SUM(b.totalAmount), 0) FROM Booking b WHERE b.listing.owner.id = :ownerId AND b.bookingStatus IN :statuses")
+    BigDecimal sumTotalAmountByOwnerIdAndBookingStatusIn(@Param("ownerId") UUID ownerId, @Param("statuses") List<BookingStatus> statuses);
+    @Query("SELECT FUNCTION('to_char', b.updatedAt, 'YYYY-MM') as month, SUM(b.totalAmount) " +
+           "FROM Booking b WHERE b.listing.owner.id = :ownerId AND b.bookingStatus = 'COMPLETED' " +
+           "AND b.updatedAt >= :startDate " +
+           "GROUP BY FUNCTION('to_char', b.updatedAt, 'YYYY-MM') ORDER BY month ASC")
+    List<Object[]> getMonthlyRevenueByOwnerId(@Param("ownerId") UUID ownerId, @Param("startDate") LocalDateTime startDate);
 }

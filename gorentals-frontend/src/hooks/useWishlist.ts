@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { safeStorage } from '@/lib/safeStorage';
 
 const KEY = 'gr_wishlist';
 
@@ -9,7 +10,7 @@ export function useWishlist() {
 
   useEffect(() => {
     try {
-      const stored = JSON.parse(localStorage.getItem(KEY) ?? '[]') as string[];
+      const stored = JSON.parse(safeStorage.getItem(KEY) ?? '[]') as string[];
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIds(new Set(stored));
     } catch { /* noop */ }
@@ -18,7 +19,7 @@ export function useWishlist() {
   const persist = useCallback((next: Set<string>) => {
     setIds(next);
     try {
-      localStorage.setItem(KEY, JSON.stringify([...next]));
+      safeStorage.setItem(KEY, JSON.stringify([...next]));
     } catch { /* noop — Safari private mode */ }
   }, []);
 

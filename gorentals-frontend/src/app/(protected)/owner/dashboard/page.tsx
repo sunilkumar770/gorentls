@@ -253,7 +253,7 @@ export default function OwnerDashboardPage() {
           {[
             { icon: Package,     label: 'Total Assets',  value: listings.length.toString(),        sub: 'registered', bgLight: 'bg-[var(--bg-subtle)]', color: 'text-[var(--primary)]', glow: 'bg-[var(--primary-light)]' },
             { icon: Clock,       label: 'Active Leases', value: activeBookings.length.toString(),  sub: 'ongoing',    bgLight: 'bg-[#dbeafe]', color: 'text-[#1e40af]', glow: 'bg-[#eff6ff]' },
-            { icon: IndianRupee, label: 'Capital Gen',   value: `${formatCurrency(totalEarned)}`,   sub: 'lifetime',   bgLight: 'bg-[#f0fdf4]', color: 'text-[#16a34a]', glow: 'bg-[#dcfce7]' },
+            { icon: IndianRupee, label: 'Capital Gen',   value: `${formatCurrency(totalEarned)}`,   sub: 'lifetime',   bgLight: 'bg-[#eef2ff]', color: 'text-[#4f46e5]', glow: 'bg-[#e0e7ff]' },
             { icon: Star,        label: 'Inbound',       value: pendingRequests.length.toString(),  sub: 'requests',   bgLight: 'bg-[#fef3c7]', color: 'text-[#d97706]', glow: 'bg-[#ffedd5]', badge: pendingRequests.length > 0 },
           ].map(({ icon: Icon, label, value, sub, bgLight, color, glow, badge }) => (
             <div key={label} className="bg-[var(--bg-card)] rounded-[var(--r-xl)] p-6 shadow-card border border-[var(--border)] relative overflow-hidden group">
@@ -285,7 +285,7 @@ export default function OwnerDashboardPage() {
             >
               {tab === 'listings' ? 'Fleet Database' : 'Inbound Requests'}
               {tab === 'requests' && pendingRequests.length > 0 && (
-                <span className="px-2 py-0.5 text-[10px] bg-[#fee2e2] text-[#b91c1c] rounded-full font-black border border-[#fecaca] shadow-sm">
+                <span className="px-2 py-0.5 text-[10px] bg-[#CCFBF1] text-[#115E59] rounded-full font-black border border-[#fecaca] shadow-sm">
                   {pendingRequests.length}
                 </span>
               )}

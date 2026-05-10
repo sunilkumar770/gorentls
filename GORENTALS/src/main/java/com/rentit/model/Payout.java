@@ -101,6 +101,14 @@ public class Payout {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();
 
+    /** Track number of times PayoutEngine has attempted this payout. */
+    @Column(name = "retry_count", nullable = false)
+    private int retryCount = 0;
+
+    /** If failed, when is the next retry attempt allowed. */
+    @Column(name = "next_retry_at")
+    private Instant nextRetryAt;
+
     @PreUpdate
     void onUpdate() { this.updatedAt = Instant.now(); }
 
@@ -157,6 +165,13 @@ public class Payout {
     public void markFailed(String reason) {
         this.status        = PayoutStatus.FAILED;
         this.failureReason = reason;
+        this.retryCount++;
+        // Simple back-off: retry in 1 hour * retryCount, max 3 retries
+        if (this.retryCount <= 3) {
+            this.nextRetryAt = Instant.now().plusSeconds(3600L * this.retryCount);
+        } else {
+            this.nextRetryAt = null; // Mark for manual intervention
+        }
         this.updatedAt     = Instant.now();
     }
 
@@ -184,6 +199,8 @@ public class Payout {
     public String getFailureReason() { return failureReason; }
     public Instant getCreatedAt()    { return createdAt; }
     public Instant getUpdatedAt()    { return updatedAt; }
+    public int getRetryCount()       { return retryCount; }
+    public Instant getNextRetryAt()  { return nextRetryAt; }
 
     @Override
     public String toString() {

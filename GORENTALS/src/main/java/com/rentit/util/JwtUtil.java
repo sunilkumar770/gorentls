@@ -9,8 +9,11 @@ import io.jsonwebtoken.security.SignatureException;
 import io.jsonwebtoken.security.SecurityException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import java.nio.charset.StandardCharsets;
 
 import java.util.Date;
 import java.util.HashMap;
@@ -88,7 +91,7 @@ public class JwtUtil {
      * Get signing key
      */
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -135,7 +138,7 @@ public class JwtUtil {
      * Create refresh token (longer expiry)
      */
     private String createRefreshToken(Map<String, Object> claims, String subject) {
-        long refreshExpiration = expiration * 2; // 2x the access token expiry
+        long refreshExpiration = expiration * 24 * 7; // 7 days (was only 2x access token)
         return Jwts.builder()
                 .claims(claims)
                 .subject(subject)
@@ -213,9 +216,12 @@ public class JwtUtil {
                     .expiration(new Date(System.currentTimeMillis() + expiration))
                     .signWith(getSigningKey())
                     .compact();
+        } catch (ExpiredJwtException e) {
+            logger.error("Token refresh failed - token is expired: {}", e.getMessage());
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token has expired and cannot be refreshed", e);
         } catch (Exception e) {
             logger.error("Token refresh failed: {}", e.getMessage());
-            throw new RuntimeException("Unable to refresh token", e);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unable to refresh token", e);
         }
     }
 

@@ -61,6 +61,8 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
             }
         } else if (path.contains("/upload") || path.contains("/files")) {
             return rateLimitConfig.getBucketForIp("upload", clientIp, rateLimitConfig::createUploadBucket);
+        } else if (path.contains("/webhooks/razorpay")) {
+            return rateLimitConfig.getBucketForIp("webhook", clientIp, rateLimitConfig::createWebhookBucket);
         }
         // Global rate limit for all endpoints
         return rateLimitConfig.getGlobalBucket();

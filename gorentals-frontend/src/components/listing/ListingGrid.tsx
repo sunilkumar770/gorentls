@@ -24,7 +24,7 @@ interface ListingGridProps {
 // ── Skeleton ──────────────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-[#01696f]/8 animate-pulse shadow-[0_2px_8px_rgba(1,105,111,0.04)]">
+    <div className="bg-card rounded-2xl overflow-hidden border border-[#0F766E]/8 animate-pulse shadow-[0_2px_8px_rgba(1,105,111,0.04)]">
       <div className="aspect-video bg-[#eeeee9]" />
       <div className="p-4 space-y-2.5">
         <div className="h-4 bg-[#eeeee9] rounded-lg w-3/4" />
@@ -123,7 +123,7 @@ export default function ListingGrid({
             onClick={() => onPageChange(current - 1)}
             disabled={isFirst}
             className="flex items-center gap-1 px-4 py-2 text-sm font-semibold rounded-xl
-                       border border-[#01696f]/20 text-[#01696f] hover:bg-[#01696f]/5
+                       border border-[#0F766E]/20 text-[#0F766E] hover:bg-[#0F766E]/5
                        disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             ← Prev
@@ -141,8 +141,8 @@ export default function ListingGrid({
                 aria-current={p === current ? 'page' : undefined}
                 className={`w-9 h-9 rounded-xl text-sm font-semibold transition-colors
                   ${p === current
-                    ? 'bg-[#01696f] text-white shadow-sm'
-                    : 'text-[#6b6b65] hover:bg-[#01696f]/5 hover:text-[#01696f]'
+                    ? 'bg-[#0F766E] text-white shadow-sm'
+                    : 'text-[#6b6b65] hover:bg-[#0F766E]/5 hover:text-[#0F766E]'
                   }`}
               >
                 {(p as number) + 1}
@@ -154,7 +154,7 @@ export default function ListingGrid({
             onClick={() => onPageChange(current + 1)}
             disabled={isLast}
             className="flex items-center gap-1 px-4 py-2 text-sm font-semibold rounded-xl
-                       border border-[#01696f]/20 text-[#01696f] hover:bg-[#01696f]/5
+                       border border-[#0F766E]/20 text-[#0F766E] hover:bg-[#0F766E]/5
                        disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Next →

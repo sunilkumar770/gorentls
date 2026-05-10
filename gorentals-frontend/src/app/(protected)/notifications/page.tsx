@@ -13,13 +13,13 @@ import {
 // ─── Type → icon + accent colour ─────────────────────────────────────────────
 
 const TYPE_CONFIG: Record<string, { Icon: React.ElementType; colour: string; bg: string }> = {
-  BOOKING_CONFIRMED: { Icon: BookCheck,   colour: '#16a34a', bg: '#dcfce7' },
+  BOOKING_CONFIRMED: { Icon: BookCheck,   colour: '#4f46e5', bg: '#e0e7ff' },
   NEW_BOOKING:       { Icon: BookCheck,   colour: '#2563eb', bg: '#dbeafe' },
-  LISTING_APPROVED:  { Icon: ShieldCheck, colour: '#16a34a', bg: '#dcfce7' },
-  LISTING_REJECTED:  { Icon: ShieldX,     colour: '#dc2626', bg: '#fee2e2' },
-  PAYMENT_CONFIRMED: { Icon: CreditCard,  colour: '#16a34a', bg: '#dcfce7' },
+  LISTING_APPROVED:  { Icon: ShieldCheck, colour: '#4f46e5', bg: '#e0e7ff' },
+  LISTING_REJECTED:  { Icon: ShieldX,     colour: '#0F766E', bg: '#CCFBF1' },
+  PAYMENT_CONFIRMED: { Icon: CreditCard,  colour: '#4f46e5', bg: '#e0e7ff' },
   PAYMENT_RECEIVED:  { Icon: Wallet,      colour: '#2563eb', bg: '#dbeafe' },
-  PAYMENT_FAILED:    { Icon: AlertCircle, colour: '#dc2626', bg: '#fee2e2' },
+  PAYMENT_FAILED:    { Icon: AlertCircle, colour: '#0F766E', bg: '#CCFBF1' },
   DEFAULT:           { Icon: Bell,        colour: '#6b7280', bg: '#f3f4f6' },
 };
 
@@ -44,7 +44,7 @@ function Skeleton() {
   return (
     <div className="animate-pulse space-y-3">
       {[1,2,3,4,5].map(i => (
-        <div key={i} className="flex items-start gap-4 bg-white rounded-xl border border-gray-100 p-4">
+        <div key={i} className="flex items-start gap-4 bg-card rounded-xl border border-border p-4">
           <div className="w-10 h-10 rounded-full bg-gray-100 shrink-0" />
           <div className="flex-1 space-y-2 py-1">
             <div className="h-4 bg-gray-100 rounded w-1/3" />
@@ -91,7 +91,7 @@ function NotificationCard({ n, onRead, onDelete, busy }: CardProps) {
       className={`
         group flex items-start gap-4 rounded-xl border p-4 transition-all duration-150
         ${n.isRead
-          ? 'bg-white border-gray-100 hover:border-gray-200'
+          ? 'bg-card border-border hover:border-gray-200'
           : 'bg-blue-50/40 border-blue-100 hover:border-blue-200'}
       `}
     >
@@ -162,7 +162,7 @@ interface PaginationProps {
 function Pagination({ page, totalPages, total, onPrev, onNext }: PaginationProps) {
   if (totalPages <= 1) return null;
   return (
-    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+    <div className="flex items-center justify-between pt-4 border-t border-border">
       <p className="text-sm text-gray-500">
         Page {page + 1} of {totalPages} &middot; {total} notifications
       </p>

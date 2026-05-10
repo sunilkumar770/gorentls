@@ -5,7 +5,7 @@ COPY .mvn/ .mvn
 COPY mvnw pom.xml ./
 RUN ./mvnw dependency:go-offline -B
 COPY src ./src
-RUN ./mvnw clean package -DskipTests -B
+RUN ./mvnw clean package -DskipTests -Dflyway.enabled=false -B
 
 # ── Runtime stage — distroless for minimal attack surface ─────────────────
 # Distroless has no shell, no package manager, no curl — attack surface ≈ 0

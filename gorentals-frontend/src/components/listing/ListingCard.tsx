@@ -48,13 +48,13 @@ export function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Link
       href={`/item/${listing.id}`}
-      className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#01696f] focus-visible:ring-offset-2 rounded-2xl"
+      className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F766E] focus-visible:ring-offset-2 rounded-2xl"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className={`bg-white rounded-2xl overflow-hidden transition-all duration-300 border border-[#01696f]/8 ${
+      <div className={`bg-card rounded-2xl overflow-hidden transition-all duration-300 border border-[#0F766E]/8 ${
         hovered
-          ? 'shadow-[0_8px_32px_rgba(1,105,111,0.14)] -translate-y-1 border-[#01696f]/20'
+          ? 'shadow-[0_8px_32px_rgba(1,105,111,0.14)] -translate-y-1 border-[#0F766E]/20'
           : 'shadow-[0_2px_8px_rgba(1,105,111,0.06)]'
       }`}>
 
@@ -73,8 +73,8 @@ export function ListingCard({ listing }: { listing: Listing }) {
           ) : (
             /* Graceful placeholder */
             <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-[#f7f6f2]">
-              <div className="w-14 h-14 bg-[#e6f4f4] rounded-2xl flex items-center justify-center">
-                <Icon className="w-7 h-7 text-[#01696f]" strokeWidth={1.5} />
+              <div className="w-14 h-14 bg-[#CCFBF1] rounded-2xl flex items-center justify-center">
+                <Icon className="w-7 h-7 text-[#0F766E]" strokeWidth={1.5} />
               </div>
               <span className="text-xs text-[#9b9b93] font-medium">No photo yet</span>
             </div>
@@ -100,7 +100,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
           {/* Hover CTA */}
           <div className={`absolute inset-0 flex items-end p-4 transition-opacity duration-200 ${hovered ? 'opacity-100' : 'opacity-0'} pointer-events-none`}>
             <div className="w-full flex justify-end">
-              <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-[#01696f] text-xs font-bold rounded-xl shadow-lg">
+              <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-card text-[#0F766E] text-xs font-bold rounded-xl shadow-lg">
                 View details <ArrowRight className="w-3.5 h-3.5" />
               </span>
             </div>
@@ -111,7 +111,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
         <div className="p-4 flex flex-col gap-2">
           {/* Title */}
           <h3 className={`font-display font-bold text-sm leading-snug line-clamp-2 transition-colors ${
-            hovered ? 'text-[#01696f]' : 'text-[#1a1a18]'
+            hovered ? 'text-[#0F766E]' : 'text-[#1a1a18]'
           }`}>
             {listing.title}
           </h3>
@@ -128,8 +128,8 @@ export function ListingCard({ listing }: { listing: Listing }) {
           {ownerName && (
             <div className="flex items-center gap-2">
               {/* Initials avatar */}
-              <div className="w-5 h-5 rounded-full bg-[#01696f]/12 flex items-center justify-center flex-shrink-0">
-                <span className="text-[9px] font-bold text-[#01696f]">{ownerInitial}</span>
+              <div className="w-5 h-5 rounded-full bg-[#0F766E]/12 flex items-center justify-center flex-shrink-0">
+                <span className="text-[9px] font-bold text-[#0F766E]">{ownerInitial}</span>
               </div>
               <span className="text-xs text-[#9b9b93] font-medium line-clamp-1">{ownerName}</span>
               {listing.owner?.kycStatus === 'APPROVED' && (
@@ -147,7 +147,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
           </div>
 
           {/* Price row */}
-          <div className="flex items-baseline justify-between pt-2 border-t border-[#01696f]/8 mt-1">
+          <div className="flex items-baseline justify-between pt-2 border-t border-[#0F766E]/8 mt-1">
             <div>
               <span className="text-xl font-display font-bold text-[#1a1a18]">
                 {formatCurrency(listing.price_per_day ?? 0)}

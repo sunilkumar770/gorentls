@@ -14,8 +14,9 @@ import com.rentit.model.UserProfile;
 import com.rentit.repository.BlockedDateRepository;
 import com.rentit.repository.BookingRepository;
 import com.rentit.repository.ListingRepository;
-import com.rentit.repository.UserProfileRepository;
 import com.rentit.repository.UserRepository;
+import com.rentit.util.DtoMapper;
+import com.rentit.util.SearchUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -56,7 +57,6 @@ public class ListingService {
     private final UserRepository        userRepository;
     private final BlockedDateRepository blockedDateRepository;
     private final BookingRepository     bookingRepository;
-    private final UserProfileRepository userProfileRepository;
     private final NotificationService   notificationService;
 
     public PagedResponse<ListingResponse> getAllListings(int page, int size, 
@@ -65,7 +65,7 @@ public class ListingService {
       if ((city == null || city.isEmpty()) && (category == null || category.isEmpty())) {
         Page<Listing> listings = listingRepository
           .findByIsPublishedTrueAndIsAvailableTrue(pageable);
-        return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
+        return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
       }
       return searchListings(city, category, null, null, null, pageable);
     }
@@ -83,13 +83,13 @@ public class ListingService {
             minPrice == null && 
             maxPrice == null) {
             Page<Listing> listings = listingRepository.findByIsPublishedTrueAndIsAvailableTrue(pageable);
-            return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
+            return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
         }
 
-        String cityPattern = (city != null && !city.isEmpty()) ? "%" + city + "%" : null;
+        String cityPattern = SearchUtils.likeContents(city);
         Page<Listing> listings = listingRepository.searchListings(
             cityPattern, category, type, minPrice, maxPrice, pageable);
-        return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
+        return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
     }
 
     /**
@@ -98,7 +98,7 @@ public class ListingService {
     public ListingResponse getListingById(UUID id) {
         Listing listing = listingRepository.findById(id)
             .orElseThrow(() -> BusinessException.notFound("Listing", id));
-        return mapToListingResponse(listing);
+        return DtoMapper.mapToListingResponse(listing);
     }
 
     /**
@@ -151,7 +151,7 @@ public class ListingService {
         
         Listing savedListing = listingRepository.save(listing);
         
-        return mapToListingResponse(savedListing);
+        return DtoMapper.mapToListingResponse(savedListing);
     }
 
     /**
@@ -200,7 +200,7 @@ public class ListingService {
         }
 
         listing.setUpdatedAt(LocalDateTime.now());
-        return mapToListingResponse(listingRepository.save(listing));
+        return DtoMapper.mapToListingResponse(listingRepository.save(listing));
     }
 
     @Transactional
@@ -234,7 +234,7 @@ public class ListingService {
 
         listing.setIsPublished(true);
         listing.setUpdatedAt(LocalDateTime.now());
-        return mapToListingResponse(listingRepository.save(listing));
+        return DtoMapper.mapToListingResponse(listingRepository.save(listing));
     }
 
     /**
@@ -255,7 +255,7 @@ public class ListingService {
 
         listing.setIsAvailable(isAvailable);
         listing.setUpdatedAt(LocalDateTime.now());
-        return mapToListingResponse(listingRepository.save(listing));
+        return DtoMapper.mapToListingResponse(listingRepository.save(listing));
     }
 
     /**
@@ -307,7 +307,7 @@ public class ListingService {
         }
 
         Page<Listing> listings = listingRepository.findByOwnerId(user.getId(), pageable);
-        return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
+        return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
     }
 
     /**
@@ -318,7 +318,7 @@ public class ListingService {
             .orElseThrow(() -> BusinessException.notFound("User", userEmail));
         
         Page<Listing> listings = listingRepository.findByOwnerIdAndIsPublished(user.getId(), true, pageable);
-        return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
+        return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
     }
 
     public PagedResponse<ListingResponse> getDraftListingsByOwner(String userEmail, Pageable pageable) {
@@ -326,7 +326,7 @@ public class ListingService {
             .orElseThrow(() -> BusinessException.notFound("User", userEmail));
         
         Page<Listing> listings = listingRepository.findByOwnerIdAndIsPublished(user.getId(), false, pageable);
-        return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
+        return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
     }
 
     // BUG-22 FIX: duplicate primitive-boolean overload removed.
@@ -338,7 +338,7 @@ public class ListingService {
      */
     public PagedResponse<ListingResponse> getListingsByCategory(String category, Pageable pageable) {
         Page<Listing> listings = listingRepository.findByCategoryIgnoreCaseAndIsPublishedTrue(category, pageable);
-        return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
+        return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
     }
 
     /**
@@ -346,7 +346,7 @@ public class ListingService {
      */
     public PagedResponse<ListingResponse> getListingsByCity(String city, Pageable pageable) {
         Page<Listing> listings = listingRepository.findByCityIgnoreCaseAndIsPublishedTrue(city, pageable);
-        return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
+        return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
     }
 
     /**
@@ -354,7 +354,7 @@ public class ListingService {
      */
     public PagedResponse<ListingResponse> getListingsByType(String type, Pageable pageable) {
         Page<Listing> listings = listingRepository.findByTypeIgnoreCaseAndIsPublishedTrue(type, pageable);
-        return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
+        return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
     }
 
     /**
@@ -362,7 +362,7 @@ public class ListingService {
      */
     public PagedResponse<ListingResponse> getFeaturedListings(Pageable pageable) {
         Page<Listing> listings = listingRepository.findByIsPublishedTrueOrderByTotalRatingsDesc(pageable);
-        return PagedResponse.fromPage(listings.map(this::mapToListingResponse));
+        return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
     }
 
     @Transactional
@@ -419,38 +419,4 @@ public class ListingService {
             .build();
     }
 
-    /**
-     * Map Listing entity to ListingResponse DTO
-     */
-    private ListingResponse mapToListingResponse(Listing listing) {
-        User owner = listing.getOwner();
-        
-        return ListingResponse.builder()
-                .id(listing.getId())
-                .owner(UserPublicResponse.builder()
-                        .id(owner.getId())
-                        .fullName(owner.getFullName())
-                        .isVerified(userProfileRepository.findByUserId(owner.getId())
-                                .map(p -> p.getKycStatus() == UserProfile.KYCStatus.APPROVED)
-                                .orElse(false))
-                        .build())
-                .title(listing.getTitle())
-                .description(listing.getDescription())
-                .category(listing.getCategory())
-                .type(listing.getType())
-                .pricePerDay(listing.getPricePerDay())
-                .securityDeposit(listing.getSecurityDeposit())
-                .location(listing.getLocation())
-                .city(listing.getCity())
-                .state(listing.getState())
-                .specifications(listing.getSpecifications())
-                .images(listing.getImages())
-                .isAvailable(listing.getIsAvailable())
-                .isPublished(listing.getIsPublished())
-                .totalRatings(listing.getTotalRatings())
-                .ratingCount(listing.getRatingCount())
-                .createdAt(listing.getCreatedAt())
-                .updatedAt(listing.getUpdatedAt())
-                .build();
-    }
 }

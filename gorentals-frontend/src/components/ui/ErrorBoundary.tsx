@@ -67,7 +67,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <h2 className="text-xl font-bold text-white mb-2">
                 Something went wrong
               </h2>
-              <p className="text-slate-400 text-sm mb-1">
+              <p className="text-faint text-sm mb-1">
                 This component crashed unexpectedly.
               </p>
               {process.env.NODE_ENV === 'development' && this.state.error && (
@@ -79,7 +79,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <div className="flex gap-3 w-full mt-4">
                 <button
                   onClick={() => window.location.reload()}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500/20 text-emerald-400 rounded-xl hover:bg-emerald-500/30 transition-all duration-200 text-sm font-medium border border-emerald-500/20"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500/30 transition-all duration-200 text-sm font-medium border border-red-500/20"
                 >
                   <RefreshCw className="w-4 h-4" />
                   Refresh

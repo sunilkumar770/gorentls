@@ -19,8 +19,8 @@ type Props = {
 
 const INPUT =
   "w-full px-4 py-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl " +
-  "focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 " +
-  "focus:border-[#16a34a] transition-all text-[#111827]";
+  "focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/20 " +
+  "focus:border-[#4f46e5] transition-all text-[#111827]";
 
 export default function AddressPicker({ location, city, state, onAddressChange }: Props) {
   const { isReady, isLoading, isDisabled, isError } = useGoogleMaps();
@@ -72,12 +72,12 @@ export default function AddressPicker({ location, city, state, onAddressChange }
             Search address
           </label>
           <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#16a34a]" />
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4f46e5]" />
             <input
               ref={acInputRef}
               type="text"
               placeholder="Start typing to search via Google Maps…"
-              className="w-full pl-10 pr-4 py-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#16a34a]/20 focus:border-[#16a34a] transition-all text-[#111827]"
+              className="w-full pl-10 pr-4 py-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/20 focus:border-[#4f46e5] transition-all text-[#111827]"
             />
           </div>
           <p className="text-xs text-[#6b7280] mt-1.5">

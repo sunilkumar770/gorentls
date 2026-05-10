@@ -96,7 +96,7 @@ export default function AdminKYCPage() {
             <p className="text-[var(--text-muted)] mt-1">Manage and verify owner identities.</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="bg-white border border-[var(--border)] rounded-[var(--r-md)] px-4 py-2 flex items-center gap-2 shadow-sm focus-within:ring-2 focus-within:ring-[var(--primary)] transition-all">
+            <div className="bg-card border border-[var(--border)] rounded-[var(--r-md)] px-4 py-2 flex items-center gap-2 shadow-sm focus-within:ring-2 focus-within:ring-[var(--primary)] transition-all">
               <Search className="w-4 h-4 text-[var(--text-faint)]" />
               <input 
                 placeholder="Search users..." 
@@ -112,7 +112,7 @@ export default function AdminKYCPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* List View */}
           <div className="lg:col-span-7 xl:col-span-8 space-y-4">
-            <div className="bg-white rounded-[var(--r-xl)] border border-[var(--border)] shadow-sm overflow-hidden">
+            <div className="bg-card rounded-[var(--r-xl)] border border-[var(--border)] shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-[var(--border)] bg-[var(--bg-faint)] flex items-center justify-between">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-faint)]">Pending Verifications</h3>
                 <span className="px-2.5 py-0.5 bg-[var(--primary-light)] text-[var(--primary)] rounded-full text-xs font-bold">
@@ -142,7 +142,7 @@ export default function AdminKYCPage() {
                       className={`p-5 flex items-center justify-between hover:bg-[var(--primary-light)]/30 cursor-pointer transition-colors ${selectedUser?.id === user.id ? 'bg-[var(--primary-light)]/50 border-l-4 border-l-[var(--primary)]' : ''}`}
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-white border border-[var(--border)] rounded-full flex items-center justify-center font-bold text-[var(--primary)] shadow-sm">
+                        <div className="w-12 h-12 bg-card border border-[var(--border)] rounded-full flex items-center justify-center font-bold text-[var(--primary)] shadow-sm">
                           {user.fullName.charAt(0).toUpperCase()}
                         </div>
                         <div>
@@ -170,7 +170,7 @@ export default function AdminKYCPage() {
           <div className="lg:col-span-5 xl:col-span-4">
             <div className="sticky top-6">
               {selectedUser ? (
-                <div className="bg-white rounded-[var(--r-xl)] border border-[var(--border)] shadow-md overflow-hidden animate-in fade-in slide-in-from-right-4 duration-500">
+                <div className="bg-card rounded-[var(--r-xl)] border border-[var(--border)] shadow-md overflow-hidden animate-in fade-in slide-in-from-right-4 duration-500">
                   {/* User Profile Header */}
                   <div className="p-6 border-b border-[var(--border)]">
                     <div className="flex items-start justify-between mb-4">
@@ -221,13 +221,13 @@ export default function AdminKYCPage() {
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                        <button className="bg-white p-2 rounded-full shadow-lg transform hover:scale-110 transition-transform">
+                        <button className="bg-card p-2 rounded-full shadow-lg transform hover:scale-110 transition-transform">
                           <ZoomIn className="w-5 h-5 text-[var(--text)]" />
                         </button>
                         <a 
                           href={selectedUser.kycDocumentUrl} 
                           download 
-                          className="bg-white p-2 rounded-full shadow-lg transform hover:scale-110 transition-transform"
+                          className="bg-card p-2 rounded-full shadow-lg transform hover:scale-110 transition-transform"
                         >
                           <Download className="w-5 h-5 text-[var(--text)]" />
                         </a>
@@ -269,7 +269,7 @@ export default function AdminKYCPage() {
       {/* Rejection Modal */}
       {showRejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-[var(--r-xl)] shadow-2xl w-full max-w-md overflow-hidden">
+          <div className="bg-card rounded-[var(--r-xl)] shadow-2xl w-full max-w-md overflow-hidden">
             <div className="p-6 border-b border-[var(--border)] flex items-center justify-between bg-red-50/50">
               <h3 className="text-lg font-bold text-red-700 flex items-center gap-2">
                 <ShieldAlert className="w-5 h-5" /> Reject Verification

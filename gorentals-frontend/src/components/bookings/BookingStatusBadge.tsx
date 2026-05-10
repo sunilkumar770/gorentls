@@ -5,7 +5,7 @@ import type { BookingStatus } from '@/types';
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   PENDING:     { label: 'Pending',     color: 'bg-amber-100 text-amber-800'   },
   ACCEPTED:    { label: 'Accepted',    color: 'bg-blue-100 text-blue-800'     },
-  CONFIRMED:   { label: 'Confirmed',   color: 'bg-emerald-100 text-emerald-800' },
+  CONFIRMED:   { label: 'Confirmed',   color: 'bg-red-100 text-red-900' },
   IN_PROGRESS: { label: 'In Progress', color: 'bg-purple-100 text-purple-800' },
   COMPLETED:   { label: 'Completed',   color: 'bg-gray-100 text-gray-600'     },
   RETURNED:    { label: 'Returned',    color: 'bg-gray-100 text-gray-600'     },

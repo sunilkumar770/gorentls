@@ -28,13 +28,13 @@ function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     ACTIVE: 'bg-[#f97316]/10 text-[#9d4300]',
     CONFIRMED: 'bg-blue-100/50 text-blue-700',
-    APPROVED: 'bg-green-100/50 text-green-700',
+    APPROVED: 'bg-red-100/50 text-red-700',
     PENDING: 'bg-amber-100/50 text-amber-700',
     COMPLETED: 'bg-[#251913]/5 text-[#8c7164]',
     REJECTED: 'bg-red-100/50 text-red-600',
     CANCELLED: 'bg-red-100/50 text-red-600',
     SUSPENDED: 'bg-red-100/50 text-red-600',
-    PAID: 'bg-green-100/50 text-green-700',
+    PAID: 'bg-red-100/50 text-red-700',
     UNPAID: 'bg-amber-100/50 text-amber-700',
     RENTER: 'bg-sky-100/50 text-sky-700',
     OWNER: 'bg-purple-100/50 text-purple-700',
@@ -75,7 +75,7 @@ function StatCard({ label, value, icon, subtext, accent = false }: {
   icon: ReactNode; subtext: string; accent?: boolean;
 }) {
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-ambient border border-[#e0c0b1]/20 hover:border-[#f97316]/30 transition-all group">
+    <div className="bg-card rounded-2xl p-6 shadow-ambient border border-[#e0c0b1]/20 hover:border-[#f97316]/30 transition-all group">
       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${accent ? 'bg-[#f97316]/10 text-[#f97316]' : 'bg-[#251913]/5 text-[#251913]'
         }`}>
         {icon}
@@ -94,7 +94,7 @@ function ActionBtn({ label, onClick, variant = 'default', disabled = false }: {
   const styles = {
     default: 'bg-[#251913]/5 text-[#251913] hover:bg-[#251913]/10',
     danger: 'bg-red-50 text-red-600 hover:bg-red-100',
-    success: 'bg-green-50 text-green-700 hover:bg-green-100',
+    success: 'bg-red-50 text-red-700 hover:bg-red-100',
   };
   return (
     <button onClick={onClick} disabled={disabled}
@@ -132,7 +132,7 @@ function SearchBar({
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-10 pr-10 py-2.5 text-sm font-medium rounded-xl border border-[#e0c0b1]/30 bg-white
+        className="w-full pl-10 pr-10 py-2.5 text-sm font-medium rounded-xl border border-[#e0c0b1]/30 bg-card
                    focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 placeholder:text-[#8c7164]/50 shadow-sm"
       />
       {value && (
@@ -242,7 +242,7 @@ function UsersTab() {
                   <Td><StatusBadge status={u.isActive ? 'ACTIVE' : 'SUSPENDED'} /></Td>
                   <Td>
                     {u.isVerified
-                      ? <CheckCircle2 size={16} className="text-green-500" />
+                      ? <CheckCircle2 size={16} className="text-red-500" />
                       : <XCircle size={16} className="text-yellow-500" />}
                   </Td>
                   <Td>
@@ -323,7 +323,7 @@ function OwnersTab() {
                   <Td><StatusBadge status={o.isActive ? 'ACTIVE' : 'SUSPENDED'} /></Td>
                   <Td>
                     {o.isVerified
-                      ? <CheckCircle2 size={16} className="text-green-500" />
+                      ? <CheckCircle2 size={16} className="text-red-500" />
                       : <XCircle size={16} className="text-yellow-500" />}
                   </Td>
                   <Td><span className="text-[#8c7164] text-xs">{o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-IN') : '—'}</span></Td>
@@ -546,7 +546,7 @@ function BookingsTab() {
 const actionColour = (action: string): string => {
   const a = action.toUpperCase();
   if (a.includes('SUSPEND') || a.includes('REJECT')) return 'bg-red-100 text-red-600';
-  if (a.includes('VERIFY') || a.includes('APPROVE') || a.includes('UNSUSPEND')) return 'bg-green-100 text-green-700';
+  if (a.includes('VERIFY') || a.includes('APPROVE') || a.includes('UNSUSPEND')) return 'bg-red-100 text-red-700';
   return 'bg-blue-100 text-blue-700';
 };
 
@@ -629,7 +629,7 @@ function Loader({ label }: { label: string }) {
 
 function TableWrap({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-[1.5rem] border border-[#e0c0b1]/20 bg-white shadow-ambient">
+    <div className="overflow-x-auto rounded-[1.5rem] border border-[#e0c0b1]/20 bg-card shadow-ambient">
       <table className="w-full text-sm">{children}</table>
     </div>
   );

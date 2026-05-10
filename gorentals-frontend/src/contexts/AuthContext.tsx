@@ -4,6 +4,7 @@ import React, { createContext, useState, useEffect } from 'react';
 import type { Profile } from '@/types';
 import { buildProfile, setToken, clearToken } from '@/services/auth';
 import api from '@/lib/axios';
+import { safeStorage } from '@/lib/safeStorage';
 
 interface AuthContextType {
   user: Profile | null;
@@ -26,9 +27,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function initAuth() {
       try {
         // 1. Recover token from persistent storage
-        let storedToken = localStorage.getItem('gr_token');
+        let storedToken = safeStorage.getItem('gr_token');
         
-        // Fallback to cookie if localStorage is empty
+        // Fallback to cookie if safeStorage is empty
         if (!storedToken) {
           const cookieToken = document.cookie
             .split('; ')
@@ -36,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ?.split('=')[1];
           if (cookieToken) {
             storedToken = cookieToken;
-            localStorage.setItem('gr_token', cookieToken);
+            safeStorage.setItem('gr_token', cookieToken);
           }
         }
 
@@ -49,12 +50,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTokenState(storedToken);
 
         // 2. Load cached user for instant UI response
-        const storedUser = localStorage.getItem('gr_user');
+        const storedUser = safeStorage.getItem('gr_user');
         if (storedUser) {
           try {
             setUser(JSON.parse(storedUser));
           } catch {
-            localStorage.removeItem('gr_user');
+            safeStorage.removeItem('gr_user');
           }
         }
 
@@ -67,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           const profile = buildProfile(res.data);
           setUser(profile);
-          localStorage.setItem('gr_user', JSON.stringify(profile));
+          safeStorage.setItem('gr_user', JSON.stringify(profile));
         } catch (err: unknown) { 
           const _err = err as { response?: { status?: number; data?: { message?: string; error?: string } }; message?: string };
           const status = _err?.response?.status;
@@ -103,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = (newToken: string, newUser: Profile) => {
     setToken(newToken);
-    localStorage.setItem('gr_user', JSON.stringify(newUser));
+    safeStorage.setItem('gr_user', JSON.stringify(newUser));
     setTokenState(newToken);
     setUser(newUser);
   };
@@ -115,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateUser = (newUser: Profile) => {
-    localStorage.setItem('gr_user', JSON.stringify(newUser));
+    safeStorage.setItem('gr_user', JSON.stringify(newUser));
     setUser(newUser);
   };
 
@@ -124,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await api.get('/users/me');
       const profile = buildProfile(res.data);
       setUser(profile);
-      localStorage.setItem('gr_user', JSON.stringify(profile));
+      safeStorage.setItem('gr_user', JSON.stringify(profile));
     } catch (err) {
       console.error('[AuthContext] Refresh failed:', err);
       throw err;

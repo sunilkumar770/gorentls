@@ -41,8 +41,10 @@ public class PaymentRateLimitFilter extends OncePerRequestFilter {
             if (path.contains("/confirm")) return new RateLimitConfig().confirmPaymentBucket();
             // Default limit for other payment/webhook paths
             return io.github.bucket4j.Bucket.builder().addLimit(
-                io.github.bucket4j.Bandwidth.classic(20, 
-                    io.github.bucket4j.Refill.intervally(20, java.time.Duration.ofMinutes(1)))
+                io.github.bucket4j.Bandwidth.builder()
+                    .capacity(20)
+                    .refillIntervally(20, java.time.Duration.ofMinutes(1))
+                    .build()
             ).build();
         });
 

@@ -3,6 +3,8 @@ package com.rentit.config;
 import com.rentit.security.JwtAuthenticationFilter;
 import com.rentit.security.RateLimitingFilter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import java.util.Arrays;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,6 +30,7 @@ public class SecurityConfig {
 
     @Autowired private JwtAuthenticationFilter jwtAuthenticationFilter;
     @Autowired private RateLimitingFilter      rateLimitingFilter;
+    @Autowired private Environment             environment;
 
 
 
@@ -39,7 +42,7 @@ public class SecurityConfig {
             .headers(headers -> headers
                 .xssProtection(xss -> xss.headerValue(org.springframework.security.web.header.writers.XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
                 .contentSecurityPolicy(csp -> csp
-                    .policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"))
+                    .policyDirectives("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'"))
                 .frameOptions(frameOptions -> frameOptions.deny())
                 .contentTypeOptions(contentTypeOptions -> {})
                 .httpStrictTransportSecurity(hsts -> hsts
@@ -55,7 +58,14 @@ public class SecurityConfig {
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/api/webhooks/**").permitAll()
                 .requestMatchers("/api/payments/legacy/webhook").permitAll()
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                // Swagger only in non-prod environments
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html")
+                    .access((authentication, ctx) -> {
+                        boolean isProd = Arrays.asList(environment.getActiveProfiles()).contains("prod");
+                        return isProd
+                            ? new org.springframework.security.authorization.AuthorizationDecision(false)
+                            : new org.springframework.security.authorization.AuthorizationDecision(true);
+                    })
                 .requestMatchers(HttpMethod.GET, "/api/listings/owner/mine").hasRole("OWNER")
                 .requestMatchers(HttpMethod.GET, "/api/listings/**").permitAll()
                 .requestMatchers("/ws/**").authenticated()

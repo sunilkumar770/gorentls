@@ -11,6 +11,7 @@ import com.rentit.repository.PaymentRepository;
 import com.rentit.repository.UserRepository;
 import com.rentit.service.BookingEscrowService;
 import com.rentit.service.RazorpayIntegrationService;
+import com.rentit.service.NotificationService;
 import jakarta.validation.Valid;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -67,12 +68,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class BookingPaymentController {
 
     private static final Logger log = LoggerFactory.getLogger(BookingPaymentController.class);
+    private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
+            new com.fasterxml.jackson.databind.ObjectMapper();
 
     private final RazorpayIntegrationService razorpay;
     private final BookingEscrowService       escrowService;
     private final BookingRepository          bookingRepo;
     private final PaymentRepository          paymentRepo;
     private final UserRepository            userRepo;
+    private final NotificationService       notificationService;
     private final Counter orderCreatedCounter;
     private final Counter paymentConfirmedCounter;
     private final Counter paymentFailedCounter;
@@ -84,6 +88,7 @@ public class BookingPaymentController {
         BookingRepository          bookingRepo,
         PaymentRepository          paymentRepo,
         UserRepository            userRepo,
+        NotificationService       notificationService,
         MeterRegistry              meterRegistry
     ) {
         this.razorpay      = razorpay;
@@ -91,6 +96,7 @@ public class BookingPaymentController {
         this.bookingRepo   = bookingRepo;
         this.paymentRepo   = paymentRepo;
         this.userRepo      = userRepo;
+        this.notificationService = notificationService;
 
         this.orderCreatedCounter = Counter.builder("payments.orders.created")
             .description("Total Razorpay orders created")
@@ -252,9 +258,9 @@ public class BookingPaymentController {
         // ── Create and persist Payment record ──────────────────────────────────
         PaymentKind kind;
         try {
-            kind = PaymentKind.valueOf(req.paymentKind().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            kind = PaymentKind.ADVANCE;
+            kind = PaymentKind.valueOf(req.paymentKind() != null ? req.paymentKind().toUpperCase() : "");
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new BusinessException("Invalid paymentKind: '" + req.paymentKind() + "'", "INVALID_PAYMENT_KIND");
         }
 
         Payment payment = new Payment();
@@ -273,6 +279,7 @@ public class BookingPaymentController {
 
         // ── Apply to escrow state machine ──────────────────────────────────────
         escrowService.applyPayment(booking, payment);
+        notificationService.notifyPaymentCaptured(booking, payment);
         paymentConfirmedCounter.increment();
 
         log.info("Payment confirmed: bookingId={} kind={} userId={}",
@@ -449,10 +456,9 @@ public class BookingPaymentController {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> jsonToMap(JSONObject json) {
-        return new com.fasterxml.jackson.databind.ObjectMapper()
-            .convertValue(
-                new org.json.JSONObject(json.toString()).toMap(),
-                Map.class
-            );
+        return MAPPER.convertValue(
+            new org.json.JSONObject(json.toString()).toMap(),
+            Map.class
+        );
     }
 }

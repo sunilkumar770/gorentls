@@ -51,7 +51,7 @@ export function WishlistButton({
          transition-all duration-200 active:scale-90 shadow-sm`,
         saved
           ? 'bg-red-500 text-white hover:bg-red-600'
-          : 'bg-white/90 text-gray-400 hover:text-red-400 hover:bg-white backdrop-blur-sm',
+          : 'bg-card/90 text-gray-400 hover:text-red-400 hover:bg-card backdrop-blur-sm',
         className,
       )}
     >

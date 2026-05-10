@@ -17,6 +17,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Controls ALL escrow state transitions and financial postings for a booking.
@@ -47,15 +49,18 @@ public class BookingEscrowService {
     private final BookingRepository       bookingRepo;
     private final LedgerService           ledger;
     private final SimpMessagingTemplate   broker;
+    private final BookingLifecycleManager lifecycleManager;
 
     public BookingEscrowService(
         BookingRepository       bookingRepo,
         LedgerService           ledger,
-        SimpMessagingTemplate   broker
+        SimpMessagingTemplate   broker,
+        BookingLifecycleManager lifecycleManager
     ) {
         this.bookingRepo = bookingRepo;
         this.ledger      = ledger;
         this.broker      = broker;
+        this.lifecycleManager = lifecycleManager;
     }
 
     // ── Payment application ───────────────────────────────────────────────────
@@ -94,8 +99,8 @@ public class BookingEscrowService {
             BookingStatus.CONFIRMED);
 
         booking.setAdvanceAmount(payment.getAmount());
-        booking.setBookingStatus(BookingStatus.CONFIRMED);
         booking.setEscrowStatus(EscrowStatus.ADVANCE_HELD);
+        lifecycleManager.transition(booking, BookingStatus.CONFIRMED, "Advance payment captured");
 
         ledger.post(
             booking.getId(), payment.getId(),
@@ -110,7 +115,7 @@ public class BookingEscrowService {
 
         booking.setRemainingAmount(payment.getAmount());
         booking.setEscrowStatus(EscrowStatus.FULL_HELD);
-        booking.setBookingStatus(BookingStatus.IN_USE);
+        lifecycleManager.transition(booking, BookingStatus.IN_USE, "Final payment captured");
 
         ledger.post(
             booking.getId(), payment.getId(),
@@ -139,9 +144,7 @@ public class BookingEscrowService {
     @Transactional
     public void confirmOwnerAcceptance(Booking booking) {
         guardBookingStatus(booking, BookingStatus.PENDING_PAYMENT, BookingStatus.CONFIRMED);
-        booking.setBookingStatus(BookingStatus.CONFIRMED);
-        bookingRepo.save(booking);
-        broadcastEscrowUpdate(booking);
+        lifecycleManager.transition(booking, BookingStatus.CONFIRMED, "Owner accepted booking");
         log.info("Owner acceptance recorded: booking={}", booking.getId());
     }
 
@@ -164,24 +167,9 @@ public class BookingEscrowService {
         }
 
         booking.setHandoverAt(Instant.now());
-        booking.setBookingStatus(BookingStatus.IN_USE);
-        bookingRepo.save(booking);
+        lifecycleManager.transition(booking, BookingStatus.IN_USE, "Handover recorded");
         broadcastEscrowUpdate(booking);
         log.info("Handover recorded and booking moved to IN_USE: booking={}", booking.getId());
-    }
-
-    /**
-    @Transactional
-    public void markHandover(Booking booking) {
-        if (booking.getBookingStatus() != BookingStatus.CONFIRMED)
-            throw new InvalidStateTransitionException(
-                booking.getBookingStatus(), BookingStatus.IN_USE, "Booking"
-            );
-
-        booking.setHandoverAt(Instant.now());
-        bookingRepo.save(booking);
-        broadcastEscrowUpdate(booking);
-        log.info("Handover recorded: booking={} at={}", booking.getId(), booking.getHandoverAt());
     }
 
     /**
@@ -201,9 +189,8 @@ public class BookingEscrowService {
 
         booking.setReturnedAt(now);
         booking.setDisputeWindowEndsAt(disputeWindowEnds);
-        booking.setBookingStatus(BookingStatus.RETURNED);
         booking.setEscrowStatus(EscrowStatus.RETURNED);
-        bookingRepo.save(booking);
+        lifecycleManager.transition(booking, BookingStatus.RETURNED, "Return recorded");
         broadcastEscrowUpdate(booking);
         log.info("Return recorded: booking={} disputeWindowEnds={}",
             booking.getId(), disputeWindowEnds);
@@ -270,9 +257,8 @@ public class BookingEscrowService {
             depositBal
         );
 
-        booking.setBookingStatus(BookingStatus.COMPLETED);
         booking.setEscrowStatus(EscrowStatus.READY_FOR_PAYOUT);
-        bookingRepo.save(booking);
+        lifecycleManager.transition(booking, BookingStatus.COMPLETED, "Payout scheduled");
         broadcastEscrowUpdate(booking);
         log.info("Payout split posted and booking COMPLETED: booking={} base=₹{} tds=₹{}",
             booking.getId(), base, tdsAmount);
@@ -290,9 +276,8 @@ public class BookingEscrowService {
                 booking.getBookingStatus(), BookingStatus.DISPUTED, "Booking"
             );
 
-        booking.setBookingStatus(BookingStatus.DISPUTED);
         booking.setEscrowStatus(EscrowStatus.ON_HOLD);
-        bookingRepo.save(booking);
+        lifecycleManager.transition(booking, BookingStatus.DISPUTED, "Escrow frozen for dispute");
         broadcastEscrowUpdate(booking);
         log.info("Escrow frozen for dispute: booking={}", booking.getId());
     }
@@ -495,11 +480,12 @@ public class BookingEscrowService {
     private void broadcastEscrowUpdate(Booking booking) {
         String topic = "/topic/bookings/" + booking.getId() + "/escrow";
         try {
-            broker.convertAndSend(topic, java.util.Map.of(
-                "bookingId",    booking.getId().toString(),
-                "bookingStatus", booking.getBookingStatus().name(),
-                "escrowStatus",  booking.getEscrowStatus().name()
-            ));
+            Map<String, String> payload = new HashMap<>();
+            payload.put("bookingId", booking.getId().toString());
+            payload.put("bookingStatus", booking.getBookingStatus() != null ? booking.getBookingStatus().name() : null);
+            payload.put("escrowStatus", booking.getEscrowStatus() != null ? booking.getEscrowStatus().name() : null);
+            
+            broker.convertAndSend(topic, payload);
         } catch (Exception e) {
             // Never fail the main transaction due to a WebSocket broadcast failure
             log.warn("Failed to broadcast escrow update for booking {}: {}",

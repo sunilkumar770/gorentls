@@ -1,5 +1,6 @@
 package com.rentit.exception;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -16,6 +17,7 @@ import java.util.Map;
  * Global exception handler for REST API
  * Catches validation errors and returns standardized error responses
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -44,6 +46,40 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle business logic exceptions (400, 404, 403, etc.)
+     */
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<?> handleBusinessException(
+            BusinessException ex,
+            WebRequest request) {
+
+        Map<String, Object> errorDetails = new HashMap<>();
+        errorDetails.put("timestamp", LocalDateTime.now());
+        errorDetails.put("status", ex.getHttpStatus().value());
+        errorDetails.put("code", ex.getErrorCode());
+        errorDetails.put("message", ex.getMessage());
+
+        return new ResponseEntity<>(errorDetails, ex.getHttpStatus());
+    }
+
+    /**
+     * Handle state transition conflicts (409)
+     */
+    @ExceptionHandler(InvalidStateTransitionException.class)
+    public ResponseEntity<?> handleStateTransition(
+            InvalidStateTransitionException ex,
+            WebRequest request) {
+
+        Map<String, Object> errorDetails = new HashMap<>();
+        errorDetails.put("timestamp", LocalDateTime.now());
+        errorDetails.put("status", HttpStatus.CONFLICT.value());
+        errorDetails.put("code", "INVALID_STATE_TRANSITION");
+        errorDetails.put("message", ex.getMessage());
+
+        return new ResponseEntity<>(errorDetails, HttpStatus.CONFLICT);
+    }
+
+    /**
      * Handle generic exceptions
      */
     @ExceptionHandler(Exception.class)
@@ -54,8 +90,9 @@ public class GlobalExceptionHandler {
         Map<String, Object> errorDetails = new HashMap<>();
         errorDetails.put("timestamp", LocalDateTime.now());
         errorDetails.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        errorDetails.put("message", "An error occurred");
-        errorDetails.put("details", ex.getMessage());
+        errorDetails.put("message", "An unexpected server error occurred. Please contact support.");
+        
+        log.error("Unhandled exception: {}", ex.getMessage(), ex);
 
         return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
     }

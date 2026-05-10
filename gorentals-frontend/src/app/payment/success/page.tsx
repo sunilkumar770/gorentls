@@ -19,17 +19,41 @@ function PaymentSuccessContent() {
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
-    if (bookingId) {
-      getBooking(bookingId)
-        .then(setBooking)
-        .catch(err => {
-          console.error('Failed to load booking details:', err);
-          toast.error('Failed to load booking details');
-        })
-        .finally(() => setLoading(false));
-    } else {
+    if (!bookingId) {
       setLoading(false);
+      return;
     }
+
+    let retryCount = 0;
+    const maxRetries = 4; // Total ~10 seconds of polling
+    
+    const fetchBooking = async () => {
+      try {
+        const data = await getBooking(bookingId);
+        setBooking(data);
+        
+        // If we have a payment ID or status is CONFIRMED, we can stop polling
+        if (data.razorpayPaymentId || data.status === 'CONFIRMED' || retryCount >= maxRetries) {
+          setLoading(false);
+          return;
+        }
+
+        // Webhook might be slow, try again in 2.5 seconds
+        retryCount++;
+        setTimeout(fetchBooking, 2500);
+      } catch (err) {
+        console.error('Failed to load booking details:', err);
+        if (retryCount >= maxRetries) {
+          toast.error('Failed to load booking details');
+          setLoading(false);
+        } else {
+          retryCount++;
+          setTimeout(fetchBooking, 2500);
+        }
+      }
+    };
+
+    fetchBooking();
   }, [bookingId]);
 
   const handleDownloadReceipt = async () => {
@@ -48,42 +72,42 @@ function PaymentSuccessContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center">
-        <div className="w-10 h-10 rounded-full border-4 border-[#16a34a]/20 border-t-[#16a34a] animate-spin" />
+        <div className="w-10 h-10 rounded-full border-4 border-[#4f46e5]/20 border-t-[#4f46e5] animate-spin" />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col">
-      <nav className="bg-white border-b border-[#e2e8f0] sticky top-0 z-20">
+      <nav className="bg-card border-b border-[#e2e8f0] sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 font-bold text-xl text-[#0f172a]">
-            <div className="w-8 h-8 bg-[#16a34a] rounded-lg flex items-center justify-center text-white text-xs font-black shadow-sm">G</div>
+            <div className="w-8 h-8 bg-[#4f46e5] rounded-lg flex items-center justify-center text-white text-xs font-black shadow-sm">G</div>
             GoRentals
           </Link>
-          <Link href="/my-rentals" className="text-sm font-medium text-[#64748b] hover:text-[#16a34a] transition-colors">
+          <Link href="/my-rentals" className="text-sm font-medium text-[#64748b] hover:text-[#4f46e5] transition-colors">
             My Rentals
           </Link>
         </div>
       </nav>
 
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-12 md:py-20">
-        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+        <div className="bg-card rounded-3xl shadow-xl shadow-slate-200/50 border border-border overflow-hidden">
           {/* Header Section */}
-          <div className="bg-[#f0fdf4] px-8 py-10 text-center border-b border-emerald-50">
-            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-md mx-auto mb-6 ring-8 ring-emerald-50">
-              <CheckCircle2 className="w-12 h-12 text-[#16a34a]" />
+          <div className="bg-[#eef2ff] px-8 py-10 text-center border-b border-red-50">
+            <div className="w-20 h-20 bg-card rounded-full flex items-center justify-center shadow-md mx-auto mb-6 ring-8 ring-indigo-50">
+              <CheckCircle2 className="w-12 h-12 text-[#4f46e5]" />
             </div>
             <h1 className="text-3xl font-extrabold text-[#0f172a] mb-2">Payment Successful!</h1>
-            <p className="text-[#15803d] font-medium">Your rental is now confirmed and secured in escrow.</p>
+            <p className="text-[#4338ca] font-medium">Your rental is now confirmed and secured in escrow.</p>
           </div>
 
           <div className="p-8 md:p-10">
             {booking ? (
               <div className="space-y-8">
                 {/* Booking Summary */}
-                <div className="flex gap-6 items-start pb-8 border-b border-slate-100">
-                  <div className="w-28 h-24 bg-slate-100 rounded-2xl overflow-hidden flex-shrink-0">
+                <div className="flex gap-6 items-start pb-8 border-b border-border">
+                  <div className="w-28 h-24 bg-subtle rounded-2xl overflow-hidden flex-shrink-0">
                     {(booking.listing?.images?.[0] || booking.listing?.listing_images?.[0]?.image_url) ? (
                       <img 
                         src={booking.listing?.images?.[0] || booking.listing?.listing_images?.[0]?.image_url} 
@@ -98,11 +122,11 @@ function PaymentSuccessContent() {
                     <h2 className="text-xl font-bold text-[#0f172a] truncate">{booking.listing?.title}</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 mt-3">
                       <div className="flex items-center text-sm text-[#64748b]">
-                        <Calendar className="w-4 h-4 mr-2 text-[#16a34a]" />
+                        <Calendar className="w-4 h-4 mr-2 text-[#4f46e5]" />
                         {formatDate(booking.startDate)} - {formatDate(booking.endDate)}
                       </div>
                       <div className="flex items-center text-sm text-[#64748b]">
-                        <IndianRupee className="w-4 h-4 mr-2 text-[#16a34a]" />
+                        <IndianRupee className="w-4 h-4 mr-2 text-[#4f46e5]" />
                         Total Paid: <span className="ml-1 font-bold text-[#0f172a]">₹{booking.totalAmount.toLocaleString()}</span>
                       </div>
                     </div>
@@ -125,7 +149,7 @@ function PaymentSuccessContent() {
                   </button>
                   <Link
                     href="/my-rentals"
-                    className="flex items-center justify-center gap-2 px-6 py-4 bg-white border-2 border-[#e2e8f0] text-[#0f172a] font-bold rounded-2xl hover:border-[#16a34a] hover:text-[#16a34a] transition-all group"
+                    className="flex items-center justify-center gap-2 px-6 py-4 bg-card border-2 border-[#e2e8f0] text-[#0f172a] font-bold rounded-2xl hover:border-[#4f46e5] hover:text-[#4f46e5] transition-all group"
                   >
                     Go to My Rentals
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
@@ -134,15 +158,15 @@ function PaymentSuccessContent() {
               </div>
             ) : (
               <div className="text-center py-10">
-                <p className="text-slate-500 mb-6">Booking details not available.</p>
-                <Link href="/dashboard" className="text-[#16a34a] font-bold hover:underline">
+                <p className="text-muted mb-6">Booking details not available.</p>
+                <Link href="/dashboard" className="text-[#4f46e5] font-bold hover:underline">
                   Return to Dashboard
                 </Link>
               </div>
             )}
 
             {/* Security Footnote */}
-            <div className="mt-12 pt-8 border-t border-slate-50 flex items-center justify-center gap-3 text-[#94a3b8] text-xs font-medium uppercase tracking-wider">
+            <div className="mt-12 pt-8 border-t border-border flex items-center justify-center gap-3 text-[#94a3b8] text-xs font-medium uppercase tracking-wider">
               <Shield className="w-4 h-4" />
               Secured Escrow Payment · GoRentals Trust & Safety
             </div>
@@ -150,8 +174,8 @@ function PaymentSuccessContent() {
         </div>
 
         <div className="mt-8 text-center">
-          <p className="text-sm text-slate-400">
-            Booking Reference: <span className="font-mono text-slate-500">{bookingId}</span>
+          <p className="text-sm text-faint">
+            Booking Reference: <span className="font-mono text-muted">{bookingId}</span>
           </p>
         </div>
       </main>
@@ -163,7 +187,7 @@ export default function PaymentSuccessPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
-        <div className="w-10 h-10 rounded-full border-4 border-[#16a34a]/20 border-t-[#16a34a] animate-spin" />
+        <div className="w-10 h-10 rounded-full border-4 border-[#4f46e5]/20 border-t-[#4f46e5] animate-spin" />
       </div>
     }>
       <PaymentSuccessContent />

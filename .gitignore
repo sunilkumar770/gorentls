@@ -30,3 +30,10 @@ Thumbs.db
 .vscode/
 .idea/
 workflow_state.db
+
+# Runtime log files - never commit
+*.log
+**/backend.log
+**/startup.log
+GORENTALS/backend.log
+GORENTALS/startup.log

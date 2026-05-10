@@ -163,19 +163,19 @@ export default function HelpPage() {
               type="email" 
               placeholder="Your email address" 
               required 
-              className="bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-white"
+              className="bg-card/10 border-white/20 text-white placeholder-white/50 focus:ring-white"
             />
             <textarea 
               placeholder="How can we help you?" 
               required 
               rows={3}
-              className="w-full bg-white/10 border border-white/20 px-4 py-3 rounded-[var(--r-md)] text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white transition-all text-sm resize-none"
+              className="w-full bg-card/10 border border-white/20 px-4 py-3 rounded-[var(--r-md)] text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white transition-all text-sm resize-none"
             />
             <Button 
               type="submit" 
               variant="secondary"
               size="md"
-              className="w-full bg-white text-[var(--primary)] hover:bg-white/90"
+              className="w-full bg-card text-[var(--primary)] hover:bg-card/90"
             >
               <Mail className="w-4 h-4 mr-2" /> Send Message
             </Button>

@@ -34,10 +34,12 @@ public class PlatformAnalyticsService {
     public PlatformAnalytics getPlatformAnalytics(String startDate, String endDate) {
         LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
         LocalDateTime end   = LocalDate.parse(endDate).atTime(23, 59, 59);
+        LocalDateTime sixMonthsAgo = LocalDate.now().minusMonths(6).withDayOfMonth(1).atStartOfDay();
 
-        long totalUsers  = userRepository.count();
-        long totalOwners = userRepository.countOwners();
-        long totalRenters= userRepository.countRenters();
+        // ── USER STATS ────────────────────────────────────────────────────────
+        long totalUsers         = userRepository.count();
+        long totalOwners        = userRepository.countOwners();
+        long totalRenters       = userRepository.countRenters();
         long newUsersThisMonth  = userRepository.countByCreatedAtAfter(LocalDateTime.now().minusMonths(1));
         long newOwnersThisMonth = userRepository.countOwnersByCreatedAtAfter(LocalDateTime.now().minusMonths(1));
         long verifiedUsers      = userProfileRepository.countByKycStatus(UserProfile.KYCStatus.APPROVED);
@@ -47,6 +49,7 @@ public class PlatformAnalyticsService {
                 .newUsersThisMonth(newUsersThisMonth).newOwnersThisMonth(newOwnersThisMonth)
                 .verifiedUsers(verifiedUsers).build();
 
+        // ── BOOKING STATS ─────────────────────────────────────────────────────
         long totalBookings     = bookingRepository.count();
         long completedBookings = bookingRepository.countByBookingStatus(BookingStatus.COMPLETED);
         long cancelledBookings = bookingRepository.countByBookingStatus(BookingStatus.CANCELLED);
@@ -60,24 +63,56 @@ public class PlatformAnalyticsService {
                 .averageBookingValue(avgBookingValue != null ? avgBookingValue : 0.0)
                 .averageRentalDays(avgRentalDays != null ? avgRentalDays : 0.0).build();
 
+        // ── REVENUE STATS ─────────────────────────────────────────────────────
         BigDecimal totalRevenue = paymentRepository.sumCompletedPayments();
         if (totalRevenue == null) totalRevenue = BigDecimal.ZERO;
+        
+        // FIX: Commission is now derived from Ledger for precision in AdminService, 
+        // but for high-level analytics, a conservative estimate or Ledger sum is better.
+        // For now, we'll keep the 10% but as a calculated value from total revenue.
         BigDecimal platformCommission = totalRevenue.multiply(new BigDecimal("0.10"));
         BigDecimal ownerPayouts       = totalRevenue.subtract(platformCommission);
-        BigDecimal monthlyRevenue     = paymentRepository.sumPaymentsByDateRange(
+        
+        BigDecimal monthlyRevenue = paymentRepository.sumPaymentsByDateRange(
                 LocalDateTime.now().minusMonths(1), LocalDateTime.now());
-        BigDecimal weeklyRevenue      = paymentRepository.sumPaymentsByDateRange(
+        BigDecimal weeklyRevenue  = paymentRepository.sumPaymentsByDateRange(
                 LocalDateTime.now().minusWeeks(1), LocalDateTime.now());
 
-        Map<String, BigDecimal> revenueByMonth = new LinkedHashMap<>();
+        // ── HISTORICAL AGGREGATION (OPTIMIZED: 3 queries instead of 18+) ──────
+        List<Object[]> userHistory    = userRepository.getMonthlyRegistrations(sixMonthsAgo);
+        List<Object[]> bookingHistory = bookingRepository.getMonthlyBookingCount(sixMonthsAgo);
+        List<Object[]> revenueHistory = paymentRepository.getMonthlyRevenue(sixMonthsAgo);
+
+        Map<String, PlatformAnalytics.MonthlyStat> statsMap = new LinkedHashMap<>();
+        
+        // Populate months in order (last 6 months)
         for (int i = 5; i >= 0; i--) {
-            LocalDateTime mStart = LocalDateTime.now().minusMonths(i)
-                    .withDayOfMonth(1).toLocalDate().atStartOfDay();
-            LocalDateTime mEnd   = mStart.plusMonths(1).minusSeconds(1);
-            BigDecimal rev = paymentRepository.sumPaymentsByDateRange(mStart, mEnd);
-            revenueByMonth.put(mStart.format(DateTimeFormatter.ofPattern("MMM yyyy")),
-                    rev != null ? rev : BigDecimal.ZERO);
+            String mLabel = LocalDateTime.now().minusMonths(i).format(DateTimeFormatter.ofPattern("MMM yyyy"));
+            statsMap.put(mLabel, PlatformAnalytics.MonthlyStat.builder()
+                    .month(mLabel).newUsers(0L).bookings(0L).revenue(BigDecimal.ZERO).build());
         }
+
+        // Map registration history
+        for (Object[] row : userHistory) {
+            String m = (String) row[0];
+            if (statsMap.containsKey(m)) statsMap.get(m).setNewUsers(((Number) row[1]).longValue());
+        }
+        // Map booking history (Note: row[0] from DATE_TRUNC is a Timestamp/LocalDateTime)
+        for (Object[] row : bookingHistory) {
+            String m = ((LocalDateTime) row[0]).format(DateTimeFormatter.ofPattern("MMM yyyy"));
+            if (statsMap.containsKey(m)) statsMap.get(m).setBookings(((Number) row[1]).longValue());
+        }
+        // Map revenue history
+        for (Object[] row : revenueHistory) {
+            String m = ((LocalDateTime) row[0]).format(DateTimeFormatter.ofPattern("MMM yyyy"));
+            if (statsMap.containsKey(m)) statsMap.get(m).setRevenue((BigDecimal) row[1]);
+        }
+
+        List<PlatformAnalytics.MonthlyStat> monthlyStats = new ArrayList<>(statsMap.values());
+        Map<String, BigDecimal> revenueByMonth = monthlyStats.stream()
+                .collect(Collectors.toMap(PlatformAnalytics.MonthlyStat::getMonth, 
+                                        PlatformAnalytics.MonthlyStat::getRevenue,
+                                        (a, b) -> a, LinkedHashMap::new));
 
         PlatformAnalytics.RevenueStatistics revenueStats = PlatformAnalytics.RevenueStatistics.builder()
                 .totalRevenue(totalRevenue).platformCommission(platformCommission)
@@ -86,36 +121,25 @@ public class PlatformAnalyticsService {
                 .weeklyRevenue(weeklyRevenue != null ? weeklyRevenue : BigDecimal.ZERO)
                 .revenueByMonth(revenueByMonth).build();
 
+        // ── GROWTH STATS ──────────────────────────────────────────────────────
         Long lastMonthUsers    = userRepository.countByCreatedAtBefore(LocalDateTime.now().minusMonths(1));
         Double userGrowthRate  = lastMonthUsers > 0
                 ? ((double)(totalUsers - lastMonthUsers) / lastMonthUsers) * 100 : 0;
+        
         Long lastMonthBookings = bookingRepository.countByCreatedAtBefore(LocalDateTime.now().minusMonths(1));
         Double bookingGrowthRate = lastMonthBookings > 0
                 ? ((double)(totalBookings - lastMonthBookings) / lastMonthBookings) * 100 : 0;
+        
         BigDecimal lastMonthRevenue = paymentRepository.sumPaymentsByDateRange(
                 LocalDateTime.now().minusMonths(2), LocalDateTime.now().minusMonths(1));
-        Double revenueGrowthRate = lastMonthRevenue != null && lastMonthRevenue.compareTo(BigDecimal.ZERO) > 0
-                ? ((totalRevenue.doubleValue() - lastMonthRevenue.doubleValue())
-                / lastMonthRevenue.doubleValue()) * 100 : 0;
-
-        List<PlatformAnalytics.MonthlyStat> monthlyStats = new ArrayList<>();
-        for (int i = 5; i >= 0; i--) {
-            LocalDateTime mStart = LocalDateTime.now().minusMonths(i)
-                    .withDayOfMonth(1).toLocalDate().atStartOfDay();
-            LocalDateTime mEnd   = mStart.plusMonths(1).minusSeconds(1);
-            Long nuUsers   = userRepository.countByCreatedAtBetween(mStart, mEnd);
-            Long nuBookings= bookingRepository.countByCreatedAtBetween(mStart, mEnd);
-            BigDecimal rev = paymentRepository.sumPaymentsByDateRange(mStart, mEnd);
-            monthlyStats.add(PlatformAnalytics.MonthlyStat.builder()
-                    .month(mStart.format(DateTimeFormatter.ofPattern("MMM yyyy")))
-                    .newUsers(nuUsers).bookings(nuBookings)
-                    .revenue(rev != null ? rev : BigDecimal.ZERO).build());
-        }
+        Double revenueGrowthRate = (lastMonthRevenue != null && lastMonthRevenue.compareTo(BigDecimal.ZERO) > 0)
+                ? ((monthlyRevenue.doubleValue() - lastMonthRevenue.doubleValue()) / lastMonthRevenue.doubleValue()) * 100 : 0;
 
         PlatformAnalytics.GrowthStatistics growthStats = PlatformAnalytics.GrowthStatistics.builder()
                 .userGrowthRate(userGrowthRate).bookingGrowthRate(bookingGrowthRate)
                 .revenueGrowthRate(revenueGrowthRate).monthlyStats(monthlyStats).build();
 
+        // ── TOP CATEGORIES & CITIES ───────────────────────────────────────────
         List<Object[]> categoryStats = listingRepository.getTopCategories();
         List<PlatformAnalytics.CategoryStat> topCategories = categoryStats.stream().limit(5)
                 .map(s -> PlatformAnalytics.CategoryStat.builder()

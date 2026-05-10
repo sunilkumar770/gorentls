@@ -4,6 +4,7 @@
 
 import { Client, type StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { safeStorage } from '@/lib/safeStorage';
 
 // ── Types: matched exactly to backend MessageResponse.java ────────────────────
 
@@ -37,10 +38,10 @@ class WebSocketService {
   private connListeners      = new Set<ConnectionCallback>();
   private authFailListeners  = new Set<AuthFailCallback>();
 
-  // Matches AuthContext.tsx → localStorage.setItem('gr_token', token)
+  // Matches AuthContext.tsx → safeStorage.setItem('gr_token', token)
   private getToken(): string | null {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem('gr_token');
+    return safeStorage.getItem('gr_token');
   }
 
   private getWsUrl(): string {

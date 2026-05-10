@@ -80,7 +80,7 @@ export default function CalendarManager({ listingId }: CalendarManagerProps) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
         <div className="flex items-center gap-2 mb-4">
           <CalendarIcon className="w-5 h-5 text-[var(--primary)]" />
           <h3 className="font-bold text-gray-900">Manage Availability</h3>
@@ -134,7 +134,7 @@ export default function CalendarManager({ listingId }: CalendarManagerProps) {
             ) : (
               <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                 {blockedRanges.map((range, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl shadow-sm">
+                  <div key={i} className="flex items-center justify-between p-3 bg-card border border-border rounded-xl shadow-sm">
                     <div>
                       <p className="text-sm font-bold text-gray-900">
                         {format(new Date(range.startDate), 'MMM d')} - {format(new Date(range.endDate), 'MMM d, yyyy')}

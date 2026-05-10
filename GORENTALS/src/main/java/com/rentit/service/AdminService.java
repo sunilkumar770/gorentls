@@ -7,7 +7,6 @@ import com.rentit.model.enums.BookingStatus;
 import com.rentit.exception.BusinessException;
 import com.rentit.repository.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -22,6 +21,7 @@ import java.util.stream.Collectors;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.rentit.security.AuditLog;
 
 @Service
 @RequiredArgsConstructor
@@ -35,7 +35,8 @@ public class AdminService {
         private final BookingRepository bookingRepository;
         private final PaymentRepository paymentRepository;
         private final NotificationService notificationService;
-        private final AdminAuditLogRepository auditLogRepository;
+        private final AuditService auditService;
+        private final LedgerService ledgerService;
 
         private static final Logger logger = LoggerFactory.getLogger(AdminService.class);
 
@@ -55,26 +56,7 @@ public class AdminService {
                 return "%" + escaped + "%";
         }
 
-        private void logAction(String action, String entityType, String entityId, String description) {
-                try {
-                        AdminAuditLog log = new AdminAuditLog();
-                        log.setAction(action);
-                        log.setEntityType(entityType);
-                        if (entityId != null) {
-                                log.setEntityId(UUID.fromString(entityId));
-                        }
-                        log.setDescription(description);
-                        
-                        // Pull current admin from Security Context
-                        var auth = SecurityContextHolder.getContext().getAuthentication();
-                        String adminEmail = (auth != null) ? auth.getName() : "system@gorentals.com";
-                        log.setAdminEmail(adminEmail); 
-                        
-                        auditLogRepository.save(log);
-                } catch (Exception e) {
-                        logger.error("Failed to save admin audit log for action={}: {}", action, e.getMessage());
-                }
-        }
+
 
         // ── Dashboard ─────────────────────────────────────────────────────────────
         @Transactional(readOnly = true)
@@ -94,7 +76,11 @@ public class AdminService {
                 BigDecimal totalRevenue = paymentRepository.sumCompletedPayments();
                 if (totalRevenue == null) totalRevenue = BigDecimal.ZERO;
 
-                BigDecimal platformCommission = totalRevenue.multiply(new BigDecimal("0.10"));
+                // Accurate platform commission from ledger history
+                BigDecimal platformCommission = ledgerService.platformFeeRevenue(
+                    LocalDateTime.now().minusYears(10).atZone(java.time.ZoneId.systemDefault()).toInstant(), 
+                    LocalDateTime.now().atZone(java.time.ZoneId.systemDefault()).toInstant()
+                );
 
                 long pendingKYC = userProfileRepository.countByKycStatus(UserProfile.KYCStatus.PENDING);
                 long pendingOwnerVerifications = businessOwnerRepository.countByIsVerifiedFalse();
@@ -154,6 +140,7 @@ public class AdminService {
         // ── Verification ──────────────────────────────────────────────────────────
 
         @Transactional
+        @AuditLog(action = "VERIFY_USER_KYC", entityType = "USER")
         public UserResponse verifyUser(UUID userId) {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> BusinessException.notFound("User", userId));
@@ -169,12 +156,11 @@ public class AdminService {
                 profile.setKycRejectionReason(null); // Clear any previous rejection reason
                 userProfileRepository.save(profile);
 
-                logAction("VERIFY_USER_KYC", "USER", userId.toString(), "KYC Approved manually");
-
                 return mapToUserResponse(user);
         }
 
         @Transactional
+        @AuditLog(action = "REJECT_USER_KYC", entityType = "USER")
         public UserResponse rejectUserKYC(UUID userId, String reason) {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> BusinessException.notFound("User", userId));
@@ -193,8 +179,6 @@ public class AdminService {
                     "KYC_REJECTED"
                 );
 
-                logAction("REJECT_USER_KYC", "USER", userId.toString(), "KYC Rejected. Reason: " + reason);
-
                 return mapToUserResponse(user);
         }
 
@@ -205,6 +189,7 @@ public class AdminService {
         }
 
         @Transactional
+        @AuditLog(action = "VERIFY_BUSINESS_OWNER", entityType = "BUSINESS_OWNER")
         public BusinessOwnerResponse verifyBusinessOwner(UUID ownerId) {
                 BusinessOwner owner = businessOwnerRepository.findById(ownerId)
                                 .orElseThrow(() -> BusinessException.notFound("Business owner", ownerId));
@@ -218,14 +203,13 @@ public class AdminService {
                         userProfileRepository.save(profile);
                 }
 
-                logAction("VERIFY_BUSINESS_OWNER", "BUSINESS_OWNER", ownerId.toString(), "Owner verified manually");
-
                 return mapToBusinessOwnerResponse(owner);
         }
 
         // ── Suspend / Restore ─────────────────────────────────────────────────────
 
         @Transactional
+        @AuditLog(action = "SUSPEND_USER", entityType = "USER")
         public UserResponse suspendUser(UUID userId) {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> BusinessException.notFound("User", userId));
@@ -235,6 +219,7 @@ public class AdminService {
         }
 
         @Transactional
+        @AuditLog(action = "UNSUSPEND_USER", entityType = "USER")
         public UserResponse unsuspendUser(UUID userId) {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> BusinessException.notFound("User", userId));
@@ -257,6 +242,7 @@ public class AdminService {
         }
 
         @Transactional
+        @AuditLog(action = "APPROVE_LISTING", entityType = "LISTING")
         public ListingResponse approveListing(UUID listingId) {
                 Listing listing = listingRepository.findById(listingId)
                                 .orElseThrow(() -> BusinessException.notFound("Listing", listingId));
@@ -272,12 +258,11 @@ public class AdminService {
                     "LISTING_APPROVED"
                 );
 
-                logAction("APPROVE_LISTING", "LISTING", listingId.toString(), "Listing approved: " + listing.getTitle());
-
                 return mapToListingResponse(listing);
         }
 
         @Transactional
+        @AuditLog(action = "REJECT_LISTING", entityType = "LISTING")
         public void rejectListing(UUID listingId) {
                 Listing listing = listingRepository.findById(listingId)
                                 .orElseThrow(() -> BusinessException.notFound("Listing", listingId));
@@ -294,8 +279,6 @@ public class AdminService {
                     "Your listing \"" + listing.getTitle() + "\" was not approved. Please review and resubmit.",
                     "LISTING_REJECTED"
                 );
-
-                logAction("REJECT_LISTING", "LISTING", listingId.toString(), "Listing rejected: " + listing.getTitle());
         }
 
         // ── Bookings / Transactions ───────────────────────────────────────────────
@@ -310,8 +293,11 @@ public class AdminService {
                 return paymentRepository.findAll(pageable).map(this::mapToTransactionResponse);
         }
 
-        // ── Analytics ─────────────────────────────────────────────────────────────
-
+        @Transactional(readOnly = true)
+        public Page<AdminAuditLog> getAuditLogs(Pageable pageable) {
+                // Now using AuditService conceptually, but repo is still needed for direct fetch
+                return auditService.getAuditLogs(pageable);
+        }
 
 
         // ── DTO Mappers ───────────────────────────────────────────────────────────

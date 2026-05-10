@@ -1,76 +1,66 @@
 package com.rentit.service;
 
-import com.rentit.model.Booking;
-import com.rentit.model.enums.LedgerAccount;
-import com.rentit.model.enums.LedgerDirection;
-import com.rentit.repository.BookingRepository;
 import com.rentit.repository.LedgerTransactionRepository;
-import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.rentit.security.AuditLog;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
+/**
+ * Service to reconcile the internal double-entry ledger.
+ * Ensures that for every booking, Sum(Debits) == Sum(Credits).
+ */
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class LedgerReconciliationService {
 
-    private static final Logger log = LoggerFactory.getLogger(LedgerReconciliationService.class);
-
-    private final BookingRepository bookingRepo;
     private final LedgerTransactionRepository ledgerRepo;
+    private final NotificationService notificationService;
 
-    public LedgerReconciliationService(BookingRepository bookingRepo,
-                                       LedgerTransactionRepository ledgerRepo) {
-        this.bookingRepo = bookingRepo;
-        this.ledgerRepo = ledgerRepo;
+    /**
+     * Periodically scan for unbalanced bookings.
+     * Runs every 6 hours.
+     */
+    @Scheduled(cron = "0 0 */6 * * *")
+    @Transactional(readOnly = true)
+    public void runScheduledReconciliation() {
+        log.info("Starting scheduled ledger reconciliation...");
+        reconcileAll();
     }
 
     /**
-     * Runs every hour. Verifies that for every booking with ledger entries,
-     * SUM(ledger.credits for RENTER_ESCROW) == booking.advanceAmount + booking.remainingAmount.
-     * 
-     * Logs ERROR if mismatch found — this is a data integrity bug that must be fixed immediately.
+     * Manual reconciliation trigger for admins.
      */
-    @Scheduled(fixedDelay = 60 * 60 * 1000) // every hour
-    @SchedulerLock(name = "LedgerReconciliationService_reconcile", lockAtMostFor = "PT55M")
     @Transactional(readOnly = true)
-    public void reconcile() {
-        log.info("Starting ledger reconciliation");
+    @AuditLog(action = "MANUAL_LEDGER_RECONCILIATION")
+    public void reconcileAll() {
+        List<UUID> unbalanced = ledgerRepo.findUnbalancedBookings();
         
-        List<Booking> bookingsWithLedger = bookingRepo.findBookingsWithLedgerEntries();
-        
-        int checked = 0;
-        int mismatches = 0;
-        
-        for (Booking booking : bookingsWithLedger) {
-            BigDecimal ledgerTotal = ledgerRepo.sumByBookingAndAccountAndDirection(
-                booking.getId(),
-                LedgerAccount.RENTER_ESCROW,
-                LedgerDirection.CREDIT
-            );
-            
-            BigDecimal expected = BigDecimal.ZERO;
-            if (booking.getAdvanceAmount() != null) {
-                expected = expected.add(booking.getAdvanceAmount());
-            }
-            if (booking.getRemainingAmount() != null) {
-                expected = expected.add(booking.getRemainingAmount());
-            }
-            
-            if (ledgerTotal.compareTo(expected) != 0) {
-                log.error("LEDGER MISMATCH: bookingId={} ledgerTotal={} expected={} " +
-                          "escrowStatus={}",
-                    booking.getId(), ledgerTotal, expected, booking.getEscrowStatus());
-                mismatches++;
-            }
-            checked++;
+        if (unbalanced.isEmpty()) {
+            log.info("Ledger reconciliation complete: All bookings are balanced.");
+            return;
         }
+
+        log.error("CRITICAL: Found {} unbalanced bookings in the ledger!", unbalanced.size());
         
-        log.info("Ledger reconciliation complete: checked={} mismatches={}", 
-            checked, mismatches);
+        for (UUID bookingId : unbalanced) {
+            BigDecimal net = ledgerRepo.totalNetBalanceForBooking(bookingId);
+            log.error("Booking {} is unbalanced by ₹{}", bookingId, net);
+            
+            // Alert system administrators
+            notificationService.sendNotification(
+                null, // System alert
+                "Financial Inconsistency Detected",
+                "Booking " + bookingId + " has an unbalanced ledger (net: ₹" + net + "). Immediate investigation required.",
+                "FINANCIAL_DISCREPANCY"
+            );
+        }
     }
 }

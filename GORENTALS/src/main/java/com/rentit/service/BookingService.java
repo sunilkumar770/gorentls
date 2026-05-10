@@ -3,13 +3,13 @@ package com.rentit.service;
 import com.rentit.dto.BookingRequest;
 import com.rentit.dto.UserPublicResponse;
 import com.rentit.dto.BookingResponse;
-import com.rentit.dto.ListingResponse;
 import com.rentit.exception.BusinessException;
 import com.rentit.model.*;
 import com.rentit.model.enums.BookingStatus;
 import com.rentit.model.enums.EscrowStatus;
 import com.rentit.pricing.PricingCalculator;
 import com.rentit.repository.*;
+import com.rentit.util.DtoMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -32,14 +32,15 @@ import java.util.stream.Collectors;
 public class BookingService {
 
     private final BookingRepository     bookingRepository;
-    private final UserProfileRepository userProfileRepository;
     private final ListingRepository     listingRepository;
     private final UserRepository        userRepository;
-    private final PaymentRepository     paymentRepository;
     private final BlockedDateRepository blockedDateRepository;
     private final NotificationService   notificationService;
     private final BookingEscrowService  escrowService;
     private final RazorpayIntegrationService razorpayService;
+    private final ReceiptService        receiptService;
+    private final BookingLifecycleManager lifecycleManager;
+    private final RefundOutboxRepository refundOutboxRepository;
 
     // ─────────────────────────────────────────────────────────────────────────
     // CREATE
@@ -138,7 +139,7 @@ public class BookingService {
             "BOOKING_REQUEST"
         );
 
-        return mapToBookingResponse(saved);
+        return DtoMapper.mapToBookingResponse(saved);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -165,7 +166,7 @@ public class BookingService {
             throw BusinessException.forbidden("Not authorized to view this booking");
         }
 
-        return mapToBookingResponse(booking);
+        return DtoMapper.mapToBookingResponse(booking);
     }
 
     /** Get paginated bookings for a renter. BUG-07 FIX: 404 not RuntimeException. */
@@ -174,7 +175,7 @@ public class BookingService {
         User user = userRepository.findByEmail(userEmail)
             .orElseThrow(() -> BusinessException.notFound("User", userEmail));
         return bookingRepository.findByRenterId(user.getId(), pageable)
-                                .map(this::mapToBookingResponse);
+                                .map(DtoMapper::mapToBookingResponse);
     }
 
     /** Get paginated bookings for an owner. BUG-07 FIX: 404 not RuntimeException. */
@@ -189,7 +190,7 @@ public class BookingService {
         }
 
         return bookingRepository.findByOwnerId(owner.getId(), pageable)
-                                .map(this::mapToBookingResponse);
+                                .map(DtoMapper::mapToBookingResponse);
     }
 
     /** Get upcoming CONFIRMED/IN_USE bookings for a renter. */
@@ -198,7 +199,7 @@ public class BookingService {
         User user = userRepository.findByEmail(userEmail)
             .orElseThrow(() -> BusinessException.notFound("User", userEmail));
         return bookingRepository.findUpcomingBookingsByRenter(user.getId(), LocalDate.now())
-            .stream().map(this::mapToBookingResponse).collect(Collectors.toList());
+            .stream().map(DtoMapper::mapToBookingResponse).collect(Collectors.toList());
     }
 
     /** Get upcoming CONFIRMED/IN_USE bookings for an owner. */
@@ -207,7 +208,7 @@ public class BookingService {
         User owner = userRepository.findByEmail(ownerEmail)
             .orElseThrow(() -> BusinessException.notFound("Owner", ownerEmail));
         return bookingRepository.findUpcomingBookingsByOwner(owner.getId(), LocalDate.now())
-            .stream().map(this::mapToBookingResponse).collect(Collectors.toList());
+            .stream().map(DtoMapper::mapToBookingResponse).collect(Collectors.toList());
     }
 
     /** Check availability without creating a booking. */
@@ -228,11 +229,11 @@ public class BookingService {
 
         if (current == BookingStatus.PENDING_PAYMENT) {
             escrowService.confirmOwnerAcceptance(booking);
-            return mapToBookingResponse(booking);
+            return DtoMapper.mapToBookingResponse(booking);
         } else if (current == BookingStatus.CONFIRMED
                 && (escrow == EscrowStatus.ADVANCE_HELD || escrow == EscrowStatus.FULL_HELD)) {
             escrowService.markHandoverAndStartUse(booking);
-            return mapToBookingResponse(booking);
+            return DtoMapper.mapToBookingResponse(booking);
         } else {
             throw BusinessException.badRequest(
                     "Cannot confirm booking in current state: " + current + " / " + escrow
@@ -259,6 +260,7 @@ public class BookingService {
         if (escrow != EscrowStatus.PENDING && escrow != EscrowStatus.CANCELLED) {
             if (booking.getRazorpayPaymentId() == null) {
                 log.error("Cannot refund booking {}: missing Razorpay payment ID", bookingId);
+                throw BusinessException.badRequest("Cannot reject booking: Missing payment ID for refund.");
             } else {
                 try {
                     String refundId = razorpayService.createRefund(
@@ -272,7 +274,20 @@ public class BookingService {
                     log.info("Refund initiated for rejected booking {}: {}", bookingId, refundId);
                 } catch (Exception e) {
                     log.error("Automated refund failed for rejected booking {}: {}", bookingId, e.getMessage());
-                    // We still cancel the booking in our DB, but mark the failure
+                    
+                    // RECORD TO OUTBOX
+                    RefundOutbox outbox = RefundOutbox.builder()
+                        .bookingId(bookingId)
+                        .paymentId(booking.getRazorpayPaymentId())
+                        .amount(booking.getAdvanceAmount())
+                        .reason("Owner rejected booking request")
+                        .status("PENDING")
+                        .nextRetryAt(LocalDateTime.now().plusMinutes(1))
+                        .lastError(e.getMessage())
+                        .build();
+                    refundOutboxRepository.save(outbox);
+                    
+                    log.warn("Automated refund failed but rejection committed. Refund recorded in outbox for retry for booking {}.", bookingId);
                 }
             }
         }
@@ -331,10 +346,10 @@ public class BookingService {
         // ── Escrow Side-Effects ──────────────────────────────────────────────
         if (newStatus == BookingStatus.IN_USE) {
             escrowService.markHandoverAndStartUse(booking);
-            return mapToBookingResponse(booking);
+            return DtoMapper.mapToBookingResponse(booking);
         } else if (newStatus == BookingStatus.RETURNED) {
             escrowService.markReturn(booking);
-            return mapToBookingResponse(booking);
+            return DtoMapper.mapToBookingResponse(booking);
         }
 
         booking.setBookingStatus(newStatus);
@@ -351,7 +366,7 @@ public class BookingService {
         log.info("Booking {} transitioned {} → {} by {}",
             bookingId, current, newStatus, callerEmail);
 
-        return mapToBookingResponse(saved);
+        return DtoMapper.mapToBookingResponse(saved);
     }
 
     private void validateStatusTransitionAuthorization(BookingStatus newStatus, boolean isOwner, boolean isRenter, boolean isAdmin) {
@@ -378,6 +393,12 @@ public class BookingService {
             case DISPUTED        -> newStatus == BookingStatus.COMPLETED || newStatus == BookingStatus.CANCELLED;
             default              -> false; // COMPLETED, CANCELLED, NO_SHOW are terminal
         };
+    }
+
+    @Transactional
+    public void transitionStatus(Booking booking, BookingStatus newStatus, String description) {
+        lifecycleManager.transition(booking, newStatus, description);
+        handleBlockedDateSideEffects(booking, newStatus);
     }
 
     private void handleBlockedDateSideEffects(Booking booking, BookingStatus newStatus) {
@@ -419,6 +440,19 @@ public class BookingService {
                     "Cancellation by " + (isRenter ? "renter" : "owner"), refundId);
             } catch (Exception e) {
                 log.error("Refund failed during cancellation for booking {}: {}", booking.getId(), e.getMessage());
+                
+                RefundOutbox outbox = RefundOutbox.builder()
+                    .bookingId(booking.getId())
+                    .paymentId(booking.getRazorpayPaymentId())
+                    .amount(refundAmount)
+                    .reason("Booking cancelled by " + (isRenter ? "renter" : "owner"))
+                    .status("PENDING")
+                    .nextRetryAt(LocalDateTime.now().plusMinutes(1))
+                    .lastError(e.getMessage())
+                    .build();
+                refundOutboxRepository.save(outbox);
+                
+                log.warn("Automated refund failed but cancellation committed. Refund recorded in outbox for retry for booking {}.", booking.getId());
             }
         }
     }
@@ -465,61 +499,4 @@ public class BookingService {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // MAPPER
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Maps Booking entity to BookingResponse DTO.
-     * BUG-08 FIX: include location/city/status fields in the inline listing snippet
-     * so callers have full context without a second API call.
-     */
-    private BookingResponse mapToBookingResponse(Booking booking) {
-        User   renter = booking.getRenter();
-        User   owner  = (booking.getListing() != null)
-                        ? booking.getListing().getOwner() : null;
-        Listing l     = booking.getListing();
-
-        return BookingResponse.builder()
-            .id(booking.getId())
-            .listing(l != null ? ListingResponse.builder()
-                .id(l.getId())
-                .title(l.getTitle())
-                .pricePerDay(l.getPricePerDay())
-                .images(l.getImages())
-                .city(l.getCity())
-                .location(l.getLocation())
-                .category(l.getCategory())
-                .build() : null)
-            .renter(renter != null ? UserPublicResponse.builder()
-                .id(renter.getId())
-                .fullName(renter.getFullName())
-                .isVerified(userProfileRepository.findByUserId(renter.getId())
-                    .map(p -> p.getKycStatus() == com.rentit.model.UserProfile.KYCStatus.APPROVED)
-                    .orElse(false))
-                .build() : null)
-            .owner(owner != null ? UserPublicResponse.builder()
-                .id(owner.getId())
-                .fullName(owner.getFullName())
-                .isVerified(userProfileRepository.findByUserId(owner.getId())
-                    .map(p -> p.getKycStatus() == com.rentit.model.UserProfile.KYCStatus.APPROVED)
-                    .orElse(false))
-                .build() : null)
-            .startDate(booking.getStartDate())
-            .endDate(booking.getEndDate())
-            .totalDays(booking.getTotalDays())
-            .rentalAmount(booking.getRentalAmount())
-            .securityDeposit(booking.getSecurityDeposit())
-            .totalAmount(booking.getTotalAmount())
-            .gstAmount(Objects.requireNonNullElse(booking.getGstAmount(),  BigDecimal.ZERO))
-            .platformFee(Objects.requireNonNullElse(booking.getPlatformFee(), BigDecimal.ZERO))
-            .status(booking.getBookingStatus() != null ? booking.getBookingStatus().name() : "PENDING_PAYMENT")
-            .escrowStatus(booking.getEscrowStatus() != null ? booking.getEscrowStatus().name() : "PENDING")
-            .paymentStatus(booking.getPaymentStatus() != null ? booking.getPaymentStatus() : "PENDING")
-            .razorpayOrderId(booking.getRazorpayOrderId())
-            .razorpayPaymentId(booking.getRazorpayPaymentId())
-            .createdAt(booking.getCreatedAt())
-            .updatedAt(booking.getUpdatedAt())
-            .build();
-    }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { DayPicker, DateRange, DayProps, useDayRender } from 'react-day-picker';
+import { DayPicker, DateRange, DayButtonProps } from 'react-day-picker';
 import { format, isWithinInterval, startOfDay, isBefore } from 'date-fns';
 import { BlockedRange } from '@/types';
 import { Info } from 'lucide-react';
@@ -27,24 +27,18 @@ interface BookingCalendarProps {
 /**
  * Custom Day component — handles specialised per-day styling and tooltips.
  */
-function CustomDay(props: DayProps & { blockedRanges: BlockedRange[]; disabled?: boolean }) {
-  const { date, displayMonth, blockedRanges } = props;
-  const buttonRef = React.useRef<HTMLButtonElement>(null);
+function CustomDayButton(props: DayButtonProps & { blockedRanges: BlockedRange[]; disabled?: boolean }) {
+  const { day, modifiers, blockedRanges, disabled, ...buttonProps } = props;
+  const date = day.date;
   const [showTooltip, setShowTooltip] = useState(false);
-
-  const { activeModifiers, buttonProps } = useDayRender(
-    date,
-    displayMonth,
-    buttonRef as React.RefObject<HTMLButtonElement>,
-  );
 
   // Determine if this specific day is blocked and why
   const blockReason = useMemo(() => {
-    const day = startOfDay(date);
+    const d = startOfDay(date);
     const range = blockedRanges.find(r => {
       const start = startOfDay(new Date(r.startDate));
       const end = startOfDay(new Date(r.endDate));
-      return isWithinInterval(day, { start, end });
+      return isWithinInterval(d, { start, end });
     });
     return range?.reason;
   }, [date, blockedRanges]);
@@ -57,11 +51,11 @@ function CustomDay(props: DayProps & { blockedRanges: BlockedRange[]; disabled?:
     if (blockReason === 'BOOKING') return 'bg-orange-100 text-orange-700 cursor-not-allowed border-orange-200';
     if (blockReason === 'MANUAL') return 'bg-red-50 text-red-700 cursor-not-allowed border-red-100';
 
-    if (activeModifiers.selected) {
-      if (activeModifiers.range_start || activeModifiers.range_end) {
-        return 'bg-[#0d9488] text-white font-bold ring-2 ring-[#0d9488]/20 z-10';
+    if (modifiers.selected) {
+      if (modifiers.range_start || modifiers.range_end) {
+        return 'bg-red-600 text-white font-bold ring-2 ring-red-600/20 z-10';
       }
-      return 'bg-[#0d9488]/10 text-[#0d9488] font-semibold';
+      return 'bg-red-600/10 text-red-600 font-semibold';
     }
 
     return 'hover:bg-gray-100 text-gray-700';
@@ -77,11 +71,11 @@ function CustomDay(props: DayProps & { blockedRanges: BlockedRange[]; disabled?:
   const tooltip = getTooltipText();
 
   return (
-    <div className="relative group">
+    <div className="relative group flex items-center justify-center">
       <button
         {...buttonProps}
-        ref={buttonRef}
-        disabled={isBlocked || props.disabled}
+        type="button"
+        disabled={isBlocked || disabled}
         aria-label={`${format(date, 'PPPP')}${tooltip ? `. ${tooltip}` : ''}`}
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
@@ -89,9 +83,10 @@ function CustomDay(props: DayProps & { blockedRanges: BlockedRange[]; disabled?:
           w-10 h-10 md:w-11 md:h-11 flex items-center justify-center text-sm rounded-xl transition-all relative
           ${getDayStyles()}
           ${isBlocked ? 'pointer-events-auto' : ''}
-          ${activeModifiers.range_middle ? 'rounded-none' : ''}
-          ${activeModifiers.range_start ? 'rounded-r-none' : ''}
-          ${activeModifiers.range_end ? 'rounded-l-none' : ''}
+          ${modifiers.range_middle ? 'rounded-none' : ''}
+          ${modifiers.range_start ? 'rounded-r-none' : ''}
+          ${modifiers.range_end ? 'rounded-l-none' : ''}
+          ${buttonProps.className || ''}
         `}
       >
         {format(date, 'd')}
@@ -127,9 +122,9 @@ export default function BookingCalendar({
     <div className="booking-calendar-wrapper w-full max-w-sm mx-auto">
       <div className="flex flex-col gap-6">
         {/* Legend */}
-        <div className="grid grid-cols-2 gap-y-2 gap-x-4 py-3 px-4 bg-gray-50/50 rounded-2xl border border-gray-100 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+        <div className="grid grid-cols-2 gap-y-2 gap-x-4 py-3 px-4 bg-gray-50/50 rounded-2xl border border-border text-[10px] font-bold uppercase tracking-wider text-gray-500">
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-white border border-gray-200" />
+            <div className="w-2.5 h-2.5 rounded-full bg-card border border-gray-200" />
             <span>Available</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -141,12 +136,12 @@ export default function BookingCalendar({
             <span>Owner Blocked</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-[#0d9488]" />
+            <div className="w-2.5 h-2.5 rounded-full bg-red-600" />
             <span>Selection</span>
           </div>
         </div>
 
-        <div className="flex justify-center p-2 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+        <div className="flex justify-center p-2 rounded-2xl bg-card border border-border shadow-sm overflow-hidden">
           <DayPicker
             mode="range"
             selected={selectedRange}
@@ -156,7 +151,7 @@ export default function BookingCalendar({
               ...blockedRanges.map(r => ({ from: new Date(r.startDate), to: new Date(r.endDate) }))
             ]}
             components={{
-              Day: (props) => <CustomDay {...props} blockedRanges={blockedRanges} disabled={disabled} />
+              DayButton: (props) => <CustomDayButton {...props} blockedRanges={blockedRanges} disabled={disabled} />
             }}
             styles={{
               caption: { color: '#1a1a18', fontWeight: '700', marginBottom: '0.5rem' },
@@ -168,9 +163,9 @@ export default function BookingCalendar({
         </div>
 
         {selectedRange?.from && !selectedRange?.to && (
-          <div className="flex items-center gap-2 p-3 bg-teal-50 border border-teal-100 rounded-xl">
-            <Info className="w-4 h-4 text-[#0d9488]" />
-            <p className="text-xs text-teal-800 font-medium">Select your intended return date</p>
+          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl">
+            <Info className="w-4 h-4 text-red-600" />
+            <p className="text-xs text-red-900 font-medium">Select your intended return date</p>
           </div>
         )}
       </div>

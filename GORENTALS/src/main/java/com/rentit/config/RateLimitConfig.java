@@ -2,7 +2,6 @@ package com.rentit.config;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Refill;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -43,26 +42,38 @@ public class RateLimitConfig {
 
     public Bucket createAuthBucket() {
         return Bucket.builder()
-            .addLimit(Bandwidth.classic(authRequests, Refill.intervally(authRequests, Duration.ofMinutes(authDurationMinutes))))
+            .addLimit(Bandwidth.builder()
+                .capacity(authRequests)
+                .refillIntervally(authRequests, Duration.ofMinutes(authDurationMinutes))
+                .build())
             .build();
     }
 
     public Bucket createRegistrationBucket() {
         return Bucket.builder()
-            .addLimit(Bandwidth.classic(registrationRequests, Refill.intervally(registrationRequests, Duration.ofMinutes(1))))
+            .addLimit(Bandwidth.builder()
+                .capacity(registrationRequests)
+                .refillIntervally(registrationRequests, Duration.ofMinutes(1))
+                .build())
             .build();
     }
 
     public Bucket createUploadBucket() {
         return Bucket.builder()
-            .addLimit(Bandwidth.classic(uploadRequests, Refill.intervally(uploadRequests, Duration.ofMinutes(1))))
+            .addLimit(Bandwidth.builder()
+                .capacity(uploadRequests)
+                .refillIntervally(uploadRequests, Duration.ofMinutes(1))
+                .build())
             .build();
     }
 
     public Bucket getGlobalBucket() {
         return buckets.computeIfAbsent("global", k ->
             Bucket.builder()
-                .addLimit(Bandwidth.classic(globalRequests, Refill.intervally(globalRequests, Duration.ofMinutes(1))))
+                .addLimit(Bandwidth.builder()
+                    .capacity(globalRequests)
+                    .refillIntervally(globalRequests, Duration.ofMinutes(1))
+                    .build())
                 .build()
         );
     }
@@ -73,13 +84,28 @@ public class RateLimitConfig {
 
     public Bucket createOrderBucket() {
         return Bucket.builder()
-            .addLimit(Bandwidth.classic(5, Refill.intervally(5, Duration.ofMinutes(1))))
+            .addLimit(Bandwidth.builder()
+                .capacity(5)
+                .refillIntervally(5, Duration.ofMinutes(1))
+                .build())
             .build();
     }
 
     public Bucket confirmPaymentBucket() {
         return Bucket.builder()
-            .addLimit(Bandwidth.classic(10, Refill.intervally(10, Duration.ofMinutes(1))))
+            .addLimit(Bandwidth.builder()
+                .capacity(10)
+                .refillIntervally(10, Duration.ofMinutes(1))
+                .build())
+            .build();
+    }
+
+    public Bucket createWebhookBucket() {
+        return Bucket.builder()
+            .addLimit(Bandwidth.builder()
+                .capacity(100)
+                .refillIntervally(100, Duration.ofMinutes(1))
+                .build())
             .build();
     }
 }

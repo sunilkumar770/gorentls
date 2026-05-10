@@ -46,17 +46,20 @@ public class DisputeService {
     private final BookingRepository          bookingRepo;
     private final BookingEscrowService       escrowService;
     private final RazorpayIntegrationService razorpay;
+    private final AuditService               auditService;
 
     public DisputeService(
         DisputeRepository          disputeRepo,
         BookingRepository          bookingRepo,
         BookingEscrowService       escrowService,
-        RazorpayIntegrationService razorpay
+        RazorpayIntegrationService razorpay,
+        AuditService               auditService
     ) {
         this.disputeRepo   = disputeRepo;
         this.bookingRepo   = bookingRepo;
         this.escrowService = escrowService;
         this.razorpay      = razorpay;
+        this.auditService  = auditService;
     }
 
     // ── Open dispute ──────────────────────────────────────────────────────────
@@ -174,6 +177,7 @@ public class DisputeService {
         dispute.startReview();
         disputeRepo.save(dispute);
 
+        auditService.audit("DISPUTE_START_REVIEW", "DISPUTE", disputeId, "Admin started review of dispute");
         log.info("Dispute review started: disputeId={} adminId={}", disputeId, adminId);
         return dispute;
     }
@@ -230,6 +234,8 @@ public class DisputeService {
         );
         disputeRepo.save(dispute);
 
+        auditService.audit("DISPUTE_RESOLVE_REFUND", "DISPUTE", disputeId, 
+            "Admin resolved dispute with REFUND of ₹" + refundAmountINR + ". Notes: " + notes);
         log.info("Dispute RESOLVED_REFUND: disputeId={} bookingId={} refund=₹{} admin={}",
             disputeId, booking.getId(), refundAmountINR, adminId);
         return dispute;
@@ -268,6 +274,8 @@ public class DisputeService {
         );
         disputeRepo.save(dispute);
 
+        auditService.audit("DISPUTE_RESOLVE_PAYOUT", "DISPUTE", disputeId, 
+            "Admin resolved dispute with PAYOUT of ₹" + ownerAmt + " to owner. Notes: " + notes);
         log.info("Dispute RESOLVED_PAYOUT: disputeId={} bookingId={} ownerAmt=₹{} admin={}",
             disputeId, booking.getId(), ownerAmt, adminId);
         return dispute;
@@ -337,6 +345,8 @@ public class DisputeService {
         );
         disputeRepo.save(dispute);
 
+        auditService.audit("DISPUTE_RESOLVE_SPLIT", "DISPUTE", disputeId, 
+            "Admin resolved dispute with SPLIT: Owner=₹" + ownerAmount + ", Renter=₹" + renterAmount + ". Notes: " + notes);
         log.info("Dispute RESOLVED_SPLIT: disputeId={} owner=₹{} renter=₹{} admin={}",
             disputeId, ownerAmount, renterAmount, adminId);
         return dispute;
@@ -370,6 +380,8 @@ public class DisputeService {
         );
         disputeRepo.save(dispute);
 
+        auditService.audit("DISPUTE_REJECTED", "DISPUTE", disputeId, 
+            "Admin rejected dispute. Notes: " + notes);
         log.info("Dispute REJECTED: disputeId={} bookingId={} admin={}",
             disputeId, booking.getId(), adminId);
         return dispute;

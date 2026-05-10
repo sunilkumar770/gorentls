@@ -19,16 +19,20 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
     
     // ── N+1 ELIMINATION: Single listing detail — eager-fetches owner ───────────
     @Override
-    @EntityGraph(attributePaths = {"owner"})
+    @EntityGraph(attributePaths = {"owner", "owner.profile"})
     Optional<Listing> findById(UUID id);
+
+    @Override
+    @EntityGraph(attributePaths = {"owner", "owner.profile"})
+    Page<Listing> findAll(Pageable pageable);
 
     /**
      * Find listings by owner ID (paginated)
      */
-    @EntityGraph(attributePaths = {"owner"})
+    @EntityGraph(attributePaths = {"owner", "owner.profile"})
     Page<Listing> findByOwnerId(UUID ownerId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"owner"})
+    @EntityGraph(attributePaths = {"owner", "owner.profile"})
     List<Listing> findByOwnerId(UUID ownerId);
     
     /**
@@ -56,7 +60,10 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
     /**
      * Search listings with filters
      */
-    @Query("SELECT l FROM Listing l WHERE l.isPublished = true AND l.isAvailable = true " +
+    @Query("SELECT l FROM Listing l " +
+           "JOIN FETCH l.owner o " +
+           "LEFT JOIN FETCH o.profile p " +
+           "WHERE l.isPublished = true AND l.isAvailable = true " +
            "AND (cast(:city as string) IS NULL OR LOWER(l.city) LIKE LOWER(cast(:city as string))) " +
            "AND (cast(:category as string) IS NULL OR LOWER(l.category) = LOWER(cast(:category as string))) " +
            "AND (cast(:type as string) IS NULL OR LOWER(l.type) = LOWER(cast(:type as string))) " +
@@ -161,8 +168,10 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
      * Find listings by owner and published status
      */
     Page<Listing> findByOwnerIdAndIsPublished(UUID ownerId, Boolean isPublished, Pageable pageable);
-    
-    
-    
-    
+
+    @Query("SELECT COUNT(l) FROM Listing l WHERE l.owner.id = :ownerId")
+    long countByOwnerId(@Param("ownerId") UUID ownerId);
+
+    @Query("SELECT COUNT(l) FROM Listing l WHERE l.owner.id = :ownerId AND l.isPublished = true AND l.isAvailable = true")
+    long countActiveByOwnerId(@Param("ownerId") UUID ownerId);
 }

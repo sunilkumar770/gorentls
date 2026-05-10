@@ -1,7 +1,6 @@
 package com.rentit.security;
 
 import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Refill;
 import io.github.bucket4j.Bandwidth;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -23,7 +22,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     private Bucket createNewBucket() {
         // Allow 5 requests per minute for login/register from same IP
-        Bandwidth limit = Bandwidth.classic(5, Refill.greedy(5, Duration.ofMinutes(1)));
+        Bandwidth limit = Bandwidth.builder()
+            .capacity(5)
+            .refillGreedy(5, Duration.ofMinutes(1))
+            .build();
         return Bucket.builder().addLimit(limit).build();
     }
 

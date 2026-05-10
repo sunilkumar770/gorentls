@@ -10,6 +10,9 @@ import com.rentit.model.User;
 import com.rentit.model.UserProfile;
 import com.rentit.repository.UserProfileRepository;
 import com.rentit.repository.UserRepository;
+import com.rentit.repository.UserSettingsRepository;
+import com.rentit.model.UserSettings;
+import com.rentit.util.DtoMapper;
 import com.rentit.util.JwtUtil;
 import com.rentit.util.LogUtils;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +41,7 @@ public class UserService {
 
     private final UserRepository        userRepository;
     private final UserProfileRepository userProfileRepository;
+    private final UserSettingsRepository userSettingsRepository;
     private final PasswordEncoder       passwordEncoder;
     private final JwtUtil               jwtUtil;
 
@@ -51,7 +55,7 @@ public class UserService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         UserProfile profile = userProfileRepository.findByUserId(user.getId())
             .orElse(new UserProfile());
-        return mapToProfileResponse(user, profile);
+        return DtoMapper.mapToProfileResponse(user, profile);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -94,7 +98,7 @@ public class UserService {
         }
 
         userProfileRepository.save(profile);
-        return mapToProfileResponse(user, profile);
+        return DtoMapper.mapToProfileResponse(user, profile);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -102,20 +106,31 @@ public class UserService {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * BUG-19 FIX: Settings persistence is a known TODO (notification prefs, etc.).
-     * Rather than silently no-op, this method is clearly documented as a stub.
-     * It still returns a valid 200 response so the frontend doesn't break, but
-     * logs a warning so it's visible in production logs.
+     * Updates notification and display settings for a user.
+     * Persists to the user_settings table via UserSettings entity.
      */
     @Transactional
     public UserProfileResponse updateSettings(String email, UpdateSettingsRequest request) {
-        log.warn("updateSettings called for {} but settings persistence is not yet implemented", LogUtils.maskEmail(email));
-        // TODO: persist notification preferences, timezone, etc. into a settings table
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        UserSettings settings = user.getSettings();
+        if (settings == null) {
+            settings = UserSettings.builder()
+                .user(user)
+                .build();
+        }
+
+        settings.setEmailNotifications(request.getEmailNotifications());
+        settings.setSmsNotifications(request.getSmsNotifications());
+        settings.setMarketingEmails(request.getMarketingEmails());
+
+        userSettingsRepository.save(settings);
+        log.info("Settings updated for user: {}", LogUtils.maskEmail(email));
+
         UserProfile profile = userProfileRepository.findByUserId(user.getId())
             .orElse(new UserProfile());
-        return mapToProfileResponse(user, profile);
+        return DtoMapper.mapToProfileResponse(user, profile);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -172,7 +187,7 @@ public class UserService {
 
         userProfileRepository.save(profile);
         log.info("KYC submitted for user: {} (doc type: {})", LogUtils.maskEmail(email), request.getDocumentType());
-        return mapToProfileResponse(user, profile);
+        return DtoMapper.mapToProfileResponse(user, profile);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -206,25 +221,4 @@ public class UserService {
     // MAPPER
     // ─────────────────────────────────────────────────────────────────────────
 
-    private UserProfileResponse mapToProfileResponse(User user, UserProfile profile) {
-        return UserProfileResponse.builder()
-            .id(user.getId())
-            .email(user.getEmail())
-            .fullName(user.getFullName())
-            .phone(user.getPhone())
-            .userType(user.getUserType().name())
-            .isActive(user.getIsActive())
-            .createdAt(user.getCreatedAt())
-            .profilePicture(profile.getProfilePicture())
-            .address(profile.getAddress())
-            .city(profile.getCity())
-            .state(profile.getState())
-            .pincode(profile.getPincode())
-            .dateOfBirth(profile.getDateOfBirth())
-            .kycStatus(profile.getKycStatus() != null ? profile.getKycStatus().name() : "PENDING")
-            .kycDocumentType(profile.getKycDocumentType())
-            .kycDocumentId(profile.getKycDocumentId())
-            .kycDocumentUrl(profile.getKycDocumentUrl())
-            .build();
-    }
 }

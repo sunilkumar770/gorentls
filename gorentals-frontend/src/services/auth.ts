@@ -1,5 +1,6 @@
 import api from '@/lib/axios';
 import type { Profile, UserRole } from '@/types';
+import { safeStorage } from '@/lib/safeStorage';
 
 // Shape the backend actually returns
 export interface BackendAuthResponse {
@@ -39,15 +40,15 @@ export function buildProfile(data: Record<string, unknown>): Profile {
 const TOKEN_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 
 /**
- * Write the JWT to BOTH localStorage and a cookie so that:
- *  - Client-side Axios interceptor can read from localStorage
+ * Write the JWT to BOTH safeStorage and a cookie so that:
+ *  - Client-side Axios interceptor can read from safeStorage
  *  - Next.js middleware (proxy.ts) can read from the cookie
  *
  * The Secure flag is applied in production to prevent cookie
  * transmission over HTTP (required for HTTPS deployments).
  */
 export function setToken(token: string): void {
-  localStorage.setItem('gr_token', token);
+  safeStorage.setItem('gr_token', token);
 
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   document.cookie = `token=${token}; path=/; SameSite=Lax; max-age=${TOKEN_COOKIE_MAX_AGE}${secure}`;
@@ -58,8 +59,8 @@ export function setToken(token: string): void {
  * Call this on logout, 401, or session expiry.
  */
 export function clearToken(): void {
-  localStorage.removeItem('gr_token');
-  localStorage.removeItem('gr_user');
+  safeStorage.removeItem('gr_token');
+  safeStorage.removeItem('gr_user');
   document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
 }
 

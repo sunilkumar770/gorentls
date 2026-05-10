@@ -7,6 +7,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ChatProvider } from '@/contexts/ChatContext';
 import './globals.css';
 import { validateConfiguration } from '@/config/validateConfig';
+import { ThemeProvider } from '@/components/providers/ThemeProvider';
 
 // Validate configuration immediately on app load
 if (typeof window !== 'undefined') {
@@ -23,15 +24,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className={`${inter.variable} ${manrope.variable} font-sans min-h-screen flex flex-col antialiased`}>
-        <AuthProvider>
-          <ChatProvider>
-            <Navbar />
-            <main className="flex-1 pt-16 flex flex-col">
-              {children}
-            </main>
-            <Footer />
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.variable} ${manrope.variable} font-sans min-h-screen flex flex-col antialiased dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300`}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <AuthProvider>
+            <ChatProvider>
+              <Navbar />
+              <main className="flex-1 pt-16 flex flex-col">
+                {children}
+              </main>
+              <Footer />
             <Toaster
               position="top-right"
               toastOptions={{
@@ -42,6 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             />
           </ChatProvider>
         </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

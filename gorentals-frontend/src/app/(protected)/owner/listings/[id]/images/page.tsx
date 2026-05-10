@@ -87,7 +87,7 @@ export default function ManageImagesPage() {
 
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="w-9 h-9 rounded-full border-4 border-[#16a34a]/20 border-t-[#16a34a] animate-spin" />
+      <div className="w-9 h-9 rounded-full border-4 border-[#4f46e5]/20 border-t-[#4f46e5] animate-spin" />
     </div>
   );
 
@@ -108,14 +108,14 @@ export default function ManageImagesPage() {
         </div>
 
         {/* Upload zone */}
-        <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-6 mb-6 text-center">
+        <div className="bg-card rounded-2xl border border-dashed border-gray-200 p-6 mb-6 text-center">
           <label className="cursor-pointer flex flex-col items-center gap-2 group">
             {uploading ? (
-              <Loader2 className="w-8 h-8 text-[#16a34a] animate-spin" />
+              <Loader2 className="w-8 h-8 text-[#4f46e5] animate-spin" />
             ) : (
-              <Upload className="w-8 h-8 text-gray-300 group-hover:text-[#16a34a] transition-colors" />
+              <Upload className="w-8 h-8 text-gray-300 group-hover:text-[#4f46e5] transition-colors" />
             )}
-            <p className="text-sm font-medium text-gray-600 group-hover:text-[#16a34a] transition-colors">
+            <p className="text-sm font-medium text-gray-600 group-hover:text-[#4f46e5] transition-colors">
               {uploading ? 'Uploading…' : 'Click to add photos'}
             </p>
             <p className="text-xs text-gray-400">JPG, PNG, WebP · Max 5 MB each · Up to 8 total</p>
@@ -126,7 +126,7 @@ export default function ManageImagesPage() {
 
         {/* Image grid */}
         {images.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
+          <div className="text-center py-12 bg-card rounded-2xl border border-border">
             <p className="text-gray-400 text-sm">No photos yet. Add at least one to make your listing visible.</p>
           </div>
         ) : (
@@ -140,7 +140,7 @@ export default function ManageImagesPage() {
                 {/* Primary badge */}
                 {img.is_primary && (
                   <div className="absolute top-2 left-2 flex items-center gap-1
-                                  bg-[#16a34a] text-white text-[10px] font-bold
+                                  bg-[#4f46e5] text-white text-[10px] font-bold
                                   px-2 py-0.5 rounded-full shadow-sm">
                     <Star className="w-2.5 h-2.5" />Cover
                   </div>
@@ -153,13 +153,13 @@ export default function ManageImagesPage() {
                     <button
                       onClick={() => handleSetPrimary(img.id)}
                       disabled={busy.has(img.id)}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-white/90 text-gray-800
-                                 text-xs font-semibold rounded-xl hover:bg-white transition-colors
+                      className="flex items-center gap-1 px-3 py-1.5 bg-card/90 text-gray-800
+                                 text-xs font-semibold rounded-xl hover:bg-card transition-colors
                                  disabled:opacity-50"
                     >
                       {busy.has(img.id)
                         ? <Loader2 className="w-3 h-3 animate-spin" />
-                        : <Star className="w-3 h-3 text-[#16a34a]" />}
+                        : <Star className="w-3 h-3 text-[#4f46e5]" />}
                       Set cover
                     </button>
                   )}

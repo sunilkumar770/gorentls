@@ -2,8 +2,8 @@ package com.rentit.controller;
 
 import com.rentit.dto.*;
 import com.rentit.model.AdminAuditLog;
-import com.rentit.repository.AdminAuditLogRepository;
 import com.rentit.service.AdminService;
+import com.rentit.service.AuditService;
 import com.rentit.service.PlatformAnalyticsService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +12,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import com.rentit.service.NotificationService;
@@ -32,10 +31,10 @@ public class AdminController {
     private AdminService adminService;
 
     @Autowired
-    private PlatformAnalyticsService platformAnalyticsService;
+    private AuditService auditService;
 
     @Autowired
-    private AdminAuditLogRepository auditLogRepository;
+    private PlatformAnalyticsService platformAnalyticsService;
 
     @Autowired
     private NotificationService notificationService;
@@ -67,8 +66,7 @@ public class AdminController {
                                                    Authentication auth,
                                                    HttpServletRequest req) {
         UserResponse resp = adminService.verifyUser(userId);
-        audit(auth, "VERIFY_USER", "USER", userId,
-              "Verified KYC for user " + userId, req);
+        auditService.audit("VERIFY_USER", "USER", userId, "Verified KYC for user " + userId);
         return ResponseEntity.ok(resp);
     }
 
@@ -78,8 +76,8 @@ public class AdminController {
                                                    Authentication auth,
                                                    HttpServletRequest req) {
         UserResponse resp = adminService.rejectUserKYC(userId, request.getReason());
-        audit(auth, "REJECT_KYC", "USER", userId,
-              "Rejected KYC for user " + userId + ". Reason: " + request.getReason(), req);
+        auditService.audit("REJECT_KYC", "USER", userId, 
+              "Rejected KYC for user " + userId + ". Reason: " + request.getReason());
         return ResponseEntity.ok(resp);
     }
 
@@ -96,8 +94,7 @@ public class AdminController {
                                                     Authentication auth,
                                                     HttpServletRequest req) {
         UserResponse resp = adminService.suspendUser(userId);
-        audit(auth, "SUSPEND_USER", "USER", userId,
-              "Suspended user " + userId, req);
+        auditService.audit("SUSPEND_USER", "USER", userId, "Suspended user " + userId);
         return ResponseEntity.ok(resp);
     }
 
@@ -106,8 +103,7 @@ public class AdminController {
                                                       Authentication auth,
                                                       HttpServletRequest req) {
         UserResponse resp = adminService.unsuspendUser(userId);
-        audit(auth, "UNSUSPEND_USER", "USER", userId,
-              "Restored (unsuspended) user " + userId, req);
+        auditService.audit("UNSUSPEND_USER", "USER", userId, "Restored (unsuspended) user " + userId);
         return ResponseEntity.ok(resp);
     }
 
@@ -130,8 +126,7 @@ public class AdminController {
                                                               Authentication auth,
                                                               HttpServletRequest req) {
         BusinessOwnerResponse resp = adminService.verifyBusinessOwner(ownerId);
-        audit(auth, "VERIFY_OWNER", "OWNER", ownerId,
-              "Verified business owner " + ownerId, req);
+        auditService.audit("VERIFY_OWNER", "OWNER", ownerId, "Verified business owner " + ownerId);
         return ResponseEntity.ok(resp);
     }
 
@@ -152,8 +147,7 @@ public class AdminController {
                                                           Authentication auth,
                                                           HttpServletRequest req) {
         ListingResponse resp = adminService.approveListing(listingId);
-        audit(auth, "APPROVE_LISTING", "LISTING", listingId,
-              "Approved listing " + listingId, req);
+        auditService.audit("APPROVE_LISTING", "LISTING", listingId, "Approved listing " + listingId);
         return ResponseEntity.ok(resp);
     }
 
@@ -162,8 +156,7 @@ public class AdminController {
                                               Authentication auth,
                                               HttpServletRequest req) {
         adminService.rejectListing(listingId);
-        audit(auth, "REJECT_LISTING", "LISTING", listingId,
-              "Rejected listing " + listingId, req);
+        auditService.audit("REJECT_LISTING", "LISTING", listingId, "Rejected listing " + listingId);
         return ResponseEntity.noContent().build();
     }
 
@@ -193,7 +186,7 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        return ResponseEntity.ok(auditLogRepository.findAll(pageable));
+        return ResponseEntity.ok(adminService.getAuditLogs(pageable));
     }
 
     @PostMapping("/broadcast")
@@ -208,18 +201,4 @@ public class AdminController {
         return ResponseEntity.ok(new SuccessResponse("Broadcast sent to all users", true));
     }
 
-    @Async
-    public void audit(Authentication auth, String action,
-                         String entityType, UUID entityId,
-                         String description, HttpServletRequest req) {
-        try {
-            String email = auth != null ? auth.getName() : "unknown";
-            String ip = req != null ? req.getRemoteAddr() : null;
-            AdminAuditLog entry = AdminAuditLog.of(null, email, action, entityType, entityId, description);
-            entry.setIpAddress(ip);
-            auditLogRepository.save(entry);
-        } catch (Exception e) {
-            log.error("Audit failure for action {}: {}", action, e.getMessage());
-        }
-    }
 }

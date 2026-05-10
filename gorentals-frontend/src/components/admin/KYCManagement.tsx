@@ -117,7 +117,7 @@ export function KYCManagement() {
               </Button>
 
               <Button
-                className="bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-md font-display font-black text-xs p-5"
+                className="bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md font-display font-black text-xs p-5"
                 onClick={() => handleApprove(user.id)}
                 loading={processing === user.id}
               >

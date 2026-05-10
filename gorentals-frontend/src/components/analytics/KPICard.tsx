@@ -20,14 +20,14 @@ export function KPICard({ title, value, icon, trend, trendUp = true }: KPICardPr
         {trend && (
           <span className={twMerge(
             "text-xs font-medium px-2 py-1 rounded-full",
-            trendUp ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+            trendUp ? "bg-red-500/10 text-red-400" : "bg-rose-500/10 text-rose-400"
           )}>
             {trend}
           </span>
         )}
       </div>
       <div>
-        <p className="text-slate-400 text-sm font-medium">{title}</p>
+        <p className="text-faint text-sm font-medium">{title}</p>
         <h3 className="text-2xl font-bold text-white mt-1">{value}</h3>
       </div>
     </div>

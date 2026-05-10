@@ -18,11 +18,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: ${DDL_AUTO:update}
-    show-sql: false
+    show-sql: true
     open-in-view: false
     properties:
       hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
-      hibernate.format_sql: false
+      hibernate.format_sql: true
       hibernate.jdbc.lob.non_contextual_creation: true
 
   flyway:
@@ -99,7 +99,8 @@ logging:
     org.springframework.web: WARN
     org.springframework.messaging: WARN
     org.springframework.security: WARN
-    org.hibernate.SQL: WARN
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
 server:
   port: ${PORT:8080}

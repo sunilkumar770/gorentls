@@ -1,0 +1,15 @@
+.git/
+node_modules/
+dist/
+build/
+target/
+*.tmp
+*.log
+.next/
+.venv/
+venv/
+env/
+.env
+graphify-out/
+scratch/
+workflow_state.db

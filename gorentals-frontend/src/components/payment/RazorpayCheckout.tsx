@@ -96,7 +96,7 @@ export function RazorpayCheckout({
           }
         },
         prefill: { name: '', email: '', contact: '' },
-        theme: { color: '#01696f' },
+        theme: { color: '#0F766E' },
         config: {
           display: {
             hide: [],
@@ -135,7 +135,7 @@ export function RazorpayCheckout({
           transition-all duration-200
           ${isProcessing
             ? 'bg-gray-400 cursor-not-allowed opacity-70'
-            : 'bg-[#01696f] hover:bg-[#015a5f] text-white cursor-pointer shadow-sm hover:shadow-md'
+            : 'bg-[#0F766E] hover:bg-[#115E59] text-white cursor-pointer shadow-sm hover:shadow-md'
           } ${className}`}
       >
         {isProcessing ? (

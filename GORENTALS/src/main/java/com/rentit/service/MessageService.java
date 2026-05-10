@@ -55,11 +55,17 @@ public class MessageService {
         
         messageRepository.save(msg);
         
-        // Update unread counts
+        // Update denormalized last message fields
+        conv.setLastMessageText(text);
+        conv.setLastMessageAt(msg.getCreatedAt());
+        
+        // Atomic unread increments and timestamp update
         boolean senderIsOwner = conv.getOwner().getId().equals(sender.getId());
-        if (senderIsOwner) conv.setRenterUnread(conv.getRenterUnread() + 1);
-        else               conv.setOwnerUnread(conv.getOwnerUnread() + 1);
-        conversationRepository.save(conv);
+        if (senderIsOwner) {
+            conversationRepository.incrementRenterUnread(conv.getId(), LocalDateTime.now());
+        } else {
+            conversationRepository.incrementOwnerUnread(conv.getId(), LocalDateTime.now());
+        }
 
         MessageResponse response = mapToMessageResponse(msg);
         
@@ -79,7 +85,9 @@ public class MessageService {
         User sender = userRepository.findByEmail(senderEmail)
             .orElseThrow(() -> BusinessException.notFound("Sender", senderEmail));
         UUID convId = UUID.fromString(request.getConversationId());
-        Conversation conv = conversationRepository.findById(convId)
+        
+        // Use optimized fetch to avoid N+1 later
+        Conversation conv = conversationRepository.findByIdOptimized(convId)
             .orElseThrow(() -> BusinessException.notFound("Conversation", convId));
 
         boolean isParticipant =
@@ -109,7 +117,9 @@ public class MessageService {
     public List<ConversationResponse> getUserConversations(String userEmail) {
         User user = userRepository.findByEmail(userEmail)
             .orElseThrow(() -> BusinessException.notFound("User", userEmail));
-        return conversationRepository.findAllByParticipantWithMessages(user)
+        
+        // Now optimized: no message fetch, just denormalized fields
+        return conversationRepository.findAllByParticipant(user)
             .stream().map(this::mapToConversationResponse).collect(Collectors.toList());
     }
 
@@ -117,7 +127,7 @@ public class MessageService {
     public ConversationResponse getConversation(UUID id, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
             .orElseThrow(() -> BusinessException.notFound("User", userEmail));
-        Conversation conv = conversationRepository.findByIdWithMessages(id)
+        Conversation conv = conversationRepository.findByIdOptimized(id)
             .orElseThrow(() -> BusinessException.notFound("Conversation", id));
         if (!conv.getOwner().getId().equals(user.getId()) &&
             !conv.getRenter().getId().equals(user.getId()))
@@ -149,7 +159,7 @@ public class MessageService {
                 init.setMessageType("TEXT");
                 processIncomingMessage(init, renterEmail);
                 return mapToConversationResponse(
-                    conversationRepository.findById(conv.getId()).orElseThrow());
+                    conversationRepository.findByIdOptimized(conv.getId()).orElseThrow());
             });
     }
 
@@ -158,7 +168,7 @@ public class MessageService {
                                               int page, int size) {
         User user = userRepository.findByEmail(userEmail)
             .orElseThrow(() -> BusinessException.notFound("User", userEmail));
-        Conversation conv = conversationRepository.findById(conversationId)
+        Conversation conv = conversationRepository.findByIdOptimized(conversationId)
             .orElseThrow(() -> BusinessException.notFound("Conversation", conversationId));
         if (!conv.getOwner().getId().equals(user.getId()) &&
             !conv.getRenter().getId().equals(user.getId()))
@@ -173,7 +183,7 @@ public class MessageService {
         User user = userRepository.findByEmail(userEmail)
             .orElseThrow(() -> BusinessException.notFound("User", userEmail));
 
-        Conversation conv = conversationRepository.findById(conversationId)
+        Conversation conv = conversationRepository.findByIdOptimized(conversationId)
             .orElseThrow(() -> BusinessException.notFound("Conversation", conversationId));
 
         // SECURITY GATE: user MUST be owner or renter — no other path
@@ -240,13 +250,6 @@ public class MessageService {
 
     // ── Mappers ───────────────────────────────────────────────────────────────
     private ConversationResponse mapToConversationResponse(Conversation conv) {
-        String lastText = null;
-        LocalDateTime lastAt = null;
-        if (conv.getMessages() != null && !conv.getMessages().isEmpty()) {
-            ChatMessage last = conv.getMessages().get(conv.getMessages().size() - 1);
-            lastText = last.getMessageText();
-            lastAt   = last.getCreatedAt();
-        }
         return ConversationResponse.builder()
             .id(conv.getId())
             .listingId(conv.getListing().getId())
@@ -255,8 +258,8 @@ public class MessageService {
             .ownerName(conv.getOwner().getFullName())
             .renterId(conv.getRenter().getId())
             .renterName(conv.getRenter().getFullName())
-            .lastMessage(lastText)
-            .lastMessageAt(lastAt)
+            .lastMessage(conv.getLastMessageText())
+            .lastMessageAt(conv.getLastMessageAt())
             .ownerUnread(conv.getOwnerUnread())
             .renterUnread(conv.getRenterUnread())
             .createdAt(conv.getCreatedAt())

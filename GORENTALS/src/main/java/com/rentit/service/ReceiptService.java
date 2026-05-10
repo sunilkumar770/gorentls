@@ -132,11 +132,11 @@ public class ReceiptService {
         table.setWidthPercentage(100);
         table.setSpacingAfter(16);
 
-        addFinRow(table, "Base Rental Amount",  booking.getRentalAmount(),   labelFont, valueFont, false);
-        addFinRow(table, "GST (18%)",           booking.getGstAmount(),      labelFont, valueFont, false);
-        addFinRow(table, "Platform Fee",        booking.getPlatformFee(),    labelFont, valueFont, false);
-        addFinRow(table, "Security Deposit",    booking.getSecurityDeposit(),labelFont, valueFont, false);
-        addFinRow(table, "TOTAL AMOUNT",        booking.getTotalAmount(),    labelFont, valueFont, true);
+        addFinRow(table, "Base Rental Amount",  safeAmount(booking.getRentalAmount()),   labelFont, valueFont, false);
+        addFinRow(table, "GST (18%)",           safeAmount(booking.getGstAmount()),      labelFont, valueFont, false);
+        addFinRow(table, "Platform Fee",        safeAmount(booking.getPlatformFee()),    labelFont, valueFont, false);
+        addFinRow(table, "Security Deposit",    safeAmount(booking.getSecurityDeposit()),labelFont, valueFont, false);
+        addFinRow(table, "TOTAL AMOUNT",        safeAmount(booking.getTotalAmount()),    labelFont, valueFont, true);
 
         Paragraph breakTitle = new Paragraph("\nPayment Breakdown\n", secTitle);
         breakTitle.setSpacingAfter(8);
@@ -146,12 +146,14 @@ public class ReceiptService {
         PdfPTable breakTable = new PdfPTable(2);
         breakTable.setWidthPercentage(100);
         breakTable.setSpacingAfter(12);
-        addFinRow(breakTable, "Advance Paid",   booking.getAdvanceAmount(),   labelFont, valueFont, false);
+        addFinRow(breakTable, "Advance Paid",   safeAmount(booking.getAdvanceAmount()),   labelFont, valueFont, false);
 
-        BigDecimal remaining = booking.getRemainingAmount() != null
-            ? booking.getRemainingAmount() : BigDecimal.ZERO;
-        addFinRow(breakTable, "Remaining Balance", remaining, labelFont, valueFont, false);
+        addFinRow(breakTable, "Remaining Balance", safeAmount(booking.getRemainingAmount()), labelFont, valueFont, false);
         doc.add(breakTable);
+    }
+
+    private BigDecimal safeAmount(BigDecimal amount) {
+        return amount != null ? amount : BigDecimal.ZERO;
     }
 
     private void buildFooter(Document doc, Booking booking) throws DocumentException {

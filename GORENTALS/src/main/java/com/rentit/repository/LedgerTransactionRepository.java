@@ -90,6 +90,25 @@ public interface LedgerTransactionRepository extends JpaRepository<LedgerTransac
         @Param("to")   Instant to
     );
 
+    @Query("""
+        SELECT t.bookingId
+        FROM   LedgerTransaction t
+        GROUP  BY t.bookingId
+        HAVING SUM(CASE WHEN t.direction = 'CREDIT' THEN t.amount ELSE -t.amount END) <> 0
+        """)
+    List<UUID> findUnbalancedBookings();
+
+    /**
+     * Net balance of a specific booking across ALL accounts.
+     * Should always be exactly zero.
+     */
+    @Query("""
+        SELECT COALESCE(SUM(CASE WHEN t.direction = 'CREDIT' THEN t.amount ELSE -t.amount END), 0)
+        FROM   LedgerTransaction t
+        WHERE  t.bookingId = :bookingId
+        """)
+    BigDecimal totalNetBalanceForBooking(@Param("bookingId") UUID bookingId);
+
     // ── Existence check ───────────────────────────────────────────────────────
 
     /**

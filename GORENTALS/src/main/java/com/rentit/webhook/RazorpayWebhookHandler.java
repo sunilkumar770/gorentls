@@ -8,6 +8,7 @@ import com.rentit.repository.BookingRepository;
 import com.rentit.repository.PaymentRepository;
 import com.rentit.repository.PayoutRepository;
 import com.rentit.service.BookingEscrowService;
+import com.rentit.service.BookingLifecycleManager;
 import com.rentit.service.RazorpayIntegrationService;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -35,19 +36,25 @@ public class RazorpayWebhookHandler {
     private final BookingRepository          bookingRepo;
     private final PaymentRepository          paymentRepo;
     private final PayoutRepository           payoutRepo;
+    private final BookingLifecycleManager    lifecycleManager;
+    private final com.rentit.repository.WebhookEventRepository webhookEventRepo;
 
     public RazorpayWebhookHandler(
         RazorpayIntegrationService razorpay,
         BookingEscrowService       escrowService,
         BookingRepository          bookingRepo,
         PaymentRepository          paymentRepo,
-        PayoutRepository           payoutRepo
+        PayoutRepository           payoutRepo,
+        BookingLifecycleManager    lifecycleManager,
+        com.rentit.repository.WebhookEventRepository webhookEventRepo
     ) {
         this.razorpay     = razorpay;
         this.escrowService = escrowService;
         this.bookingRepo   = bookingRepo;
         this.paymentRepo   = paymentRepo;
         this.payoutRepo    = payoutRepo;
+        this.lifecycleManager = lifecycleManager;
+        this.webhookEventRepo = webhookEventRepo;
     }
 
     @PostMapping(value = "/razorpay", consumes = "application/json")
@@ -70,15 +77,28 @@ public class RazorpayWebhookHandler {
 
         JSONObject payload;
         String event;
+        String eventId;
         try {
             payload = new JSONObject(rawBody);
             event   = payload.getString("event");
+            // Standard Razorpay webhook event ID
+            eventId = payload.getString("account_id") + "_" + payload.getLong("created_at");
+            // Actually Razorpay provides an 'id' at the root for webhooks sometimes, 
+            // but let's use account_id + created_at or try to find an 'id' field.
+            if (payload.has("id")) {
+                eventId = payload.getString("id");
+            }
         } catch (Exception e) {
             log.error("Failed to parse webhook body: {}", e.getMessage());
             return ResponseEntity.ok("Unparseable payload — acknowledged");
         }
 
-        log.info("Razorpay webhook received: event={}", event);
+        if (webhookEventRepo.existsByEventId(eventId)) {
+            log.info("Razorpay webhook already processed: eventId={} — skipping", eventId);
+            return ResponseEntity.ok("Already processed");
+        }
+
+        log.info("Razorpay webhook received: event={} eventId={}", event, eventId);
 
         try {
             switch (event) {
@@ -91,8 +111,10 @@ public class RazorpayWebhookHandler {
             }
         } catch (Exception e) {
             log.error("Error processing webhook event={}: {}", event, e.getMessage(), e);
+            throw e; // Rollback transaction
         }
 
+        webhookEventRepo.save(new com.rentit.model.WebhookEvent(eventId, event, rawBody));
         return ResponseEntity.ok("OK");
     }
 
@@ -234,7 +256,7 @@ public class RazorpayWebhookHandler {
 
         bookingRepo.findById(payout.getBookingId()).ifPresent(booking -> {
             booking.setEscrowStatus(com.rentit.model.enums.EscrowStatus.PAID_OUT);
-            bookingRepo.save(booking);
+            lifecycleManager.transition(booking, booking.getBookingStatus(), "Payout completed");
         });
 
         log.info("payout.processed: payoutId={} rpPayoutId={} bookingId={} — PAID_OUT",

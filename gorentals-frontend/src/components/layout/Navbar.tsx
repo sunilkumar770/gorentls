@@ -11,6 +11,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { notificationService } from '@/services/notifications';
 import { LogoMark } from '@/components/ui/Logo';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 // ── GoRentals SVG Wordmark ────────────────────────────────────────
 function GoRentalsLogo() {
@@ -94,7 +95,7 @@ export function Navbar() {
   const navLinks = [
     { href: '/search',   label: 'Browse',   auth: false },
     { href: '/stores',   label: 'Stores',   auth: false },
-    { href: '/messages', label: 'Messages', auth: true  },
+    { href: '/dashboard/messages', label: 'Messages', auth: true  },
     { href: '/help',     label: 'Help',     auth: false },
   ];
 
@@ -128,7 +129,7 @@ export function Navbar() {
                     href={link.href}
                     className={`relative px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
                       isActive
-                        ? 'text-[#01696f] nav-underline'
+                        ? 'text-[#0F766E] nav-underline'
                         : 'text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5'
                     }`}
                   >
@@ -146,6 +147,7 @@ export function Navbar() {
 
           {/* Right */}
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Link href="/search" className="p-2 rounded-lg text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5 transition-colors md:hidden">
               <Search className="w-5 h-5" />
             </Link>
@@ -153,7 +155,7 @@ export function Navbar() {
             {/* Mobile messages & notifications icons */}
             {user && (
               <div className="flex items-center md:hidden">
-                <Link href="/messages" className="relative p-2 rounded-lg text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5 transition-colors">
+                <Link href="/dashboard/messages" className="relative p-2 rounded-lg text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5 transition-colors">
                   <MessageCircle className="w-5 h-5" />
                   {totalUnread > 0 && (
                     <span className={badgeClass}>{totalUnread > 9 ? '9+' : totalUnread}</span>
@@ -174,7 +176,7 @@ export function Navbar() {
                   <>
                 {user && !isRenter && (
                   <Link href="/create-listing"
-                    className="hidden sm:flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-[#01696f] rounded-xl hover:bg-[#015a5f] transition-colors shadow-sm">
+                    className="hidden sm:flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-[#0F766E] rounded-xl hover:bg-[#115E59] transition-colors shadow-sm">
                     <Plus className="w-4 h-4" /> List item
                   </Link>
                 )}
@@ -191,9 +193,9 @@ export function Navbar() {
 
                     <div className="relative" ref={menuRef}>
                       <button onClick={() => setMenuOpen(o => !o)}
-                        className="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-xl border border-[#01696f]/20 hover:border-[#01696f]/40 hover:bg-[#01696f]/5 transition-all">
-                        <div className="w-7 h-7 rounded-full bg-[#01696f]/10 flex items-center justify-center flex-shrink-0">
-                          <span className="text-xs font-bold text-[#01696f]">
+                        className="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-xl border border-[#0F766E]/20 hover:border-[#0F766E]/40 hover:bg-[#0F766E]/5 transition-all">
+                        <div className="w-7 h-7 rounded-full bg-[#0F766E]/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-bold text-[#0F766E]">
                             {profile?.fullName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
                           </span>
                         </div>
@@ -204,7 +206,7 @@ export function Navbar() {
                       </button>
 
                       {menuOpen && (
-                        <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-[#01696f]/10 py-1 z-50">
+                        <div className="absolute right-0 mt-2 w-56 bg-card rounded-xl shadow-lg border border-[#0F766E]/10 py-1 z-50">
                           <div className="px-4 py-3 border-b border-[#f3f4f6]">
                             <p className="text-sm font-semibold text-[#1a1a18] truncate">{profile?.fullName || 'User'}</p>
                             <p className="text-xs text-[#6b6b65] truncate mt-0.5">{user.email}</p>
@@ -230,7 +232,7 @@ export function Navbar() {
                             )}
                           </Link>
 
-                          <Link href="/messages" onClick={() => setMenuOpen(false)}
+                          <Link href="/dashboard/messages" onClick={() => setMenuOpen(false)}
                             className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f7f6f2] hover:text-[#1a1a18] transition-colors">
                             <MessageCircle className="w-4 h-4 text-[#6b6b65]" />
                             <span className="flex-1">Messages</span>
@@ -245,8 +247,8 @@ export function Navbar() {
 
                           {isAdmin && (
                             <Link href="/admin" onClick={() => setMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-[#01696f] hover:bg-[#01696f]/5 transition-colors">
-                              <Shield className="w-4 h-4 text-[#01696f]" /> Admin Control Center
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-[#0F766E] hover:bg-[#0F766E]/5 transition-colors">
+                              <Shield className="w-4 h-4 text-[#0F766E]" /> Admin Control Center
                             </Link>
                           )}
 
@@ -256,8 +258,8 @@ export function Navbar() {
                               <LayoutDashboard className="w-4 h-4 text-[#6b6b65]" /> Owner Dashboard
                             </Link>
                             <Link href="/owner/analytics" onClick={() => setMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-[#01696f] hover:bg-[#01696f]/5 transition-colors">
-                              <BarChart3 className="w-4 h-4 text-[#01696f]" /> View Analytics
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-[#0F766E] hover:bg-[#0F766E]/5 transition-colors">
+                              <BarChart3 className="w-4 h-4 text-[#0F766E]" /> View Analytics
                             </Link>
                             <Link href="/owner/bookings" onClick={() => setMenuOpen(false)}
                               className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f7f6f2] hover:text-[#1a1a18] transition-colors">
@@ -286,7 +288,7 @@ export function Navbar() {
                     {!isRenter && (
                       <Link
                         href="/signup"
-                        className="flex items-center gap-1.5 text-sm font-semibold text-[#01696f] hover:text-[#015a5f] group transition-colors"
+                        className="flex items-center gap-1.5 text-sm font-semibold text-[#0F766E] hover:text-[#115E59] group transition-colors"
                       >
                         List your gear
                         <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -301,7 +303,7 @@ export function Navbar() {
                     {/* Solid primary CTA */}
                     <Link
                       href="/signup"
-                      className="px-5 py-2.5 text-sm font-bold text-white bg-[#01696f] rounded-xl hover:bg-[#015a5f] transition-colors shadow-sm"
+                      className="px-5 py-2.5 text-sm font-bold text-white bg-[#0F766E] rounded-xl hover:bg-[#115E59] transition-colors shadow-sm"
                     >
                       Get started
                     </Link>

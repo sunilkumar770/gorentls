@@ -2,12 +2,13 @@
 
 import { useContext } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
+import { safeStorage } from '@/lib/safeStorage';
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
 
-  const userObj = ctx.user || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('gr_user') || 'null') : null);
+  const userObj = ctx.user || (typeof window !== 'undefined' ? JSON.parse(safeStorage.getItem('gr_user') || 'null') : null);
   const raw = userObj?.userType ?? userObj?.role ?? '';
   
   // Strip Spring's ROLE_ prefix if present (e.g. ROLE_ADMIN → ADMIN)

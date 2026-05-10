@@ -2,8 +2,10 @@ package com.rentit;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
+@EnableScheduling
 // Note: @EnableAsync lives in AsyncConfig.java, which also wires
 // DelegatingSecurityContextAsyncTaskExecutor so audit log threads
 // can read the authenticated admin's identity.

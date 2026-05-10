@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/axios';
 import type { Booking, PagedResponse } from '@/types';
+import { safeStorage } from '@/lib/safeStorage';
 
 type BookingsApiResponse = Booking[] | PagedResponse<Booking>;
 
@@ -51,7 +52,7 @@ export function useOwnerBookings() {
 
   const refetch = useCallback(async () => {
     // Only fetch if we have a token
-    const token = typeof window !== 'undefined' ? localStorage.getItem('gr_token') : null;
+    const token = typeof window !== 'undefined' ? safeStorage.getItem('gr_token') : null;
     if (!token) {
       setBookings([]);
       setLoading(false);

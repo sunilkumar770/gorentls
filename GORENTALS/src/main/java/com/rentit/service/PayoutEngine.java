@@ -110,31 +110,26 @@ public class PayoutEngine {
         Instant now = Instant.now();
         log.info("PayoutEngine: executing due payouts at {}", now);
 
+        // 1. Process never-attempted payouts (PENDING)
         List<Payout> duePending = payoutRepo.findDueForExecution(now);
-        log.info("PayoutEngine: {} payouts due for execution", duePending.size());
+        log.info("PayoutEngine: {} payouts due for first-time execution", duePending.size());
+        processPayoutBatch(duePending);
 
-        for (Payout payout : duePending) {
+        // 2. Process failed payouts eligible for retry (FAILED + nextRetryAt <= now)
+        List<Payout> failedForRetry = payoutRepo.findFailedForRetry(now);
+        log.info("PayoutEngine: {} failed payouts due for retry", failedForRetry.size());
+        processPayoutBatch(failedForRetry);
+    }
+
+    private void processPayoutBatch(List<Payout> batch) {
+        for (Payout payout : batch) {
             try {
                 payoutTaskService.executeOnePayout(payout);
                 payoutsSucceededCounter.increment();
             } catch (Exception e) {
                 payoutsFailedCounter.increment();
-                log.error("PayoutEngine: error executing payoutId={} error={}",
-                    payout.getId(), e.getMessage(), e);
-            }
-        }
-
-        List<Payout> failedForRetry = payoutRepo.findFailedForRetry(
-            now.minusSeconds(30 * 60)
-        );
-        for (Payout payout : failedForRetry) {
-            try {
-                payoutTaskService.executeOnePayout(payout);
-                payoutsSucceededCounter.increment();
-            } catch (Exception e) {
-                payoutsFailedCounter.increment();
-                log.error("PayoutEngine: retry failed for payoutId={} error={}",
-                    payout.getId(), e.getMessage(), e);
+                log.error("PayoutEngine: execution failed for payoutId={} (retryCount={}) error={}",
+                    payout.getId(), payout.getRetryCount(), e.getMessage());
             }
         }
     }

@@ -314,6 +314,12 @@ public class PlatformAnalytics {
         public Long getNewUsers() { return newUsers; }
         public Long getBookings() { return bookings; }
         public BigDecimal getRevenue() { return revenue; }
+
+        // Setters (Added for mutation in analytics engine)
+        public void setMonth(String v) { this.month = v; }
+        public void setNewUsers(Long v) { this.newUsers = v; }
+        public void setBookings(Long v) { this.bookings = v; }
+        public void setRevenue(BigDecimal v) { this.revenue = v; }
     }
 
     // Getters for PlatformAnalytics

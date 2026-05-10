@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { TOKEN_KEY } from '../axios';
+import { safeStorage } from '@/lib/safeStorage';
 
 export function useStomp() {
   const clientRef = useRef<Client | null>(null);
@@ -15,7 +16,7 @@ export function useStomp() {
     const wsBaseUrl = apiBase.replace('/api', '/ws');
     
     // Retrieve token for authentication
-    const token = typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
+    const token = typeof window !== 'undefined' ? safeStorage.getItem(TOKEN_KEY) : null;
 
     const client = new Client({
       webSocketFactory: () => new SockJS(wsBaseUrl),

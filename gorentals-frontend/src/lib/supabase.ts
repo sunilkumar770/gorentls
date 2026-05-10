@@ -39,7 +39,7 @@ export function subscribeToConversation(
         table: 'messages', // Note: the entity table name is chat_messages in Spring
         filter: `conversation_id=eq.${conversationId}`,
       },
-      (payload) => {
+      (payload: any) => {
         onMessage(payload.new)
       }
     )

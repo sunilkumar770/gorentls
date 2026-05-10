@@ -57,6 +57,14 @@ public class AuthService {
 
         User user = new User();
         user.setEmail(request.getEmail().trim().toLowerCase());
+        // Password complexity check
+        if (request.getPassword() == null || request.getPassword().length() < 8) {
+            throw BusinessException.badRequest("Password must be at least 8 characters long");
+        }
+        if (!request.getPassword().matches(".*[A-Z].*") || !request.getPassword().matches(".*[0-9].*")) {
+            throw BusinessException.badRequest("Password must contain at least one uppercase letter and one number");
+        }
+
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setFullName(request.getFirstName() + " " + request.getLastName());
         user.setPhone(request.getPhoneNumber());

@@ -83,7 +83,7 @@ export function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={label}
-                  className="w-9 h-9 rounded-lg bg-white/6 text-white/50 hover:text-white hover:bg-white/12 flex items-center justify-center transition-all"
+                  className="w-9 h-9 rounded-lg bg-card/6 text-white/50 hover:text-white hover:bg-card/12 flex items-center justify-center transition-all"
                 >
                   <Icon />
                 </a>
