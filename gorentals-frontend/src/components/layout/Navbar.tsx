@@ -24,6 +24,11 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false)
+  }, [pathname])
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
