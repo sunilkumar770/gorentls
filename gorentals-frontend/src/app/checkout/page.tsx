@@ -141,8 +141,9 @@ function CheckoutContent() {
       });
       
       setBookingId(booking.id);
-      setStep('confirmed');
+      // setStep('confirmed');
       toast.success('Booking confirmed successfully!');
+      router.push(`/payment/success?bookingId=${booking.id}`);
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'Booking failed';
       setError(msg);
@@ -152,10 +153,6 @@ function CheckoutContent() {
       submittingRef.current = false;
     }
   };
-
-  if (step === 'confirmed' && bookingId) {
-    return <BookingConfirmed bookingId={bookingId} itemName={listing.title} />;
-  }
 
   return (
     <div className="min-h-screen bg-subtle pb-24">
@@ -377,49 +374,6 @@ function CheckoutContent() {
   );
 }
 
-function BookingConfirmed({ bookingId, itemName }: { bookingId: string, itemName: string }) {
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center text-center px-4 gap-10 py-20 bg-subtle">
-      <div className="relative">
-        <div className="w-36 h-36 rounded-full bg-green-50 flex items-center justify-center text-7xl animate-bounce duration-1000 shadow-inner">
-          ✨
-        </div>
-        <div className="absolute inset-0 rounded-full border-8 border-green-500/10 animate-ping duration-[2000ms]" />
-      </div>
-      
-      <div className="space-y-4 max-w-xl">
-        <h2 className="text-5xl font-black text-text tracking-tighter">Reservation Sent!</h2>
-        <p className="text-muted text-xl leading-relaxed font-medium">
-          Your request for <strong className="text-indigo-600">{itemName}</strong> is on its way. The owner has 24 hours to confirm.
-        </p>
-      </div>
-
-      <div className="bg-card rounded-[2.5rem] p-10 max-w-md shadow-xl border border-slate-100">
-        <div className="flex gap-4 text-left">
-          <ShieldCheck className="w-8 h-8 text-indigo-500 shrink-0" />
-          <p className="text-sm text-text font-bold leading-relaxed">
-            Payment Protection: <span className="font-medium text-muted">Your funds are safe in escrow. You will not be charged if the owner declines.</span>
-          </p>
-        </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-5 w-full max-w-md">
-        <Link
-          href={`/dashboard/bookings/${bookingId}`}
-          className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black h-18 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-100 transition-all active:scale-95 text-lg"
-        >
-          Order Status
-        </Link>
-        <Link
-          href="/search"
-          className="flex-1 bg-white border border-slate-100 text-muted font-black h-18 rounded-3xl flex items-center justify-center transition-all hover:bg-slate-50 active:scale-95 text-lg"
-        >
-          Keep Browsing
-        </Link>
-      </div>
-    </div>
-  );
-}
 
 function CheckoutSkeleton() {
   return (
