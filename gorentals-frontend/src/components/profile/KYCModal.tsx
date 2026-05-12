@@ -12,10 +12,11 @@ import { toast } from 'react-hot-toast';
 interface KYCModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-export default function KYCModal({ isOpen, onClose }: KYCModalProps) {
-  const { updateUser } = useAuth();
+export default function KYCModal({ isOpen, onClose, onSuccess }: KYCModalProps) {
+  const { updateUser, user } = useAuth();
   const [docType, setDocType] = useState<'aadhaar' | 'pan' | 'passport'>('aadhaar');
   const [idNumber, setIdNumber] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,14 +47,21 @@ export default function KYCModal({ isOpen, onClose }: KYCModalProps) {
       const fileName = `${docType}-${Date.now()}-${file.name}`;
       const documentUrl = await uploadFile(file, 'kyc-documents', fileName);
 
-      const updated = await submitKYC({
+      const profile = await submitKYC({
         documentType: docType.toUpperCase(),
         idNumber: idNumber,
         documentUrl: documentUrl,
       });
-      updateUser(updated);
+      if (user) {
+        updateUser({
+          ...user,
+          kycStatus: profile.kycStatus,
+          isVerified: profile.kycStatus === 'APPROVED',
+        });
+      }
       setStep(2);
       toast.success('KYC documents submitted successfully!');
+      if (onSuccess) onSuccess();
     } catch (err: unknown) {
       const _err = err as { response?: { data?: { message?: string } } };
       toast.error(_err.response?.data?.message || 'Failed to submit KYC. Please try again.');

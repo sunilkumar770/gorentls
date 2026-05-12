@@ -25,23 +25,26 @@ public class MessageService {
     private final UserRepository         userRepository;
     private final ListingRepository      listingRepository;
     private final SimpMessagingTemplate  messagingTemplate;
+    private final com.rentit.messaging.RedisMessagePublisher redisPublisher;
 
     public MessageService(ConversationRepository conversationRepository,
                           ChatMessageRepository  messageRepository,
                           UserRepository         userRepository,
                           ListingRepository      listingRepository,
-                          SimpMessagingTemplate  messagingTemplate) {
+                          SimpMessagingTemplate  messagingTemplate,
+                          @org.springframework.beans.factory.annotation.Autowired(required = false) com.rentit.messaging.RedisMessagePublisher redisPublisher) {
         this.conversationRepository = conversationRepository;
         this.messageRepository      = messageRepository;
         this.userRepository         = userRepository;
         this.listingRepository      = listingRepository;
         this.messagingTemplate      = messagingTemplate;
+        this.redisPublisher         = redisPublisher;
     }
 
     /**
-     * Unified message sender for dual-broadcast (Database + WebSocket).
-     * Saving to DB triggers Supabase Realtime via Postgres replication.
-     * messagingTemplate.convertAndSend handles fallback/legacy clients.
+     * Unified message sender for dual-broadcast (Database + Redis Pub/Sub).
+     * Saving to DB ensures persistence.
+     * redisPublisher.publish handles real-time delivery across the cluster.
      */
     @Transactional
     public MessageResponse sendMessage(Conversation conv, User sender, String text, UUID tempId, ChatMessage.MessageType type) {
@@ -69,12 +72,21 @@ public class MessageService {
 
         MessageResponse response = mapToMessageResponse(msg);
         
-        // Broadcast via WebSocket (Fallback)
-        messagingTemplate.convertAndSend("/topic/conversation." + conv.getId(), response);
-        
-        // Broadcast to user inbox
+        // ── Distributed Broadcast ───────────────────────────────────────────
+        // Calculate recipient for the response object so subscriber knows where to send
         String recipientEmail = senderIsOwner ? conv.getRenter().getEmail() : conv.getOwner().getEmail();
-        messagingTemplate.convertAndSendToUser(recipientEmail, "/queue/messages", response);
+        response.setRecipientEmail(recipientEmail);
+        
+        // Publish to Redis instead of local messagingTemplate (if enabled)
+        if (redisPublisher != null) {
+            redisPublisher.publish(response);
+        } else {
+            // Local fallback for dev mode without Redis
+            messagingTemplate.convertAndSend("/topic/conversation." + conv.getId(), response);
+            if (recipientEmail != null) {
+                messagingTemplate.convertAndSendToUser(recipientEmail, "/queue/messages", response);
+            }
+        }
         
         return response;
     }

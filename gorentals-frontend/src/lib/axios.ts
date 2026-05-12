@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import { safeStorage } from './safeStorage';
 
-const TOKEN_KEY = 'gr_token';  // matches your existing localStorage key
+const TOKEN_KEY = 'gorentals_token';  // matches your existing localStorage key
 
 const api = axios.create({
   baseURL:         process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080/api',

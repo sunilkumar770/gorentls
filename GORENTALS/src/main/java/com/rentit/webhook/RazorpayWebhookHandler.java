@@ -94,12 +94,16 @@ public class RazorpayWebhookHandler {
         }
 
         if (webhookEventRepo.existsByEventId(eventId)) {
-            log.info("Razorpay webhook already processed: eventId={} — skipping", eventId);
+            log.info("Razorpay webhook already processed (Idempotent): eventId={} — skipping", eventId);
             return ResponseEntity.ok("Already processed");
         }
 
+        // 3. Store event ID first (before processing)
+        webhookEventRepo.save(new com.rentit.model.WebhookEvent(eventId, event, rawBody));
+
         log.info("Razorpay webhook received: event={} eventId={}", event, eventId);
 
+        // 4. Process event
         try {
             switch (event) {
                 case "payment.captured"  -> handlePaymentCaptured(payload);
@@ -114,7 +118,6 @@ public class RazorpayWebhookHandler {
             throw e; // Rollback transaction
         }
 
-        webhookEventRepo.save(new com.rentit.model.WebhookEvent(eventId, event, rawBody));
         return ResponseEntity.ok("OK");
     }
 

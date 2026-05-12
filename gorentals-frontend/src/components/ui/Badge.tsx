@@ -1,27 +1,69 @@
-import { cn } from '@/lib/utils';
+// src/components/ui/Badge.tsx
+import { cn } from '@/lib/utils'
 
-type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'destructive' | 'outline';
+type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'brand'
+type BadgeSize    = 'xs' | 'sm' | 'md'
 
 interface BadgeProps {
-  variant?: BadgeVariant;
-  children: React.ReactNode;
-  className?: string;
+  variant?: BadgeVariant
+  size?: BadgeSize
+  dot?: boolean
+  className?: string
+  children: React.ReactNode
 }
 
-const variants: Record<BadgeVariant, string> = {
-  default: 'bg-slate-700 text-slate-300',
-  success: 'bg-red-500/20 text-red-400 border border-red-500/30',
-  warning: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
-  danger: 'bg-red-500/20 text-red-400 border border-red-500/30',
-  info: 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
-  destructive: 'bg-rose-500/20 text-rose-400 border border-rose-500/30',
-  outline: 'bg-transparent text-faint border border-slate-700',
-};
+const VARIANT_STYLES: Record<BadgeVariant, string> = {
+  success: 'bg-[var(--status-success-bg)] text-[var(--status-success-text)] border border-[var(--status-success-border)]',
+  warning: 'bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] border border-[var(--status-warning-border)]',
+  error:   'bg-[var(--status-error-bg)]   text-[var(--status-error-text)]   border border-[var(--status-error-border)]',
+  info:    'bg-[var(--status-info-bg)]    text-[var(--status-info-text)]    border border-[var(--status-info-border)]',
+  neutral: 'bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)] border border-[var(--status-neutral-border)]',
+  brand:   'bg-brand-50 text-brand-600 border border-brand-100',
+}
 
-export function Badge({ variant = 'default', children, className }: BadgeProps) {
+const DOT_COLORS: Record<BadgeVariant, string> = {
+  success: 'bg-[var(--status-success-text)]',
+  warning: 'bg-[var(--status-warning-text)]',
+  error:   'bg-[var(--status-error-text)]',
+  info:    'bg-[var(--status-info-text)]',
+  neutral: 'bg-[var(--status-neutral-text)]',
+  brand:   'bg-brand-600',
+}
+
+// Booking status → badge variant mapping
+export const BOOKING_STATUS_VARIANT: Record<string, BadgeVariant> = {
+  ACTIVE:    'success',
+  CONFIRMED: 'info',
+  UPCOMING:  'info',
+  PENDING:   'warning',
+  COMPLETED: 'neutral',
+  CANCELLED: 'error',
+  DISPUTED:  'error',
+}
+
+export function Badge({ variant = 'neutral', size = 'md', dot, className, children }: BadgeProps) {
+  const sizeStyles = {
+    xs: 'text-[10px] px-1.5 py-0.25 leading-none',
+    sm: 'text-xs px-2 py-0.5',
+    md: 'text-xs px-2.5 py-1',
+  }
+
   return (
-    <span className={cn('inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', variants[variant], className)}>
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 font-semibold rounded-full whitespace-nowrap',
+        sizeStyles[size],
+        VARIANT_STYLES[variant],
+        className
+      )}
+    >
+      {dot && (
+        <span
+          className={cn('w-1.5 h-1.5 rounded-full shrink-0', DOT_COLORS[variant])}
+          aria-hidden="true"
+        />
+      )}
       {children}
     </span>
-  );
+  )
 }

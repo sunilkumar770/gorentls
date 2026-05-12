@@ -16,6 +16,8 @@ public class BookingRequest {
     @NotNull(message = "End date is required")
     private LocalDate endDate;
 
+    private String idempotencyKey;
+
 	public UUID getListingId() {
 		return listingId;
 	}
@@ -39,4 +41,12 @@ public class BookingRequest {
 	public void setEndDate(LocalDate endDate) {
 		this.endDate = endDate;
 	}
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
+    }
 }

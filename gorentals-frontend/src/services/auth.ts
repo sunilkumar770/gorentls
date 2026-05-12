@@ -42,16 +42,16 @@ const TOKEN_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 /**
  * Write the JWT to BOTH safeStorage and a cookie so that:
  *  - Client-side Axios interceptor can read from safeStorage
- *  - Next.js middleware (proxy.ts) can read from the cookie
+ *  - Next.js middleware (middleware.ts) can read from the cookie
  *
  * The Secure flag is applied in production to prevent cookie
  * transmission over HTTP (required for HTTPS deployments).
  */
 export function setToken(token: string): void {
-  safeStorage.setItem('gr_token', token);
+  safeStorage.setItem('gorentals_token', token);
 
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  document.cookie = `token=${token}; path=/; SameSite=Lax; max-age=${TOKEN_COOKIE_MAX_AGE}${secure}`;
+  document.cookie = `gorentals_token=${token}; path=/; SameSite=Lax; max-age=${TOKEN_COOKIE_MAX_AGE}${secure}`;
 }
 
 /**
@@ -59,10 +59,11 @@ export function setToken(token: string): void {
  * Call this on logout, 401, or session expiry.
  */
 export function clearToken(): void {
-  safeStorage.removeItem('gr_token');
+  safeStorage.removeItem('gorentals_token');
   safeStorage.removeItem('gr_user');
-  document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
+  document.cookie = 'gorentals_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
 }
+
 
 export async function signIn(
   email: string,
@@ -140,7 +141,12 @@ export const authService = {
 
   getProfile: async (): Promise<Profile> => {
     const response = await api.get('/users/me');
-    return response.data;
+    return buildProfile(response.data);
+  },
+
+  updateProfile: async (data: Record<string, unknown>): Promise<Profile> => {
+    const response = await api.patch('/users/profile', data);
+    return buildProfile(response.data);
   },
 
   logout: () => {

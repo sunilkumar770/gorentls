@@ -46,6 +46,14 @@ public class ListingController {
         return ResponseEntity.ok(listingService.getListingsByOwner(userDetails.getUsername(), pageable));
     }
 
+    @GetMapping("/owner/drafts")
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<PagedResponse<ListingResponse>> getDraftListings(
+            @AuthenticationPrincipal UserDetails userDetails,
+            Pageable pageable) {
+        return ResponseEntity.ok(listingService.getDraftListingsByOwner(userDetails.getUsername(), pageable));
+    }
+
     @GetMapping("/search")
     public ResponseEntity<PagedResponse<ListingResponse>> searchListings(
             @RequestParam(required = false) String city,

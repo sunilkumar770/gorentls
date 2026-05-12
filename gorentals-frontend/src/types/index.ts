@@ -179,6 +179,8 @@ export interface Profile {
   phone?:      string;
   role:        UserRole;
   userType:    UserRole; // Unified field for RBAC
+  storeName?:  string;
+  isVerified?: boolean;
   bio?:        string;
   avatarUrl?:  string;
   profilePicture?: string;
@@ -189,6 +191,7 @@ export interface Profile {
   pincode?: string;
   city?:       string;
   state?:      string;
+  dateOfBirth?: string;
   kycStatus?:  'NOT_SUBMITTED' | 'PENDING' | 'APPROVED' | 'REJECTED';
   isActive?:   boolean;
   createdAt:   string;

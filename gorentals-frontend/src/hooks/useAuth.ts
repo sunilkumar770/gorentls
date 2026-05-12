@@ -1,30 +1,23 @@
-'use client';
-
+// src/hooks/useAuth.ts
+'use client'
 import { useContext } from 'react';
-import { AuthContext } from '@/contexts/AuthContext';
-import { safeStorage } from '@/lib/safeStorage';
+import { AuthContext } from '@/context/AuthContext';
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
-
-  const userObj = ctx.user || (typeof window !== 'undefined' ? JSON.parse(safeStorage.getItem('gr_user') || 'null') : null);
-  const raw = userObj?.userType ?? userObj?.role ?? '';
+  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
   
-  // Strip Spring's ROLE_ prefix if present (e.g. ROLE_ADMIN → ADMIN)
-  const userType = (typeof raw === 'string' ? raw : '').replace(/^ROLE_/, '').toUpperCase();
+  const user = ctx.user;
+  const role = user?.userType ?? ''; // Note: src/contexts/AuthContext uses userType in Profile
 
   return {
     ...ctx,
-    user: userObj,
-    userType,
-    isAuthenticated: !!userObj,
-    isAdmin:  userType === 'ADMIN' || userType === 'SUPER_ADMIN',
-    isOwner:  userType === 'OWNER',
-    isRenter: userType === 'RENTER',
-    
-    // Backward compatibility aliases
-    profile: ctx.user,
-    loading: ctx.isLoading,
-  };
+    isAuthenticated: !!user,
+    isAdmin: role === 'ADMIN',
+    isOwner: role === 'OWNER',
+    isRenter: role === 'RENTER',
+    userType: role, // compatibility
+    profile: user, // compatibility
+    loading: ctx.isLoading, // compatibility
+  }
 }

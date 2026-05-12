@@ -1,5 +1,20 @@
 $ErrorActionPreference = "Stop"
 
+# Load .env file if it exists
+if (Test-Path ".env") {
+    Get-Content .env | ForEach-Object {
+        if ($_ -match '^([^#\s][^=]*)=(.*)$') {
+            $key = $matches[1].Trim()
+            $value = $matches[2].Trim()
+            # Remove quotes if present
+            $value = $value -replace "^['""]|['""]$" , ""
+            if (-not [string]::IsNullOrWhiteSpace($key)) {
+                [Environment]::SetEnvironmentVariable($key, $value)
+            }
+        }
+    }
+}
+
 $env:DB_HOST = if ($env:DB_HOST) { $env:DB_HOST } else { "localhost" }
 $env:DB_PORT = if ($env:DB_PORT) { $env:DB_PORT } else { "5432" }
 $env:DB_NAME = if ($env:DB_NAME) { $env:DB_NAME } else { "gorentals" }

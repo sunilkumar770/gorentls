@@ -38,10 +38,14 @@ class WebSocketService {
   private connListeners      = new Set<ConnectionCallback>();
   private authFailListeners  = new Set<AuthFailCallback>();
 
-  // Matches AuthContext.tsx → safeStorage.setItem('gr_token', token)
+  private token: string | null = null;
+
+  public setToken(token: string): void {
+    this.token = token;
+  }
+
   private getToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    return safeStorage.getItem('gr_token');
+    return this.token;
   }
 
   private getWsUrl(): string {

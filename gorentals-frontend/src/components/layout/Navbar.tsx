@@ -1,319 +1,249 @@
-'use client';
-
-import Link from 'next/link';
-import { useAuth } from '@/hooks/useAuth';
-import { useChat } from '@/contexts/ChatContext';
-import {
-  Search, Plus, LayoutDashboard, LogOut, User, ChevronDown,
-  Calendar, ClipboardList, Shield, MessageCircle, Bell, BarChart3, ArrowRight
-} from 'lucide-react';
-import { useRouter, usePathname } from 'next/navigation';
-import { useState, useRef, useEffect } from 'react';
-import { notificationService } from '@/services/notifications';
-import { LogoMark } from '@/components/ui/Logo';
-import { ThemeToggle } from '@/components/ui/ThemeToggle';
-
-// ── GoRentals SVG Wordmark ────────────────────────────────────────
-function GoRentalsLogo() {
-  return (
-    <Link href="/" className="flex items-center gap-2.5 group focus:outline-none">
-      <LogoMark size={32} className="group-hover:scale-105 transition-transform" />
-      <span
-        className="font-display text-xl font-bold text-[#1a1a18] tracking-tight"
-        style={{ fontFamily: 'Satoshi, system-ui, sans-serif' }}
-      >
-        GoRentals
-      </span>
-    </Link>
-  );
-}
+'use client'
+import Link from 'next/link'
+import { useAuth } from '@/hooks/useAuth'
+import { useChat } from '@/context/ChatContext'
+import { useNotifications } from '@/hooks/useNotifications'
+import { useRouter, usePathname } from 'next/navigation'
+import { useState, useRef, useEffect } from 'react'
+import { Menu, X, Bell } from 'lucide-react'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 export function Navbar() {
-  const { user, profile, isOwner, isAdmin, isRenter, loading, logout } = useAuth();
-  const { totalUnread } = useChat();
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const router   = useRouter();
-  const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Polling for notifications (every 30s)
-  useEffect(() => {
-    if (!user) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setUnreadNotifications(0);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setUnreadCount(0);
-      return;
-    }
-
-    const fetchCount = async () => {
-      try {
-        const count = await notificationService.getUnreadCount();
-        setUnreadNotifications(count);
-        setUnreadCount(count);
-      } catch (err) {
-        console.error('[Navbar] Failed to fetch unread count', err);
-      }
-    };
-
-    fetchCount();
-    const interval = setInterval(fetchCount, 30000);
-    return () => clearInterval(interval);
-  }, [user]);
+  const { user, logout, isLoading } = useAuth()
+  const { totalUnread: chatUnread } = useChat()
+  const { unreadCount: notifUnread } = useNotifications(user?.id)
+  const pathname = usePathname()
+  const [scrolled, setScrolled] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+    const onScroll = () => setScrolled(window.scrollY > 10)
+    window.addEventListener('scroll', onScroll)
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node))
-        setMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
-  const hiddenRoutes = ['/login', '/signup', '/forgot-password', '/auth/admin-login'];
-  if (hiddenRoutes.includes(pathname)) return null;
+  // Routes where the navbar should be hidden
+  const hideNavbar = ['/login', '/signup', '/forgot-password'].includes(pathname)
+  if (hideNavbar) return null
 
-  const handleLogout = () => {
-    logout();
-    setMenuOpen(false);
-    router.push('/login');
-    router.refresh();
-  };
+  // Dashboard routes get their own DashboardNav, so we hide the main Navbar there
+  const isDashboard = pathname.startsWith('/dashboard') || pathname.startsWith('/owner')
+  if (isDashboard) return null
 
-  const navLinks = [
-    { href: '/search',   label: 'Browse',   auth: false },
-    { href: '/stores',   label: 'Stores',   auth: false },
-    { href: '/dashboard/messages', label: 'Messages', auth: true  },
-    { href: '/help',     label: 'Help',     auth: false },
-  ];
-
-  const badgeClass = 'absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none';
+  const initials = user?.fullName?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'U'
 
   return (
-    <nav
-      className={`sticky top-0 z-50 transition-shadow duration-200 ${
-        scrolled
-          ? 'bg-[#f7f6f2]/90 backdrop-blur-xl backdrop-saturate-150 shadow-[0_1px_0_rgba(1,105,111,0.1),0_4px_24px_rgba(0,0,0,0.06)]'
-          : 'bg-[#f7f6f2]/80 backdrop-blur-md shadow-[0_1px_0_rgba(1,105,111,0.08)]'
-      }`}
-    >
+    <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${
+      scrolled 
+        ? 'py-3 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl shadow-sm border-b border-slate-200/50 dark:border-slate-800/50' 
+        : 'py-5 bg-transparent'
+    }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-500/20 group-hover:scale-110 transition-transform">G</div>
+            <span className="font-bold text-slate-900 dark:text-white text-xl tracking-tight hidden sm:block">GoRentals</span>
+          </Link>
 
-          <div className="flex items-center gap-8">
-            <GoRentalsLogo />
-
-            {/* Desktop nav */}
-            <div className="hidden md:flex items-center gap-1">
-              {navLinks.map(link => {
-                // If not mounted yet, skip auth links to ensure server/client match
-                if (!mounted && link.auth) return null;
-                if (link.auth && !user) return null;
-                const isActive  = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href));
-                const showBadge = mounted && link.href === '/messages' && totalUnread > 0;
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={`relative px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                      isActive
-                        ? 'text-[#0F766E] nav-underline'
-                        : 'text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5'
-                    }`}
-                  >
-                    {link.label}
-                    {showBadge && (
-                      <span className={badgeClass}>
-                        {totalUnread > 99 ? '99+' : totalUnread}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
+          {/* Navigation links */}
+          <div className="hidden md:flex items-center gap-1">
+            <NavLink href="/search" label="Browse" active={pathname.startsWith('/search')} />
+            <NavLink href="/stores" label="Stores" active={pathname.startsWith('/stores')} />
+            <NavLink href="/help" label="Help" active={pathname === '/help'} />
           </div>
 
-          {/* Right */}
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Link href="/search" className="p-2 rounded-lg text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5 transition-colors md:hidden">
-              <Search className="w-5 h-5" />
-            </Link>
-
-            {/* Mobile messages & notifications icons */}
-            {user && (
-              <div className="flex items-center md:hidden">
-                <Link href="/dashboard/messages" className="relative p-2 rounded-lg text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5 transition-colors">
-                  <MessageCircle className="w-5 h-5" />
-                  {totalUnread > 0 && (
-                    <span className={badgeClass}>{totalUnread > 9 ? '9+' : totalUnread}</span>
-                  )}
-                </Link>
-                <Link href="/notifications" className="relative p-2 rounded-lg text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5 transition-colors">
-                  <Bell className="w-5 h-5" />
-                  {unreadNotifications > 0 && (
-                    <span className={badgeClass}>{unreadNotifications > 9 ? '9+' : unreadNotifications}</span>
-                  )}
-                </Link>
-              </div>
-            )}
-
-            {!loading && (
+          {/* Right section */}
+          <div className="flex items-center gap-2 sm:gap-6">
+            <div className="hidden lg:block">
+              <ThemeToggle />
+            </div>
+            
+            {!isLoading && (
               <>
                 {user ? (
-                  <>
-                {user && !isRenter && (
-                  <Link href="/create-listing"
-                    className="hidden sm:flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-[#0F766E] rounded-xl hover:bg-[#115E59] transition-colors shadow-sm">
-                    <Plus className="w-4 h-4" /> List item
-                  </Link>
-                )}
-
-                    {/* Desktop Notifications Bell */}
-                    <Link href="/notifications" className="hidden md:flex relative p-2 rounded-lg text-[#6b7280] hover:text-[#111827] hover:bg-[#f9fafb] transition-colors">
-                      <Bell className="w-5 h-5" />
-                      {unreadNotifications > 0 && (
-                        <span className={badgeClass}>
-                          {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                  <div className="flex items-center gap-2 sm:gap-4">
+                    {/* Notifications Link */}
+                    <Link href="/dashboard/notifications" className="relative p-2 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                      <Bell size={20} />
+                      {notifUnread > 0 && (
+                        <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-slate-950">
+                          {notifUnread > 9 ? '9+' : notifUnread}
                         </span>
                       )}
                     </Link>
 
-                    <div className="relative" ref={menuRef}>
-                      <button onClick={() => setMenuOpen(o => !o)}
-                        className="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-xl border border-[#0F766E]/20 hover:border-[#0F766E]/40 hover:bg-[#0F766E]/5 transition-all">
-                        <div className="w-7 h-7 rounded-full bg-[#0F766E]/10 flex items-center justify-center flex-shrink-0">
-                          <span className="text-xs font-bold text-[#0F766E]">
-                            {profile?.fullName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
-                          </span>
-                        </div>
-                        <span className="hidden sm:block text-sm font-medium text-[#1a1a18] max-w-[100px] truncate">
-                          {profile?.fullName?.split(' ')[0] || 'Account'}
+                    {/* Inbox Link */}
+                    <Link href="/dashboard/messages" className="relative p-2 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                      <span className="text-xl">💬</span>
+                      {chatUnread > 0 && (
+                        <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                          {chatUnread > 9 ? '9+' : chatUnread}
                         </span>
-                        <ChevronDown className={`w-4 h-4 text-[#6b6b65] transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+                      )}
+                    </Link>
+                    
+                    {/* Profile Dropdown */}
+                    <div className="relative" ref={menuRef}>
+                      <button 
+                        onClick={() => setMenuOpen(!menuOpen)}
+                        className="flex items-center gap-2 p-1 pl-3 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all shadow-sm"
+                      >
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 hidden sm:block">
+                          {(user.fullName || 'User').split(' ')[0]}
+                        </span>
+                        <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold text-xs">
+                          {initials}
+                        </div>
                       </button>
 
                       {menuOpen && (
-                        <div className="absolute right-0 mt-2 w-56 bg-card rounded-xl shadow-lg border border-[#0F766E]/10 py-1 z-50">
-                          <div className="px-4 py-3 border-b border-[#f3f4f6]">
-                            <p className="text-sm font-semibold text-[#1a1a18] truncate">{profile?.fullName || 'User'}</p>
-                            <p className="text-xs text-[#6b6b65] truncate mt-0.5">{user.email}</p>
+                        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                          <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 mb-1">
+                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user.fullName}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate capitalize">{(user.role || 'RENTER').toLowerCase()}</p>
+                          </div>
+                          
+                          <Link 
+                            href={(user.role || 'RENTER') === 'OWNER' ? '/owner' : '/dashboard'} 
+                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            <span>🏠</span> Dashboard
+                          </Link>
+                          
+                          <Link 
+                            href="/dashboard/profile" 
+                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            <span>👤</span> Profile Settings
+                          </Link>
+
+                          {/* Theme Toggle inside desktop dropdown (optional but good for UX) */}
+                          <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 lg:hidden">
+                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Appearance</p>
+                             <ThemeToggle />
                           </div>
 
-                          {[
-                            { href: '/my-rentals', label: 'My Rentals', icon: LayoutDashboard },
-                          ].map(({ href, label, icon: Icon }) => (
-                            <Link key={href} href={href} onClick={() => setMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f7f6f2] hover:text-[#1a1a18] transition-colors">
-                              <Icon className="w-4 h-4 text-[#6b6b65]" /> {label}
-                            </Link>
-                          ))}
-
-                          <Link href="/notifications" onClick={() => setMenuOpen(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f7f6f2] hover:text-[#1a1a18] transition-colors">
-                            <Bell className="w-4 h-4 text-[#6b6b65]" />
-                            <span className="flex-1">Notifications</span>
-                            {unreadCount > 0 && (
-                              <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">
-                                {unreadCount > 99 ? '99+' : unreadCount}
-                              </span>
-                            )}
-                          </Link>
-
-                          <Link href="/dashboard/messages" onClick={() => setMenuOpen(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f7f6f2] hover:text-[#1a1a18] transition-colors">
-                            <MessageCircle className="w-4 h-4 text-[#6b6b65]" />
-                            <span className="flex-1">Messages</span>
-                            {totalUnread > 0 && (
-                              <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">
-                                {totalUnread > 99 ? '99+' : totalUnread}
-                              </span>
-                            )}
-                          </Link>
-
-                          {/* Notifications with live badge in dropdown */}
-
-                          {isAdmin && (
-                            <Link href="/admin" onClick={() => setMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-[#0F766E] hover:bg-[#0F766E]/5 transition-colors">
-                              <Shield className="w-4 h-4 text-[#0F766E]" /> Admin Control Center
-                            </Link>
-                          )}
-
-                          {isOwner && (<>
-                            <Link href="/owner/dashboard" onClick={() => setMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f7f6f2] hover:text-[#1a1a18] transition-colors">
-                              <LayoutDashboard className="w-4 h-4 text-[#6b6b65]" /> Owner Dashboard
-                            </Link>
-                            <Link href="/owner/analytics" onClick={() => setMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-[#0F766E] hover:bg-[#0F766E]/5 transition-colors">
-                              <BarChart3 className="w-4 h-4 text-[#0F766E]" /> View Analytics
-                            </Link>
-                            <Link href="/owner/bookings" onClick={() => setMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f7f6f2] hover:text-[#1a1a18] transition-colors">
-                              <ClipboardList className="w-4 h-4 text-[#6b6b65]" /> Manage Bookings
-                            </Link>
-                          </>)}
-
-                          <Link href="/profile" onClick={() => setMenuOpen(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f7f6f2] hover:text-[#1a1a18] transition-colors">
-                            <User className="w-4 h-4 text-[#6b6b65]" /> Profile &amp; Settings
-                          </Link>
-
-                          <div className="border-t border-[#f3f4f6] mt-1 pt-1">
-                            <button onClick={handleLogout}
-                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
-                              <LogOut className="w-4 h-4" /> Sign out
+                          <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
+                            <button 
+                              onClick={() => { logout(); setMenuOpen(false); }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+                            >
+                              <span>🚪</span> Sign out
                             </button>
                           </div>
                         </div>
                       )}
                     </div>
-                  </>
+                  </div>
                 ) : (
-                  <>
-                    {/* Ghost Sign in */}
-                    {!isRenter && (
-                      <Link
-                        href="/signup"
-                        className="flex items-center gap-1.5 text-sm font-semibold text-[#0F766E] hover:text-[#115E59] group transition-colors"
-                      >
-                        List your gear
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                      </Link>
-                    )}
-                    <Link
-                      href="/login"
-                      className="px-4 py-2 text-sm font-semibold text-[#6b6b65] hover:text-[#1a1a18] hover:bg-black/5 rounded-lg transition-colors"
-                    >
+                  <div className="flex items-center gap-2">
+                    <Link href="/login" className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
                       Sign in
                     </Link>
-                    {/* Solid primary CTA */}
-                    <Link
-                      href="/signup"
-                      className="px-5 py-2.5 text-sm font-bold text-white bg-[#0F766E] rounded-xl hover:bg-[#115E59] transition-colors shadow-sm"
+                    <Link 
+                      href="/signup" 
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-6 py-2.5 rounded-xl transition-all hover:scale-[1.02] shadow-lg shadow-indigo-500/20"
                     >
-                      Get started
+                      Get Started
                     </Link>
-                  </>
+                  </div>
                 )}
               </>
             )}
+
+            {/* Mobile Menu Toggle */}
+            <button 
+              className="md:hidden p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle mobile menu"
+            >
+              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 top-[60px] bg-white/95 dark:bg-slate-950/95 backdrop-blur-md z-[90] animate-in slide-in-from-top duration-300 overflow-y-auto border-t border-slate-100 dark:border-slate-800">
+          <div className="p-6 space-y-8">
+            <div className="flex flex-col gap-2">
+              <MobileNavLink href="/search" label="Browse" active={pathname.startsWith('/search')} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/stores" label="Stores" active={pathname.startsWith('/stores')} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/help" label="Help" active={pathname === '/help'} onClick={() => setMobileMenuOpen(false)} />
+            </div>
+
+            {/* Theme Section in Mobile Menu */}
+            <div className="pt-8 border-t border-slate-100 dark:border-slate-800">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Appearance</p>
+              <ThemeToggle />
+            </div>
+            
+            {!user && (
+              <div className="pt-8 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-4">
+                <Link 
+                  href="/login" 
+                  className="w-full py-4 text-center text-base font-bold text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Sign in
+                </Link>
+                <Link 
+                  href="/signup" 
+                  className="w-full py-4 text-center text-base font-bold text-white bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Create Account
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </nav>
-  );
+  )
+}
+
+function NavLink({ href, label, active }: { href: string; label: string; active: boolean }) {
+  return (
+    <Link 
+      href={href} 
+      className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+        active 
+          ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50' 
+          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+      }`}
+    >
+      {label}
+    </Link>
+  )
+}
+
+function MobileNavLink({ href, label, active, onClick }: { href: string; label: string; active: boolean; onClick: () => void }) {
+  return (
+    <Link 
+      href={href} 
+      onClick={onClick}
+      className={`px-4 py-4 rounded-2xl text-lg font-bold transition-all ${
+        active 
+          ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50' 
+          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+      }`}
+    >
+      {label}
+    </Link>
+  )
 }

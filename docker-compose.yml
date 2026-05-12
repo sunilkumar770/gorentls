@@ -21,6 +21,11 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build: ./GORENTALS
@@ -31,25 +36,29 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/gorentals
       SPRING_DATASOURCE_USERNAME: rentit
       SPRING_DATASOURCE_PASSWORD: rentit_local
-      JWT_SECRET: ${JWT_SECRET}
-      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
-      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
-      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-fallback_secret_for_local_dev}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-mock_key}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-mock_secret}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-mock_mail}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
 
   frontend:
     build: ./gorentals-frontend
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8080
-      NEXT_PUBLIC_RAZORPAY_KEY_ID: ${NEXT_PUBLIC_RAZORPAY_KEY_ID}
+      NEXT_PUBLIC_API_URL: http://backend:8080/api
+      NEXT_PUBLIC_WS_URL: ws://backend:8080/ws/chat
+      NEXT_PUBLIC_RAZORPAY_KEY_ID: ${NEXT_PUBLIC_RAZORPAY_KEY_ID:-mock_key}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data:

@@ -41,6 +41,30 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
         @Param("endDate")    LocalDate     endDate,
         @Param("cutoff")     LocalDateTime cutoff
     );
+
+    @Query("""
+        SELECT COUNT(b) > 0 FROM Booking b
+        WHERE b.listing.id = :listingId
+          AND b.bookingStatus IN :statuses
+          AND b.startDate < :endDate
+          AND b.endDate > :startDate
+    """)
+    boolean existsConflictingBooking(
+        @Param("listingId") UUID listingId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate,
+        @Param("statuses") List<BookingStatus> statuses
+    );
+
+    Optional<Booking> findByIdempotencyKey(String idempotencyKey);
+    
+    /**
+     * PESSIMISTIC_WRITE lock on the booking for safe state transitions (cancel, confirm, etc.)
+     */
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @EntityGraph(attributePaths = {"listing", "listing.owner", "renter"})
+    @Query("SELECT b FROM Booking b WHERE b.id = :id")
+    Optional<Booking> findByIdWithLock(@Param("id") UUID id);
     
     // ── N+1 ELIMINATION: single findById with eager fetch ───────────────────
     @Override
@@ -191,6 +215,11 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
            "ORDER BY b.startDate ASC")
     List<Booking> findBookedDatesForListing(@Param("listingId") UUID listingId);
 
+    @Query("SELECT b FROM Booking b WHERE b.listing.id = :listingId " +
+           "AND b.bookingStatus = 'PENDING_PAYMENT' " +
+           "AND b.createdAt > :cutoff")
+    List<Booking> findPendingBookingsByListingAndCutoff(@Param("listingId") UUID listingId, @Param("cutoff") LocalDateTime cutoff);
+
     /**
      * Find bookings by status and where dispute window has ended
      */
@@ -244,4 +273,6 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
            "AND b.updatedAt >= :startDate " +
            "GROUP BY FUNCTION('to_char', b.updatedAt, 'YYYY-MM') ORDER BY month ASC")
     List<Object[]> getMonthlyRevenueByOwnerId(@Param("ownerId") UUID ownerId, @Param("startDate") LocalDateTime startDate);
+    @Query("SELECT b FROM Booking b WHERE b.listing.owner.id = :ownerId AND b.bookingStatus = :status AND b.startDate BETWEEN :start AND :end")
+    List<Booking> findByOwnerIdAndStatusAndStartDateBetween(@Param("ownerId") UUID ownerId, @Param("status") BookingStatus status, @Param("start") LocalDate start, @Param("end") LocalDate end);
 }

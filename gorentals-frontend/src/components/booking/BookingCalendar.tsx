@@ -48,8 +48,8 @@ function CustomDayButton(props: DayButtonProps & { blockedRanges: BlockedRange[]
 
   const getDayStyles = () => {
     if (isPast) return 'text-gray-300 cursor-not-allowed bg-gray-50 opacity-50';
-    if (blockReason === 'BOOKING') return 'bg-orange-100 text-orange-700 cursor-not-allowed border-orange-200';
-    if (blockReason === 'MANUAL') return 'bg-red-50 text-red-700 cursor-not-allowed border-red-100';
+    if (blockReason === 'BOOKING') return 'bg-orange-500 text-white cursor-not-allowed border-orange-600 shadow-inner opacity-90';
+    if (blockReason === 'MANUAL') return 'bg-rose-600 text-white cursor-not-allowed border-rose-700 shadow-inner opacity-90';
 
     if (modifiers.selected) {
       if (modifiers.range_start || modifiers.range_end) {
@@ -93,10 +93,10 @@ function CustomDayButton(props: DayButtonProps & { blockedRanges: BlockedRange[]
 
         {/* Visual indicators for blocked states */}
         {blockReason === 'BOOKING' && (
-          <div className="absolute bottom-1.5 w-1 h-1 rounded-full bg-orange-400" />
+          <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-white shadow-sm" />
         )}
         {blockReason === 'MANUAL' && (
-          <div className="absolute bottom-1.5 w-1 h-1 rounded-full bg-red-400" />
+          <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-white shadow-sm" />
         )}
       </button>
 
@@ -117,6 +117,35 @@ export default function BookingCalendar({
   onSelect,
   disabled
 }: BookingCalendarProps) {
+
+  // Function to check if a range overlaps with any blocked dates
+  const isRangeInvalid = (range: DateRange | undefined) => {
+    if (!range?.from || !range?.to) return false;
+    
+    return blockedRanges.some(blocked => {
+      const blockedStart = startOfDay(new Date(blocked.startDate));
+      const blockedEnd = startOfDay(new Date(blocked.endDate));
+      
+      // Check if any date in the selected range (from -> to) overlaps with this blocked range
+      return (
+        isWithinInterval(blockedStart, { start: range.from!, end: range.to! }) ||
+        isWithinInterval(blockedEnd, { start: range.from!, end: range.to! }) ||
+        isWithinInterval(range.from!, { start: blockedStart, end: blockedEnd })
+      );
+    });
+  };
+
+  const handleSelect = (range: DateRange | undefined) => {
+    if (isRangeInvalid(range)) {
+      // If invalid, we reset or ignore. 
+      // For better UX, we could just select the 'from' date again.
+      if (range?.from) {
+        onSelect({ from: range.from, to: undefined });
+      }
+      return;
+    }
+    onSelect(range);
+  };
 
   return (
     <div className="booking-calendar-wrapper w-full max-w-sm mx-auto">
@@ -145,7 +174,7 @@ export default function BookingCalendar({
           <DayPicker
             mode="range"
             selected={selectedRange}
-            onSelect={onSelect}
+            onSelect={handleSelect}
             disabled={[
               { before: startOfDay(new Date()) },
               ...blockedRanges.map(r => ({ from: new Date(r.startDate), to: new Date(r.endDate) }))

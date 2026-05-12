@@ -1,60 +1,107 @@
-'use client';
+// src/components/ui/Button.tsx
+import { forwardRef } from 'react'
+import { Slot } from '@radix-ui/react-slot'
+import { cn } from '@/lib/utils'
 
-import { cn } from '@/lib/utils';
-import { ButtonHTMLAttributes, forwardRef } from 'react';
-import { Slot } from '@radix-ui/react-slot';
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success' | 'gradient'
+type ButtonSize    = 'sm' | 'md' | 'lg' | 'icon'
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'gradient';
-  size?: 'sm' | 'md' | 'lg';
-  loading?: boolean;
-  asChild?: boolean;
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant
+  size?: ButtonSize
+  loading?: boolean
+  leftIcon?: React.ReactNode
+  rightIcon?: React.ReactNode
+  fullWidth?: boolean
+  asChild?: boolean
 }
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', loading, asChild = false, disabled, children, ...props }, ref) => {
-    const Component = asChild ? Slot : 'button';
-    
-    const base = 'inline-flex items-center justify-center font-bold rounded-[var(--r-md)] transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]';
+const VARIANT_STYLES: Record<ButtonVariant, string> = {
+  primary:   'bg-brand-600 hover:bg-brand-700 active:bg-brand-700 text-text-inverse focus-visible:ring-brand-500',
+  secondary: 'bg-surface-base border border-border-subtle hover:bg-surface-subtle text-text-primary focus-visible:ring-brand-500',
+  outline:   'bg-transparent border border-border-default hover:bg-surface-subtle text-text-secondary hover:text-text-primary focus-visible:ring-brand-500',
+  ghost:     'bg-transparent hover:bg-surface-subtle text-text-secondary hover:text-text-primary focus-visible:ring-brand-500',
+  danger:    'bg-red-600 hover:bg-red-700 active:bg-red-700 text-white focus-visible:ring-red-500',
+  success:   'bg-emerald-600 hover:bg-emerald-700 text-white focus-visible:ring-emerald-500',
+  gradient:  'bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-text-inverse shadow-lg shadow-brand-500/20 focus-visible:ring-brand-500',
+}
 
-    const variants = {
-      primary: 'bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] shadow-card hover:shadow-card-hover',
-      gradient: 'gradient-teal text-white shadow-card hover:shadow-card-hover border-none',
-      secondary: 'bg-[var(--bg-subtle)] text-[var(--text)] hover:bg-[var(--border)] border border-[var(--border)]',
-      outline: 'border-2 border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary-light)]',
-      ghost: 'text-[var(--text-muted)] hover:bg-[var(--primary-light)] hover:text-[var(--primary)]',
-      danger: 'bg-red-500 text-white hover:bg-red-600',
-    };
+const SIZE_STYLES: Record<ButtonSize, string> = {
+  sm:   'h-8  px-3   text-xs  gap-1.5 rounded-md',
+  md:   'h-10 px-4   text-sm  gap-2   rounded-lg',
+  lg:   'h-12 px-5   text-sm  gap-2.5 rounded-lg',
+  icon: 'h-10 w-10  p-0      rounded-lg',
+}
 
-    const sizes = {
-      sm: 'text-xs px-3 py-1.5 gap-1.5',
-      md: 'text-sm px-5 py-2.5 gap-2',
-      lg: 'text-base px-7 py-3.5 gap-2.5',
-    };
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({
+    variant = 'primary',
+    size = 'md',
+    loading = false,
+    leftIcon,
+    rightIcon,
+    fullWidth = false,
+    asChild = false,
+    disabled,
+    className,
+    children,
+    ...props
+  }, ref) => {
+    const Component = asChild ? Slot : 'button'
+    const isDisabled = disabled || loading
 
     return (
       <Component
         ref={ref}
-        disabled={disabled || loading}
-        className={cn(base, variants[variant], sizes[size], className)}
+        disabled={isDisabled}
+        aria-busy={loading}
+        className={cn(
+          // Base
+          'inline-flex items-center justify-center font-semibold shrink-0',
+          'transition-colors duration-normal',
+          // Focus ring
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+          'focus-visible:ring-offset-surface-base',
+          // Disabled
+          'disabled:opacity-50 disabled:cursor-not-allowed',
+          // Variant + size
+          VARIANT_STYLES[variant],
+          SIZE_STYLES[size],
+          fullWidth && 'w-full',
+          className
+        )}
         {...props}
       >
-        {asChild ? (
-          children
+        {loading ? (
+          <>
+            <Spinner size={size === 'sm' ? 14 : 16} className="shrink-0 mr-2" />
+            <span>{children}</span>
+          </>
         ) : (
           <>
-            {loading && (
-              <svg className="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
-            )}
+            {leftIcon && <span className="shrink-0">{leftIcon}</span>}
             {children}
+            {rightIcon && <span className="shrink-0">{rightIcon}</span>}
           </>
         )}
       </Component>
-    );
+    )
   }
-);
-Button.displayName = 'Button';
-export { Button };
+)
+Button.displayName = 'Button'
+
+function Spinner({ size, className }: { size: number; className?: string }) {
+  return (
+    <svg
+      className={cn('animate-spin', className)}
+      width={size} height={size}
+      fill="none" viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <circle className="opacity-25" cx="12" cy="12" r="10"
+        stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  )
+}

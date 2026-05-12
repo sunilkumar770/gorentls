@@ -1,32 +1,48 @@
-import { cn } from '@/lib/utils';
+// src/components/ui/Card.tsx
+import { cn } from '@/lib/utils'
 
-interface CardProps {
-  className?: string;
-  children: React.ReactNode;
-  hover?: boolean;
-  onClick?: () => void;
+type CardVariant = 'default' | 'raised' | 'bordered' | 'ghost'
+
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: CardVariant
+  padding?: 'none' | 'sm' | 'md' | 'lg'
+  interactive?: boolean
 }
 
-export function Card({ className, children, hover, onClick }: CardProps) {
+const VARIANT_STYLES: Record<CardVariant, string> = {
+  default:  'bg-surface-base border border-border-subtle shadow-sm',
+  raised:   'bg-surface-base border border-border-subtle shadow-md',
+  bordered: 'bg-surface-base border border-border-default',
+  ghost:    'bg-transparent',
+}
+
+const PADDING_STYLES = {
+  none: '',
+  sm:   'p-4',
+  md:   'p-5',
+  lg:   'p-6 sm:p-8',
+}
+
+export function Card({
+  variant = 'default',
+  padding = 'md',
+  interactive = false,
+  className,
+  children,
+  ...props
+}: CardProps) {
   return (
     <div
-      onClick={onClick}
       className={cn(
-        'bg-card rounded-[1.5rem] shadow-[0_4px_16px_rgba(37,25,19,0.03)] border border-orange-900/5',
-        hover && 'hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(37,25,19,0.08)] cursor-pointer transition-all duration-300',
-        onClick && 'cursor-pointer',
+        'rounded-xl overflow-hidden',
+        VARIANT_STYLES[variant],
+        PADDING_STYLES[padding],
+        interactive && 'cursor-pointer hover:shadow-md hover:border-brand-300 dark:hover:border-brand-700 transition-all duration-normal hover:-translate-y-0.5',
         className
       )}
+      {...props}
     >
       {children}
     </div>
-  );
-}
-
-export function CardHeader({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <div className={cn('p-6 pt-7', className)}>{children}</div>;
-}
-
-export function CardBody({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <div className={cn('p-6', className)}>{children}</div>;
+  )
 }

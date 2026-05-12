@@ -1,97 +1,60 @@
-/* ── Fontshare Typefaces ── */
-@import url('https://api.fontshare.com/v2/css?f[]=satoshi@700,600,500,400&f[]=general-sans@600,500,400&display=swap');
-
+@import "../styles/tokens.css";
 @import "tailwindcss";
 
-/* ── GoRentals Design System v3.0 — Indigo ── */
-:root {
-  --color-primary: #0F766E;
-  --color-primary-hover: #115E59;
-  --color-primary-active: #991B1B;
-  --color-primary-soft: #CCFBF1;
-  --color-primary-border: #FECACA;
-  --color-focus: #EF4444;
-
-  --color-accent: #4F46E5;
-  --color-accent-hover: #4338CA;
-
-  --color-text: #111827;
-  --color-text-secondary: #475569;
-  --color-border: #CBD5E1;
-  --color-bg: #FAFAF9;
-  --color-surface: #FFFFFF;
-  --color-surface-muted: #F1F5F9;
-
-  /* Legacy aliases mapping for components that still use var(--primary) etc. */
-  --primary: var(--color-primary);
-  --primary-hover: var(--color-primary-hover);
-  --primary-light: var(--color-primary-soft);
-  --primary-muted: var(--color-primary-active);
-  --accent: var(--color-accent);
-  --error: #EF4444;
-
-  --bg: var(--color-bg);
-  --bg-card: var(--color-surface);
-  --bg-subtle: var(--color-surface-muted);
-  --border: var(--color-border);
-  --border-strong: #94A3B8;
-
-  --text: var(--color-text);
-  --text-muted: var(--color-text-secondary);
-  --text-faint: #94A3B8;
-
-  --r-sm: 6px;
-  --r-md: 8px;
-  --r-lg: 12px;
-  --r-xl: 16px;
-  --r-2xl: 24px;
-  --r-pill: 9999px;
-
-  --shadow-card: 0 2px 8px rgba(15, 118, 110, 0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-hover: 0 8px 24px rgba(15, 118, 110, 0.12), 0 2px 6px rgba(0,0,0,0.06);
-  --shadow-nav: 0 1px 0 var(--border), 0 4px 16px rgba(0,0,0,0.04);
-}
-
-.dark {
-  --primary:           #6366F1;
-  --primary-hover:     #818CF8;
-  --primary-light:     rgba(99, 102, 241, 0.15);
-  --primary-muted:     #4F46E5;
-  --accent:            #FBBF24;
-  --error:             #F87171;
-
-  --bg:                #0B1120;
-  --bg-card:           #0F172A;
-  --bg-subtle:         #1E293B;
-  --border:            rgba(255,255,255,0.08);
-  --border-strong:     rgba(255,255,255,0.15);
-
-  --text:              #F8FAFC;
-  --text-muted:        #94A3B8;
-  --text-faint:        #64748B;
-
-  --shadow-card:       0 2px 8px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
-  --shadow-hover:      0 8px 24px rgba(0,0,0,0.4);
-  --shadow-nav:        0 1px 0 rgba(255,255,255,0.06);
-}
+/* ── GoRentals Unified Design System — Production Grade ── */
 
 @theme {
-  /* Map CSS vars into Tailwind theme */
-  --font-display: 'Satoshi', system-ui, sans-serif;
-  --font-sans:    'General Sans', system-ui, sans-serif;
+  /* Brand */
+  --color-brand-50:  var(--color-brand-50);
+  --color-brand-100: var(--color-brand-100);
+  --color-brand-200: var(--color-brand-200);
+  --color-brand-300: var(--color-brand-300);
+  --color-brand-400: var(--color-brand-400);
+  --color-brand-500: var(--color-brand-500);
+  --color-brand-600: var(--color-brand-600);
+  --color-brand-700: var(--color-brand-700);
+  --color-brand-800: var(--color-brand-800);
+  --color-brand-900: var(--color-brand-900);
 
-  --color-primary:       var(--primary);
-  --color-primary-hover: var(--primary-hover);
-  --color-primary-light: var(--primary-light);
-  --color-bg:            var(--bg);
-  --color-card:          var(--bg-card);
-  --color-subtle:        var(--bg-subtle);
-  --color-text:          var(--text);
-  --color-muted:         var(--text-muted);
-  --color-faint:         var(--text-faint);
-  --color-border:        var(--border);
-  --color-accent:        var(--accent);
-  --color-error:         var(--error);
+  /* Surface */
+  --color-surface-base:    var(--surface-base);
+  --color-surface-subtle:  var(--surface-subtle);
+  --color-surface-raised:  var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+
+  /* Border */
+  --color-border-subtle:  var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong:  var(--border-strong);
+
+  /* Text */
+  --color-text-primary:   var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary:  var(--text-tertiary);
+  --color-text-muted:     var(--text-muted);
+  --color-text-inverse:   var(--text-inverse);
+
+  /* Radii */
+  --radius-sm:   var(--radius-sm);
+  --radius-md:   var(--radius-md);
+  --radius-lg:   var(--radius-lg);
+  --radius-xl:   var(--radius-xl);
+  --radius-full: var(--radius-full);
+
+  /* Shadows */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+
+  /* Transitions */
+  --transition-duration-fast:   var(--duration-fast);
+  --transition-duration-normal: var(--duration-normal);
+  --transition-duration-slow:   var(--duration-slow);
+
+  /* Typography */
+  --font-sans:    var(--font-sans);
+  --font-display: var(--font-display);
 }
 
 @layer base {
@@ -103,26 +66,44 @@
   }
 
   body {
-    background-color: var(--bg);
-    color: var(--text);
-    font-family: 'General Sans', system-ui, sans-serif;
+    background-color: var(--surface-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
     @apply antialiased;
   }
 
   h1, h2, h3, h4, h5 {
-    font-family: 'Satoshi', system-ui, sans-serif;
+    font-family: var(--font-display);
     font-weight: 700;
     letter-spacing: -0.02em;
-    color: var(--text);
+    color: var(--text-primary);
   }
 
   ::selection {
     background: rgba(79, 70, 229, 0.15);
-    color: var(--primary);
+    color: var(--color-brand-600);
   }
 }
 
+
 @layer utilities {
+  /* ── Unified Interaction Classes ── */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2
+           focus-visible:ring-brand-500 focus-visible:ring-offset-2
+           focus-visible:ring-offset-surface-base;
+  }
+
+  .card-hover {
+    @apply transition-all duration-normal
+           hover:shadow-md hover:border-brand-300 dark:hover:border-brand-700
+           hover:-translate-y-0.5;
+  }
+
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
+  }
+
   /* ── Indigo gradient CTA ── */
   .gradient-brand,
   .gradient-teal {

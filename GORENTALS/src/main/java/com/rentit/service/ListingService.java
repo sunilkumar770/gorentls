@@ -62,12 +62,17 @@ public class ListingService {
     public PagedResponse<ListingResponse> getAllListings(int page, int size, 
         String city, String category) {
       Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-      if ((city == null || city.isEmpty()) && (category == null || category.isEmpty())) {
+      
+      // Normalize empty strings to null for the check and fallback search
+      String normCity = (city == null || city.isEmpty()) ? null : city;
+      String normCategory = (category == null || category.isEmpty()) ? null : category;
+
+      if (normCity == null && normCategory == null) {
         Page<Listing> listings = listingRepository
           .findByIsPublishedTrueAndIsAvailableTrue(pageable);
         return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
       }
-      return searchListings(city, category, null, null, null, pageable);
+      return searchListings(normCity, normCategory, null, null, null, pageable);
     }
 
     /**
@@ -76,19 +81,24 @@ public class ListingService {
     public PagedResponse<ListingResponse> searchListings(String city, String category, String type, 
                                                 BigDecimal minPrice, BigDecimal maxPrice, 
                                                 Pageable pageable) {
+        // Normalize empty strings to null to ensure they match (cast(:param as string) IS NULL) in JPA query
+        String normCity = (city == null || city.isEmpty()) ? null : city;
+        String normCategory = (category == null || category.isEmpty()) ? null : category;
+        String normType = (type == null || type.isEmpty()) ? null : type;
+
         // Optimization: If no filters are provided, use a simpler query to avoid potential null-param evaluation issues
-        if ((city == null || city.isEmpty()) && 
-            (category == null || category.isEmpty()) && 
-            (type == null || type.isEmpty()) && 
+        if (normCity == null && 
+            normCategory == null && 
+            normType == null && 
             minPrice == null && 
             maxPrice == null) {
             Page<Listing> listings = listingRepository.findByIsPublishedTrueAndIsAvailableTrue(pageable);
             return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
         }
 
-        String cityPattern = SearchUtils.likeContents(city);
+        String cityPattern = SearchUtils.likeContents(normCity);
         Page<Listing> listings = listingRepository.searchListings(
-            cityPattern, category, type, minPrice, maxPrice, pageable);
+            cityPattern, normCategory, normType, minPrice, maxPrice, pageable);
         return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
     }
 
@@ -246,7 +256,7 @@ public class ListingService {
         if (isAvailable == null) {
             throw BusinessException.badRequest("isAvailable must be true or false", "INVALID_INPUT");
         }
-        Listing listing = listingRepository.findById(id)
+        Listing listing = listingRepository.findByIdWithLock(id)
             .orElseThrow(() -> BusinessException.notFound("Listing", id));
 
         if (!listing.getOwner().getEmail().equals(ownerEmail)) {
@@ -267,7 +277,7 @@ public class ListingService {
      */
     @Transactional
     public void deleteListing(UUID id, String userEmail) {
-        Listing listing = listingRepository.findById(id)
+        Listing listing = listingRepository.findByIdWithLock(id)
             .orElseThrow(() -> BusinessException.notFound("Listing", id));
 
         User user = userRepository.findByEmail(userEmail)
@@ -403,17 +413,42 @@ public class ListingService {
     }
 
     public AvailabilityResponse getAvailability(UUID listingId) {
-        List<BlockedDate> blockedDates = blockedDateRepository.findByListing_Id(listingId);
-
-        List<AvailabilityResponse.BlockedRange> ranges = blockedDates.stream()
+        // Get manual blocks from blocked_dates table
+        List<BlockedDate> manualBlocks = blockedDateRepository.findByListing_Id(listingId);
+        
+        // Get active bookings (PENDING_PAYMENT, CONFIRMED, IN_USE)
+        List<com.rentit.model.Booking> activeBookings = bookingRepository.findByListingId(listingId, Pageable.unpaged())
+            .stream()
+            .filter(b -> {
+                BookingStatus status = b.getBookingStatus();
+                return status == BookingStatus.PENDING_PAYMENT ||
+                       status == BookingStatus.CONFIRMED ||
+                       status == BookingStatus.IN_USE;
+            })
+            .collect(java.util.stream.Collectors.toList());
+        
+        List<AvailabilityResponse.BlockedRange> ranges = new java.util.ArrayList<>();
+        
+        // Add manual blocks
+        ranges.addAll(manualBlocks.stream()
             .map(b -> AvailabilityResponse.BlockedRange.builder()
                 .id(b.getId())
                 .startDate(b.getStartDate())
                 .endDate(b.getEndDate())
                 .reason(b.getReason())
                 .build())
-            .collect(java.util.stream.Collectors.toList());
-
+            .collect(java.util.stream.Collectors.toList()));
+        
+        // Add booking blocks
+        ranges.addAll(activeBookings.stream()
+            .map(b -> AvailabilityResponse.BlockedRange.builder()
+                .id(null) // Bookings don't have a BlockedDate ID
+                .startDate(b.getStartDate())
+                .endDate(b.getEndDate())
+                .reason("BOOKING")
+                .build())
+            .collect(java.util.stream.Collectors.toList()));
+        
         return AvailabilityResponse.builder()
             .blockedRanges(ranges)
             .build();

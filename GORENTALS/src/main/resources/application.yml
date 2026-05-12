@@ -1,6 +1,14 @@
 spring:
+  data:
+    redis:
+      repositories:
+        enabled: false
   application:
     name: gorentals
+  management:
+    health:
+      redis:
+        enabled: false
 
   datasource:
     url: ${DB_URL:}
@@ -52,7 +60,10 @@ razorpay:
   webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
   account-number: ${RAZORPAY_ACCOUNT_NUMBER:}
 
+
 app:
+  redis:
+    enabled: ${REDIS_ENABLED:true}
   admin:
     email: ${APP_ADMIN_EMAIL:}
     password: ${APP_ADMIN_PASSWORD:}

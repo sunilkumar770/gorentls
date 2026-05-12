@@ -102,4 +102,11 @@ public class BookingController {
             @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(bookingService.updateStatus(id, BookingStatus.COMPLETED, userDetails.getUsername()));
     }
+    @GetMapping("/owner/stats")
+    @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+    public ResponseEntity<java.util.List<java.util.Map<String, Object>>> getOwnerWeeklyStats(
+        @RequestParam(defaultValue = "8weeks") String period,
+        @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(bookingService.getOwnerWeeklyStats(userDetails.getUsername(), 8));
+    }
 }

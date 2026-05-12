@@ -16,8 +16,10 @@ import {
   type AuditLog,
   type AdminListing,
 } from '@/services/admin';
-import { useDebounce } from '@/hooks/useDebounce';
 import { formatCurrency } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useRouter } from 'next/navigation';
 
 type Tab = 'overview' | 'users' | 'owners' | 'listings' | 'bookings' | 'audit';
 
@@ -638,21 +640,40 @@ function TableWrap({ children }: { children: ReactNode }) {
 // ─── Root Page ────────────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
+  const { user, isLoading: authLoading, isAdmin } = useAuth();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState(false);
 
+  useEffect(() => {
+    if (!authLoading && (!user || !isAdmin)) {
+      router.push('/login?from=/admin');
+    }
+  }, [authLoading, user, isAdmin, router]);
+
   const loadStats = useCallback(() => {
+    if (!isAdmin) return;
     setStatsLoading(true);
     setStatsError(false);
     adminService.getStats()
       .then(d => setStats(d))
       .catch(() => setStatsError(true))
       .finally(() => setStatsLoading(false));
-  }, []);
+  }, [isAdmin]);
 
-  useEffect(() => { loadStats(); }, [loadStats]);
+  useEffect(() => {
+    if (isAdmin) loadStats();
+  }, [isAdmin, loadStats]);
+
+  if (authLoading || !user || !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+      </div>
+    );
+  }
 
   const tabs: { id: Tab; label: string; icon: ReactNode }[] = [
     { id: 'overview',  label: 'Overview',  icon: <TrendingUp size={15} /> },

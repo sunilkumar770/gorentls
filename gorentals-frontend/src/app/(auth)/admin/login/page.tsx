@@ -68,7 +68,7 @@ export default function AdminLoginPage() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="admin@gorentals.com"
-                icon={<Mail className="w-4 h-4" />}
+                leftIcon={<Mail className="w-4 h-4" />}
                 className="bg-card/5 border-white/10 text-white focus:ring-amber-500/50"
               />
 
@@ -79,7 +79,7 @@ export default function AdminLoginPage() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
-                icon={<Lock className="w-4 h-4" />}
+                leftIcon={<Lock className="w-4 h-4" />}
                 className="bg-card/5 border-white/10 text-white focus:ring-amber-500/50"
               />
             </div>

@@ -25,10 +25,20 @@ foreach ($port in $ports) {
     }
 }
 
-Write-Host 'Starting backend on :8080...' -ForegroundColor Green
+# Starting backend on :8080...
 $backendJob = Start-Job -ScriptBlock {
     $env:JWT_SECRET = $args[0]
     Set-Location $using:PSScriptRoot\GORENTALS
+    if (Test-Path .env) {
+        Get-Content .env | ForEach-Object {
+            if ($_ -match '^([^#=]+)=(.*)$') {
+                $name = $matches[1].Trim()
+                $value = $matches[2].Trim()
+                Set-Item "Env:$name" $value
+            }
+        }
+    }
+    Set-Item "Env:SPRING_PROFILES_ACTIVE" "dev"
     .\mvnw.cmd spring-boot:run -q
 } -ArgumentList $env:JWT_SECRET
 

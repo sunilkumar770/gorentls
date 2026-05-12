@@ -16,9 +16,10 @@ package com.rentit.model.enums;
  */
 public enum BookingStatus {
 
-    PENDING_PAYMENT,   // created, no payment yet
-    CONFIRMED,         // advance captured, item not yet handed over
-    IN_USE,            // full payment captured, item with renter
+    PENDING,           // paid by renter, awaiting owner acceptance
+    PENDING_PAYMENT,   // created, no payment yet (legacy/checkout-in-progress)
+    CONFIRMED,         // owner accepted, advance captured
+    IN_USE,            // full payment captured, item with renter (ACTIVE)
     RETURNED,          // owner marked item returned, dispute window open
     COMPLETED,         // dispute window passed, payout triggered
     CANCELLED,         // cancelled by renter or owner
@@ -31,7 +32,8 @@ public enum BookingStatus {
      */
     public boolean canTransitionTo(BookingStatus next) {
         return switch (this) {
-            case PENDING_PAYMENT -> next == CONFIRMED  || next == CANCELLED;
+            case PENDING_PAYMENT -> next == PENDING    || next == CANCELLED;
+            case PENDING         -> next == CONFIRMED  || next == CANCELLED;
             case CONFIRMED       -> next == IN_USE     || next == CANCELLED || next == NO_SHOW;
             case IN_USE          -> next == RETURNED   || next == DISPUTED;
             case RETURNED        -> next == COMPLETED  || next == DISPUTED;

@@ -18,5 +18,6 @@ public class MessageResponse {
     private String messageType;
     private String status;
     private boolean read;
+    private String recipientEmail;
     private LocalDateTime createdAt;
 }

@@ -137,6 +137,34 @@ public class RazorpayIntegrationService {
         }
     }
 
+    // ── PG: Capture ───────────────────────────────────────────────────────────
+
+    @CircuitBreaker(name = "razorpay")
+    @Retry(name = "razorpay")
+    public void capturePayment(String razorpayPaymentId, BigDecimal amountINR) {
+        // ── DEMO/MOCK MODE ───────────────────────────────────────────────────
+        if (razorpayPaymentId != null && razorpayPaymentId.startsWith("pay_mock_")) {
+            log.info("Payment capture (MOCK BYPASS): paymentId={} amount=₹{}", razorpayPaymentId, amountINR);
+            return;
+        }
+
+        try {
+            RazorpayClient client = client();
+            JSONObject options = new JSONObject();
+            options.put("amount", toPaise(amountINR));
+            options.put("currency", "INR");
+
+            Payment payment = client.payments.capture(razorpayPaymentId, options);
+            log.info("Payment captured: paymentId={} status={} amount=₹{}",
+                razorpayPaymentId, payment.get("status"), amountINR);
+
+        } catch (RazorpayException e) {
+            log.error("Razorpay payment capture failed: paymentId={} error={}",
+                razorpayPaymentId, e.getMessage());
+            throw new RuntimeException("Razorpay payment capture failed: " + e.getMessage(), e);
+        }
+    }
+
     // ── PG: Refunds ───────────────────────────────────────────────────────────
 
     @CircuitBreaker(name = "razorpay")

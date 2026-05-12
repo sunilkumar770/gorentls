@@ -161,6 +161,16 @@ export async function getMyListings(page = 0, size = 10) {
   return res.data;
 }
 
+export async function getAvailability(listingId: string): Promise<{ blockedRanges: { startDate: string; endDate: string; reason: 'BOOKING' | 'MANUAL' }[] }> {
+  try {
+    const res = await api.get(`/listings/${listingId}/availability`);
+    return res.data;
+  } catch (err: unknown) {
+    console.error(`[listings] getAvailability(${listingId}) failed:`, err);
+    return { blockedRanges: [] };
+  }
+}
+
 // ─── Aliases for backward compatibility ───────────────────────────────────────
 export const getAllListings = getListings;
 export type ListingSearchParams = SearchFilters;

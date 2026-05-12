@@ -41,6 +41,7 @@ public class BookingService {
     private final ReceiptService        receiptService;
     private final BookingLifecycleManager lifecycleManager;
     private final RefundOutboxRepository refundOutboxRepository;
+    private final PaymentOutboxRepository paymentOutboxRepository;
 
     // ─────────────────────────────────────────────────────────────────────────
     // CREATE
@@ -48,17 +49,25 @@ public class BookingService {
 
     /**
      * Create a new booking request.
-     * BUG-01 FIX: throw 404 ResponseStatusException, not bare RuntimeException.
-     * BUG-02 FIX: start date must be today or future (≥ today).
-     * BUG-03 FIX: end date must be strictly after start date (no same-day 0-day rentals).
+     * HARDENING: Uses Isolation.SERIALIZABLE and PESSIMISTIC_WRITE lock on the listing
+     * to prevent TOCTOU race conditions (double-booking).
      */
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.SERIALIZABLE)
     public BookingResponse createBooking(BookingRequest request, String userEmail) {
+        // 1. Idempotency Check
+        if (request.getIdempotencyKey() != null) {
+            bookingRepository.findByIdempotencyKey(request.getIdempotencyKey())
+                .ifPresent(existing -> {
+                    log.info("Duplicate booking request detected for key: {}", request.getIdempotencyKey());
+                    throw BusinessException.conflict("Duplicate booking request");
+                });
+        }
 
         User renter = userRepository.findByEmail(userEmail)
             .orElseThrow(() -> BusinessException.notFound("Renter", userEmail));
 
-        Listing listing = listingRepository.findById(request.getListingId())
+        // 2. Fetch with Pessimistic Lock
+        Listing listing = listingRepository.findByIdWithLock(request.getListingId())
             .orElseThrow(() -> BusinessException.notFound("Listing", request.getListingId()));
 
         boolean isAvailable = listing.getIsAvailable() != null ? listing.getIsAvailable() : false;
@@ -77,21 +86,19 @@ public class BookingService {
         LocalDate endDate   = request.getEndDate();
         LocalDate today     = LocalDate.now();
 
-        // BUG-02: start must be today or in the future
-        // We allow up to 1 day in the past to account for timezone drift between the browser and server
         if (startDate.isBefore(today.minusDays(1))) {
             throw BusinessException.badRequest("Start date cannot be in the past");
         }
-        // BUG-03: end must be strictly after start (prevent 0-day bookings)
         if (!endDate.isAfter(startDate)) {
             throw BusinessException.badRequest("End date must be after start date");
         }
 
-        // ── Availability check ───────────────────────────────────────────────
-        LocalDateTime cutoff    = LocalDateTime.now().minusMinutes(15);
-        boolean       hasOverlap = bookingRepository.existsOverlappingBooking(
-            listing.getId(), startDate, endDate, cutoff);
-        boolean       isBlocked  = blockedDateRepository.isDateRangeBlocked(
+        // 3. Re-validate Availability inside Locked Transaction
+        boolean hasOverlap = bookingRepository.existsConflictingBooking(
+            listing.getId(), startDate, endDate, 
+            List.of(BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.IN_USE, BookingStatus.PENDING_PAYMENT)
+        );
+        boolean isBlocked = blockedDateRepository.isDateRangeBlocked(
             listing.getId(), startDate, endDate);
 
         if (hasOverlap || isBlocked) {
@@ -101,8 +108,6 @@ public class BookingService {
         // ── Pricing ──────────────────────────────────────────────────────────
         long totalDays = Math.max(1, ChronoUnit.DAYS.between(startDate, endDate));
 
-        BigDecimal rentalAmount    = listing.getPricePerDay()
-                                            .multiply(BigDecimal.valueOf(totalDays));
         BigDecimal securityDeposit = listing.getSecurityDeposit() != null
                                      ? listing.getSecurityDeposit() : BigDecimal.ZERO;
 
@@ -123,13 +128,14 @@ public class BookingService {
         booking.setTotalAmount(quote.totalAmount());
         booking.setAdvanceAmount(quote.advanceAmount());
         booking.setRemainingAmount(quote.remainingAmount());
-        booking.setBookingStatus(BookingStatus.PENDING_PAYMENT);
+        booking.setBookingStatus(BookingStatus.PENDING);
         booking.setEscrowStatus(com.rentit.model.enums.EscrowStatus.PENDING);
         booking.setPaymentStatus("PENDING");
+        booking.setIdempotencyKey(request.getIdempotencyKey());
 
         Booking saved = bookingRepository.save(booking);
-        log.info("Booking created: {} for listing {} by renter {}",
-            saved.getId(), listing.getId(), renter.getEmail());
+        log.info("Booking created: {} for listing {} by renter {} (idempotencyKey: {})",
+            saved.getId(), listing.getId(), renter.getEmail(), request.getIdempotencyKey());
 
         notificationService.sendNotification(
             listing.getOwner().getId(),
@@ -219,7 +225,7 @@ public class BookingService {
 
     @Transactional
     public BookingResponse confirmBooking(UUID bookingId, String ownerEmail) {
-        Booking booking = bookingRepository.findById(bookingId)
+        Booking booking = bookingRepository.findByIdWithLock(bookingId)
                 .orElseThrow(() -> BusinessException.notFound("Booking", bookingId));
 
         validateOwner(booking, ownerEmail);
@@ -227,8 +233,28 @@ public class BookingService {
         BookingStatus current = booking.getBookingStatus();
         EscrowStatus escrow = booking.getEscrowStatus();
 
-        if (current == BookingStatus.PENDING_PAYMENT) {
+        if (current == BookingStatus.PENDING_PAYMENT || current == BookingStatus.PENDING) {
+            // 1. Update Booking Status
+            booking.setBookingStatus(BookingStatus.CONFIRMED);
+            booking.setUpdatedAt(LocalDateTime.now());
+            bookingRepository.save(booking);
+
+            // 2. Create Payment Outbox Event for Capture
+            if (booking.getRazorpayPaymentId() != null) {
+                PaymentOutboxEvent event = PaymentOutboxEvent.builder()
+                        .bookingId(booking.getId())
+                        .type(com.rentit.model.enums.PaymentEventType.CAPTURE)
+                        .razorpayPaymentId(booking.getRazorpayPaymentId())
+                        .amount(booking.getTotalAmount())
+                        .status(com.rentit.model.enums.OutboxStatus.PENDING)
+                        .build();
+                paymentOutboxRepository.save(event);
+                log.info("Payment capture event queued for booking {}", booking.getId());
+            }
+
+            // 3. Mark escrow (this might need to be adjusted if escrow logic also calls external APIs)
             escrowService.confirmOwnerAcceptance(booking);
+            
             return DtoMapper.mapToBookingResponse(booking);
         } else if (current == BookingStatus.CONFIRMED
                 && (escrow == EscrowStatus.ADVANCE_HELD || escrow == EscrowStatus.FULL_HELD)) {
@@ -322,7 +348,7 @@ public class BookingService {
     @Transactional
     public BookingResponse updateStatus(UUID bookingId, BookingStatus newStatus, String callerEmail) {
 
-        Booking booking = bookingRepository.findById(bookingId)
+        Booking booking = bookingRepository.findByIdWithLock(bookingId)
             .orElseThrow(() -> BusinessException.notFound("Booking", bookingId));
 
         User caller = userRepository.findByEmail(callerEmail)
@@ -371,7 +397,7 @@ public class BookingService {
 
     private void validateStatusTransitionAuthorization(BookingStatus newStatus, boolean isOwner, boolean isRenter, boolean isAdmin) {
         switch (newStatus) {
-            case IN_USE, RETURNED, COMPLETED, NO_SHOW, DISPUTED -> {
+            case CONFIRMED, IN_USE, RETURNED, COMPLETED, NO_SHOW, DISPUTED -> {
                 if (!isOwner && !isAdmin)
                     throw BusinessException.forbidden("Only the listing owner or admin can perform this action.");
             }
@@ -385,14 +411,7 @@ public class BookingService {
     }
 
     private boolean isValidTransition(BookingStatus current, BookingStatus newStatus) {
-        return switch (current) {
-            case PENDING_PAYMENT -> newStatus == BookingStatus.CONFIRMED || newStatus == BookingStatus.CANCELLED;
-            case CONFIRMED       -> newStatus == BookingStatus.IN_USE || newStatus == BookingStatus.CANCELLED || newStatus == BookingStatus.NO_SHOW;
-            case IN_USE          -> newStatus == BookingStatus.RETURNED || newStatus == BookingStatus.DISPUTED;
-            case RETURNED        -> newStatus == BookingStatus.COMPLETED || newStatus == BookingStatus.DISPUTED;
-            case DISPUTED        -> newStatus == BookingStatus.COMPLETED || newStatus == BookingStatus.CANCELLED;
-            default              -> false; // COMPLETED, CANCELLED, NO_SHOW are terminal
-        };
+        return current.canTransitionTo(newStatus);
     }
 
     @Transactional
@@ -497,6 +516,31 @@ public class BookingService {
             }
             default -> { /* IN_USE, RETURNED, etc. — no notification needed */ }
         }
+    }
+
+    public List<java.util.Map<String, Object>> getOwnerWeeklyStats(String ownerEmail, int weeks) {
+        User owner = userRepository.findByEmail(ownerEmail)
+            .orElseThrow(() -> BusinessException.notFound("User", ownerEmail));
+        
+        UUID ownerId = owner.getId();
+        LocalDate today = LocalDate.now();
+        List<java.util.Map<String, Object>> result = new java.util.ArrayList<>();
+        for (int i = weeks - 1; i >= 0; i--) {
+            LocalDate weekStart = today.minusWeeks(i).with(java.time.DayOfWeek.MONDAY);
+            LocalDate weekEnd = weekStart.plusDays(6);
+            List<Booking> weekBookings = bookingRepository
+                .findByOwnerIdAndStatusAndStartDateBetween(
+                    ownerId, BookingStatus.COMPLETED,
+                    weekStart, weekEnd);
+            double earnings = weekBookings.stream()
+                .mapToDouble(b -> b.getRentalAmount().doubleValue()).sum();
+            java.util.Map<String, Object> stat = new java.util.LinkedHashMap<>();
+            stat.put("week", "Wk " + weekStart.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR));
+            stat.put("earnings", earnings);
+            stat.put("bookings", weekBookings.size());
+            result.add(stat);
+        }
+        return result;
     }
 
 }

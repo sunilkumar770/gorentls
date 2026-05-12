@@ -3,16 +3,10 @@ import { Inter, Manrope } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { ChatProvider } from '@/contexts/ChatContext';
+import { AuthProvider } from '@/context/AuthContext';
+import { getCurrentUser } from '@/lib/auth';
 import './globals.css';
-import { validateConfiguration } from '@/config/validateConfig';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
-
-// Validate configuration immediately on app load
-if (typeof window !== 'undefined') {
-  validateConfiguration();
-}
 
 const inter   = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope' });
@@ -22,18 +16,19 @@ export const metadata: Metadata = {
   description: 'Skip the purchase. Rent high-quality gear, electronics, and tools from verified locals.',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${manrope.variable} font-sans min-h-screen flex flex-col antialiased dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <AuthProvider>
-            <ChatProvider>
-              <Navbar />
-              <main className="flex-1 pt-16 flex flex-col">
-                {children}
-              </main>
-              <Footer />
+          <AuthProvider initialUser={user}>
+            <Navbar />
+            <main className="flex-1 pt-16 flex flex-col">
+              {children}
+            </main>
+            <Footer />
             <Toaster
               position="top-right"
               toastOptions={{
@@ -42,8 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 error:   { iconTheme: { primary: '#ef4444', secondary: '#f1f5f9' } },
               }}
             />
-          </ChatProvider>
-        </AuthProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -124,7 +124,7 @@ export default function HelpPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search help articles..."
-              icon={<Search className="w-4 h-4" />}
+              leftIcon={<Search className="w-4 h-4" />}
               className="bg-[var(--bg-card)] shadow-sm"
             />
           </div>
