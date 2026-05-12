@@ -116,11 +116,11 @@ export default function CreateListingWizard() {
 
   const handleNextStep = () => {
     if (step === 1) {
-      if (!form.title.trim()) { toast.error("Asset nomenclature is required"); return; }
-      if (!form.description.trim()) { toast.error("Technical specifications are required"); return; }
+      if (!form.title.trim()) { toast.error("Item name is required"); return; }
+      if (!form.description.trim()) { toast.error("Description is required"); return; }
     } else if (step === 2) {
       if (!form.location.trim() || !form.city.trim() || !form.state.trim()) {
-        toast.error("Complete deployment location is required"); return;
+        toast.error("Please enter your location"); return;
       }
     } else if (step === 3) {
       if (images.length === 0) { toast.error("Please upload at least one image"); return; }
@@ -152,7 +152,7 @@ export default function CreateListingWizard() {
       } else {
         toast.success("Listing published successfully!");
       }
-      router.push(`/item/${res.data.id}`);
+      router.push(`/listings/${res.data.id}`);
     } catch (err) {
       toast.error("Failed to create listing. Please try again.");
       console.error(err);
@@ -172,11 +172,16 @@ export default function CreateListingWizard() {
       <div className="max-w-2xl mx-auto">
         {/* KYC Warning Banner */}
         {!isKycApproved && (
-          <div className="flex items-start gap-3 p-4 rounded-[var(--r-md)] bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 mb-6">
+          <div className="flex flex-col sm:flex-row items-start gap-3 p-4 rounded-[var(--r-md)] bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 mb-6">
             <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
-            <p className="text-sm text-amber-800 dark:text-amber-300">
-              KYC pending — listing will be saved as a draft until your verification is approved.
-            </p>
+            <div className="flex-1">
+              <p className="text-sm text-amber-800 dark:text-amber-300">
+                KYC pending — listing will be saved as a draft until your verification is approved.
+              </p>
+            </div>
+            <a href="/dashboard/profile#kyc" className="text-sm text-amber-700 dark:text-amber-400 underline font-bold whitespace-nowrap mt-2 sm:mt-0">
+              Complete KYC →
+            </a>
           </div>
         )}
 
@@ -186,7 +191,7 @@ export default function CreateListingWizard() {
             ← Exit
           </button>
           <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
-            Deploy Asset — Step {step} of {TOTAL}
+            List Your Item — Step {step} of {TOTAL}
           </span>
         </div>
 
@@ -213,11 +218,11 @@ export default function CreateListingWizard() {
           {/* STEP 1 — Details */}
           {step === 1 && (
             <div>
-              <h2 className="text-2xl font-display font-bold text-[var(--text)] mb-2">Configure Asset Identity</h2>
+              <h2 className="text-2xl font-display font-bold text-[var(--text)] mb-2">Item Details</h2>
               <p className="text-[var(--text-muted)] text-sm mb-8">Provide clear, accurate details to attract the right renters.</p>
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-semibold text-[var(--text)] mb-1.5">Asset Name *</label>
+                  <label className="block text-sm font-semibold text-[var(--text)] mb-1.5">Item Name *</label>
                   <input type="text" required value={form.title}
                     onChange={(e) => updateForm({ title: e.target.value })}
                     className="w-full px-4 py-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-[var(--r-md)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] transition-all text-[var(--text)] text-sm shadow-sm"
@@ -264,7 +269,7 @@ export default function CreateListingWizard() {
           {/* STEP 3 — Photos (memory-safe ImagePreview component) */}
           {step === 3 && (
             <div>
-              <h2 className="text-2xl font-display font-bold text-[var(--text)] mb-2">Asset Media</h2>
+              <h2 className="text-2xl font-display font-bold text-[var(--text)] mb-2">Photos</h2>
               <p className="text-[var(--text-muted)] text-sm mb-8">Upload clear images to boost booking confidence.</p>
               <div className="border-2 border-dashed border-[var(--border-strong)] bg-[var(--bg)] hover:bg-[var(--primary-light)] hover:border-[var(--primary)]/50 transition-colors rounded-[var(--r-lg)] p-10 text-center">
                 <input type="file" multiple accept="image/*" className="hidden" id="listing-images" onChange={handleImageChange} />
@@ -342,7 +347,7 @@ export default function CreateListingWizard() {
             <button onClick={handleSubmit} disabled={loading || !canPublish}
               className="flex items-center gap-2 gradient-teal hover:shadow-card-hover text-white px-8 py-3.5 rounded-[var(--r-md)] font-bold text-sm transition-all shadow-card active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              {loading ? "Publishing..." : isKycApproved ? "Publish Asset" : "Save as Draft"}
+              {loading ? "Publishing..." : isKycApproved ? "Publish Listing" : "Save as Draft"}
             </button>
           )}
         </div>

@@ -112,6 +112,8 @@ export function AuthProvider({
 
   const login = (newToken: string, newUser: Profile) => {
     setToken(newToken);
+    // Set cookie for middleware edge reads
+    document.cookie = `gorentals_token=${newToken}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`;
     safeStorage.setItem('gr_user', JSON.stringify(newUser));
     setTokenState(newToken);
     setUser(newUser);
@@ -119,6 +121,8 @@ export function AuthProvider({
 
   const logout = () => {
     clearToken();
+    // Also clear the HTTP cookie middleware depends on
+    document.cookie = 'gorentals_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
     setTokenState(null);
     setUser(null);
     
