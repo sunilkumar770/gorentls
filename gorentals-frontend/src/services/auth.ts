@@ -47,7 +47,7 @@ const TOKEN_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
  * The Secure flag is applied in production to prevent cookie
  * transmission over HTTP (required for HTTPS deployments).
  */
-export function setToken(token: string): void {
+export function setToken(token: string): void {   // H-3 / H-4 Fix: Set token via server-side API route (HttpOnly cookie)   // Do NOT write to localStorage or document.cookie from the client.   // The /api/auth/set-token route sets an HttpOnly Secure cookie server-side.   fetch('/api/auth/set-token', {     method: 'POST',     headers: { 'Content-Type': 'application/json' },     body: JSON.stringify({ token }),     credentials: 'same-origin',   }).catch(err => {     // Non-fatal: log but don't break the login flow     console.error('[auth] Failed to set HttpOnly cookie:', err);   });   // Keep in safeStorage as a fallback for SSR token reads (NOT for auth decision)   // This is NOT readable by attacker XSS if we remove it — see H-4 note   // TODO: Remove safeStorage once middleware fully relies on HttpOnly cookie only   safeStorage.setItem('gorentals_token', token); }
   safeStorage.setItem('gorentals_token', token);
 
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
@@ -58,7 +58,7 @@ export function setToken(token: string): void {
  * Remove the JWT from all storage locations.
  * Call this on logout, 401, or session expiry.
  */
-export function clearToken(): void {
+export function clearToken(): void {   // H-3 Fix: Clear the HttpOnly cookie via the server-side DELETE route   fetch('/api/auth/set-token', {     method: 'DELETE',     credentials: 'same-origin',   }).catch(err => {     console.error('[auth] Failed to clear HttpOnly cookie:', err);   });   safeStorage.removeItem('gorentals_token');   safeStorage.removeItem('gr_user');   // Also clear legacy client-side cookie if it exists   document.cookie = 'gorentals_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';   document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax'; }
   safeStorage.removeItem('gorentals_token');
   safeStorage.removeItem('gr_user');
   document.cookie = 'gorentals_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
