@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -104,7 +105,7 @@ export default function ListingDetailPage() {
 
   const handleBookNow = () => {
     if (!selectedRange?.from || !selectedRange?.to) {
-      alert('Please select a date range first');
+      toast.error('Please select a date range first');
       return;
     }
     
