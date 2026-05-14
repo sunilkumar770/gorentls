@@ -3,16 +3,20 @@ package com.rentit.webhook;
 import com.rentit.model.Booking;
 import com.rentit.model.Payment;
 import com.rentit.model.Payout;
+import com.rentit.model.User;
 import com.rentit.model.enums.PaymentKind;
 import com.rentit.repository.BookingRepository;
 import com.rentit.repository.PaymentRepository;
 import com.rentit.repository.PayoutRepository;
+import com.rentit.repository.UserRepository;
 import com.rentit.service.BookingEscrowService;
 import com.rentit.service.BookingLifecycleManager;
+import com.rentit.service.EmailService;
 import com.rentit.service.RazorpayIntegrationService;
 import org.json.JSONObject;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory; import jakarta.annotation.PostConstruct;
+import org.slf4j.LoggerFactory;
+import jakarta.annotation.PostConstruct;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,36 +36,42 @@ public class RazorpayWebhookHandler {
     private static final Logger log = LoggerFactory.getLogger(RazorpayWebhookHandler.class);
 
     private final RazorpayIntegrationService razorpay;
-    private final BookingEscrowService       escrowService;
-    private final BookingRepository          bookingRepo;
-    private final PaymentRepository          paymentRepo;
-    private final PayoutRepository           payoutRepo;
-    private final BookingLifecycleManager    lifecycleManager;
+    private final BookingEscrowService escrowService;
+    private final BookingRepository bookingRepo;
+    private final PaymentRepository paymentRepo;
+    private final PayoutRepository payoutRepo;
+    private final BookingLifecycleManager lifecycleManager;
     private final com.rentit.repository.WebhookEventRepository webhookEventRepo;
+    private final EmailService emailService;
+    private final UserRepository userRepo;
 
     public RazorpayWebhookHandler(
-        RazorpayIntegrationService razorpay,
-        BookingEscrowService       escrowService,
-        BookingRepository          bookingRepo,
-        PaymentRepository          paymentRepo,
-        PayoutRepository           payoutRepo,
-        BookingLifecycleManager    lifecycleManager,
-        com.rentit.repository.WebhookEventRepository webhookEventRepo
+            RazorpayIntegrationService razorpay,
+            BookingEscrowService escrowService,
+            BookingRepository bookingRepo,
+            PaymentRepository paymentRepo,
+            PayoutRepository payoutRepo,
+            BookingLifecycleManager lifecycleManager,
+            com.rentit.repository.WebhookEventRepository webhookEventRepo,
+            EmailService emailService,
+            UserRepository userRepo
     ) {
-        this.razorpay     = razorpay;
+        this.razorpay = razorpay;
         this.escrowService = escrowService;
-        this.bookingRepo   = bookingRepo;
-        this.paymentRepo   = paymentRepo;
-        this.payoutRepo    = payoutRepo;
+        this.bookingRepo = bookingRepo;
+        this.paymentRepo = paymentRepo;
+        this.payoutRepo = payoutRepo;
         this.lifecycleManager = lifecycleManager;
         this.webhookEventRepo = webhookEventRepo;
+        this.emailService = emailService;
+        this.userRepo = userRepo;
     }
 
     @PostMapping(value = "/razorpay", consumes = "application/json")
     @Transactional
     public ResponseEntity<String> handle(
-        @RequestBody  String rawBody,
-        @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature
+            @RequestBody String rawBody,
+            @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature
     ) {
         if (signature == null || signature.isBlank()) {
             log.warn("Webhook received with missing X-Razorpay-Signature header — rejecting");
@@ -80,13 +90,16 @@ public class RazorpayWebhookHandler {
         String eventId;
         try {
             payload = new JSONObject(rawBody);
-            event   = payload.getString("event");
-            // Standard Razorpay webhook event ID
-            eventId = payload.getString("account_id") + "_" + payload.getLong("created_at");
-            // Actually Razorpay provides an 'id' at the root for webhooks sometimes, 
-            // but let's use account_id + created_at or try to find an 'id' field.
+            event = payload.getString("event");
+
+            // Null-safe eventId construction (P3-1: harden webhook eventId extraction)
             if (payload.has("id")) {
                 eventId = payload.getString("id");
+            } else if (payload.has("account_id") && payload.has("created_at")) {
+                eventId = payload.getString("account_id") + "_" + payload.getLong("created_at");
+            } else {
+                eventId = "webhook_" + System.currentTimeMillis() + "_" + event.hashCode();
+                log.warn("Webhook missing id/account_id/created_at; generated fallback eventId={}", eventId);
             }
         } catch (Exception e) {
             log.error("Failed to parse webhook body: {}", e.getMessage());
@@ -98,24 +111,21 @@ public class RazorpayWebhookHandler {
             return ResponseEntity.ok("Already processed");
         }
 
-        // 3. Store event ID first (before processing)
         webhookEventRepo.save(new com.rentit.model.WebhookEvent(eventId, event, rawBody));
-
         log.info("Razorpay webhook received: event={} eventId={}", event, eventId);
 
-        // 4. Process event
         try {
             switch (event) {
-                case "payment.captured"  -> handlePaymentCaptured(payload);
-                case "payment.failed"    -> handlePaymentFailed(payload);
-                case "refund.processed"  -> handleRefundProcessed(payload);
-                case "payout.processed"  -> handlePayoutProcessed(payload);
-                case "payout.failed"     -> handlePayoutFailed(payload);
-                default                  -> log.info("Unhandled webhook event: {} — acknowledged", event);
+                case "payment.captured" -> handlePaymentCaptured(payload);
+                case "payment.failed" -> handlePaymentFailed(payload);
+                case "refund.processed" -> handleRefundProcessed(payload);
+                case "payout.processed" -> handlePayoutProcessed(payload);
+                case "payout.failed" -> handlePayoutFailed(payload);
+                default -> log.info("Unhandled webhook event: {} — acknowledged", event);
             }
         } catch (Exception e) {
             log.error("Error processing webhook event={}: {}", event, e.getMessage(), e);
-            throw e; // Rollback transaction
+            throw e;
         }
 
         return ResponseEntity.ok("OK");
@@ -123,13 +133,13 @@ public class RazorpayWebhookHandler {
 
     private void handlePaymentCaptured(JSONObject payload) {
         JSONObject paymentObj = payload
-            .getJSONObject("payload")
-            .getJSONObject("payment")
-            .getJSONObject("entity");
+                .getJSONObject("payload")
+                .getJSONObject("payment")
+                .getJSONObject("entity");
 
         String rpPaymentId = paymentObj.getString("id");
-        String rpOrderId   = paymentObj.getString("order_id");
-        long   paise       = paymentObj.getLong("amount");
+        String rpOrderId = paymentObj.getString("order_id");
+        long paise = paymentObj.getLong("amount");
         BigDecimal amountINR = RazorpayIntegrationService.fromPaise(paise);
 
         JSONObject notes = paymentObj.optJSONObject("notes");
@@ -138,9 +148,8 @@ public class RazorpayWebhookHandler {
             return;
         }
 
-        String bookingIdStr  = notes.optString("booking_id",   null);
+        String bookingIdStr = notes.optString("booking_id", null);
         String paymentKindStr = notes.optString("payment_kind", "ADVANCE");
-
         if (bookingIdStr == null) {
             log.warn("payment.captured: missing booking_id in notes for payment {}", rpPaymentId);
             return;
@@ -159,7 +168,6 @@ public class RazorpayWebhookHandler {
         }
 
         Booking booking = bookingOpt.get();
-
         PaymentKind kind;
         try {
             kind = PaymentKind.valueOf(paymentKindStr.toUpperCase());
@@ -174,35 +182,32 @@ public class RazorpayWebhookHandler {
         payment.setAmount(amountINR);
         payment.setKind(kind);
         payment.setStatus("CAPTURED");
-        payment.setBooking(booking); 
+        payment.setBooking(booking);
         paymentRepo.save(payment);
 
-        // SYNC: Link the latest captured payment ID to the booking for receipt generation
         booking.setRazorpayPaymentId(rpPaymentId);
         booking.setPaymentStatus("CAPTURED");
-        
         escrowService.applyPayment(booking, payment);
 
-        log.info("payment.captured: applied ₹{} kind={} to booking={} (paymentId={})", 
-            amountINR, kind, bookingId, rpPaymentId);
+        log.info("payment.captured: applied ₹{} kind={} to booking={} (paymentId={})",
+                amountINR, kind, bookingId, rpPaymentId);
     }
 
     private void handlePaymentFailed(JSONObject payload) {
         JSONObject paymentObj = payload
-            .getJSONObject("payload")
-            .getJSONObject("payment")
-            .getJSONObject("entity");
+                .getJSONObject("payload")
+                .getJSONObject("payment")
+                .getJSONObject("entity");
 
         String rpPaymentId = paymentObj.getString("id");
-        String errorCode   = paymentObj.optJSONObject("error_code") != null
-            ? paymentObj.getJSONObject("error_code").optString("code", "UNKNOWN")
-            : "UNKNOWN";
+        String errorCode = paymentObj.optJSONObject("error_code") != null
+                ? paymentObj.getJSONObject("error_code").optString("code", "UNKNOWN")
+                : "UNKNOWN";
 
-        JSONObject notes      = paymentObj.optJSONObject("notes");
-        String bookingIdStr   = notes != null ? notes.optString("booking_id", null) : null;
+        JSONObject notes = paymentObj.optJSONObject("notes");
+        String bookingIdStr = notes != null ? notes.optString("booking_id", null) : null;
 
-        log.warn("payment.failed: paymentId={} bookingId={} errorCode={}",
-            rpPaymentId, bookingIdStr, errorCode);
+        log.warn("payment.failed: paymentId={} bookingId={} errorCode={}", rpPaymentId, bookingIdStr, errorCode);
 
         paymentRepo.findByRazorpayPaymentId(rpPaymentId).ifPresent(p -> {
             p.setStatus("FAILED");
@@ -212,17 +217,16 @@ public class RazorpayWebhookHandler {
 
     private void handleRefundProcessed(JSONObject payload) {
         JSONObject refundObj = payload
-            .getJSONObject("payload")
-            .getJSONObject("refund")
-            .getJSONObject("entity");
+                .getJSONObject("payload")
+                .getJSONObject("refund")
+                .getJSONObject("entity");
 
-        String rpRefundId  = refundObj.getString("id");
+        String rpRefundId = refundObj.getString("id");
         String rpPaymentId = refundObj.getString("payment_id");
-        long   paise       = refundObj.getLong("amount");
+        long paise = refundObj.getLong("amount");
         BigDecimal amountINR = RazorpayIntegrationService.fromPaise(paise);
 
-        log.info("refund.processed: refundId={} paymentId={} amount=₹{}",
-            rpRefundId, rpPaymentId, amountINR);
+        log.info("refund.processed: refundId={} paymentId={} amount=₹{}", rpRefundId, rpPaymentId, amountINR);
 
         paymentRepo.findByRazorpayPaymentId(rpPaymentId).ifPresent(p -> {
             p.setRefundId(rpRefundId);
@@ -230,17 +234,24 @@ public class RazorpayWebhookHandler {
             p.setStatus("REFUNDED");
             paymentRepo.save(p);
             log.info("refund.processed: payment {} marked as REFUNDED with refundId={}", rpPaymentId, rpRefundId);
+
+            // P1-2: Send refund notification email to renter
+            if (p.getBooking() != null && p.getBooking().getRenter() != null) {
+                String renterEmail = p.getBooking().getRenter().getEmail();
+                String bookingId = p.getBooking().getId().toString();
+                emailService.sendRefundProcessedEmail(renterEmail, rpRefundId, amountINR, bookingId);
+                log.info("refund.processed: notification sent to renter={}", renterEmail);
+            }
         });
     }
 
     private void handlePayoutProcessed(JSONObject payload) {
         JSONObject payoutObj = payload
-            .getJSONObject("payload")
-            .getJSONObject("payout")
-            .getJSONObject("entity");
+                .getJSONObject("payload")
+                .getJSONObject("payout")
+                .getJSONObject("entity");
 
         String rpPayoutId = payoutObj.getString("id");
-
         Optional<Payout> payoutOpt = payoutRepo.findByRpPayoutId(rpPayoutId);
         if (payoutOpt.isEmpty()) {
             log.warn("payout.processed: no platform payout found for rpPayoutId={}", rpPayoutId);
@@ -248,7 +259,6 @@ public class RazorpayWebhookHandler {
         }
 
         Payout payout = payoutOpt.get();
-
         if (payout.getStatus() == com.rentit.model.enums.PayoutStatus.SUCCESS) {
             log.info("payout.processed: payoutId={} already SUCCESS — skipping", payout.getId());
             return;
@@ -263,16 +273,27 @@ public class RazorpayWebhookHandler {
         });
 
         log.info("payout.processed: payoutId={} rpPayoutId={} bookingId={} — PAID_OUT",
-            payout.getId(), rpPayoutId, payout.getBookingId());
+                payout.getId(), rpPayoutId, payout.getBookingId());
+
+        // P1-2: Send payout notification email to owner
+        userRepo.findById(payout.getOwnerId()).ifPresent(owner -> {
+            emailService.sendPayoutProcessedEmail(
+                    owner.getEmail(),
+                    payout.getId().toString(),
+                    payout.getNetAmount(),
+                    payout.getBookingId().toString()
+            );
+            log.info("payout.processed: notification sent to owner={}", owner.getEmail());
+        });
     }
 
     private void handlePayoutFailed(JSONObject payload) {
         JSONObject payoutObj = payload
-            .getJSONObject("payload")
-            .getJSONObject("payout")
-            .getJSONObject("entity");
+                .getJSONObject("payload")
+                .getJSONObject("payout")
+                .getJSONObject("entity");
 
-        String rpPayoutId  = payoutObj.getString("id");
+        String rpPayoutId = payoutObj.getString("id");
         String errorReason = payoutObj.optString("status_details", "Unknown failure reason");
 
         Optional<Payout> payoutOpt = payoutRepo.findByRpPayoutId(rpPayoutId);
@@ -286,6 +307,17 @@ public class RazorpayWebhookHandler {
         payoutRepo.save(payout);
 
         log.error("payout.failed: payoutId={} rpPayoutId={} bookingId={} reason={}",
-            payout.getId(), rpPayoutId, payout.getBookingId(), errorReason);
+                payout.getId(), rpPayoutId, payout.getBookingId(), errorReason);
+
+        // P1-2: Send payout failure notification email to owner
+        userRepo.findById(payout.getOwnerId()).ifPresent(owner -> {
+            emailService.sendPayoutFailedEmail(
+                    owner.getEmail(),
+                    payout.getId().toString(),
+                    payout.getBookingId().toString(),
+                    errorReason
+            );
+            log.info("payout.failed: notification sent to owner={}", owner.getEmail());
+        });
     }
 }
