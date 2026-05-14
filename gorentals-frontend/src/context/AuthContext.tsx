@@ -20,12 +20,12 @@ export type AuthUser = Profile;
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ 
-  children, 
-  initialUser 
-}: { 
-  children: React.ReactNode; 
-  initialUser: Profile | null; 
+export function AuthProvider({
+  children,
+  initialUser
+}: {
+  children: React.ReactNode;
+  initialUser: Profile | null;
 }) {
   const [user, setUser] = useState<Profile | null>(initialUser);
   const [token, setTokenState] = useState<string | null>(null);
@@ -34,20 +34,12 @@ export function AuthProvider({
   useEffect(() => {
     async function initAuth() {
       try {
-        // 1. Recover token from persistent storage
-        let storedToken = safeStorage.getItem('gorentals_token');
-        
-        // Fallback to cookie if safeStorage is empty
-        if (!storedToken) {
-          const cookieToken = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('gorentals_token='))
-            ?.split('=')[1];
-          if (cookieToken) {
-            storedToken = cookieToken;
-            safeStorage.setItem('gorentals_token', cookieToken);
-          }
-        }
+        // 1. Recover token from safeStorage (localStorage wrapper)
+        // NOTE: HttpOnly cookies cannot be read by JS (document.cookie is intentionally NOT used here).
+        // The token in safeStorage is set by setToken() after successful login.
+        // The HttpOnly cookie is set server-side via /api/auth/set-token and is used
+        // automatically by the browser for credentialed requests.
+        const storedToken = safeStorage.getItem('gorentals_token');
 
         if (!storedToken) {
           setIsLoading(false);
@@ -73,29 +65,26 @@ export function AuthProvider({
           const timeout = setTimeout(() => controller.abort(), 8000);
           const res = await api.get('/users/me', { signal: controller.signal });
           clearTimeout(timeout);
-
           const profile = buildProfile(res.data);
           setUser(profile);
           safeStorage.setItem('gr_user', JSON.stringify(profile));
-        } catch (err: unknown) { 
-          const _err = err as { response?: { status?: number; data?: { message?: string; error?: string } }; message?: string };
+        } catch (err: unknown) {
+          const _err = err as { response?: { status?: number } };
           const status = _err?.response?.status;
           if (status === 401 || status === 403) {
-            if (process.env.NODE_ENV === "development") console.warn('[AuthContext] Session expired/invalid. Clearing...');
+            // Session invalid: clear everything
             clearToken();
             setTokenState(null);
             setUser(null);
-          } else {
-            if (process.env.NODE_ENV === "development") console.warn('[AuthContext] Backend unreachable, using cached session if available');
           }
+          // Network error: keep cached session, don't clear
         }
       } catch (err) {
-        if (process.env.NODE_ENV === "development") console.error('[AuthContext] Initialization failed:', err);
+        if (process.env.NODE_ENV === 'development') console.error('[AuthContext] Initialization failed:', err);
       } finally {
         setIsLoading(false);
       }
     }
-
     initAuth();
   }, []);
 
@@ -117,14 +106,21 @@ export function AuthProvider({
     setUser(newUser);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // 1. Call the Next.js API route which clears the HttpOnly cookie server-side
+    // This is the ONLY correct way to clear an HttpOnly cookie from the client side.
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Best-effort: proceed with client-side cleanup regardless
+    }
+
+    // 2. Clear client-side state and localStorage token
     clearToken();
-    // Also clear the HTTP cookie middleware depends on
-    document.cookie = 'gorentals_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
     setTokenState(null);
     setUser(null);
-    
-    // Add navigation to homepage after logout
+
+    // 3. Redirect to homepage
     if (typeof window !== 'undefined') {
       window.location.href = '/';
     }
@@ -142,7 +138,7 @@ export function AuthProvider({
       setUser(profile);
       safeStorage.setItem('gr_user', JSON.stringify(profile));
     } catch (err) {
-      if (process.env.NODE_ENV === "development") console.error('[AuthContext] Refresh failed:', err);
+      if (process.env.NODE_ENV === 'development') console.error('[AuthContext] Refresh failed:', err);
       throw err;
     }
   };
@@ -153,4 +149,3 @@ export function AuthProvider({
     </AuthContext.Provider>
   );
 }
-
