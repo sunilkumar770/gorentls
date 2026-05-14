@@ -93,7 +93,19 @@ services:
           type: web
           name: gorentals-backend
           property: url
+      # WebSocket URL – derived from backend service URL
+      - key: NEXT_PUBLIC_WS_URL
+        fromService:
+          type: web
+          name: gorentals-backend
+          property: url
       - key: NEXT_PUBLIC_RAZORPAY_KEY_ID
+        sync: false
+      # Supabase – required for file uploads and realtime chat
+      # Set manually in Render dashboard
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
         sync: false
       - key: NODE_ENV
         value: production
