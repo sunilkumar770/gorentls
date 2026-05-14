@@ -12,12 +12,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * Bootstraps the admin user on first startup.
  * Admin credentials are sourced from environment variables:
- *   APP_ADMIN_EMAIL   – required
- *   APP_ADMIN_PASSWORD – required, minimum 16 characters
+ *   APP_ADMIN_EMAIL      – required
+ *   APP_ADMIN_PASSWORD  – required, minimum 16 characters
  * Never hardcode these values.
  */
 @Component
@@ -69,22 +70,20 @@ public class AdminBootstrap implements CommandLineRunner {
         if (user == null) {
             user = new User();
             user.setEmail(adminEmail);
-            user.setName(adminName);
-            user.setRole("ADMIN");
-            user.setEmailVerified(true);
-            user.setCreatedAt(LocalDateTime.now());
+            user.setFullName(adminName);
+            user.setUserType(User.UserType.ADMIN);
+            user.setIsActive(true);
         }
         user.setPasswordHash(passwordEncoder.encode(adminPassword));
         userRepository.save(user);
 
-        AdminUser adminUser = adminUserRepository.findByEmail(adminEmail).orElse(null);
+        AdminUser adminUser = adminUserRepository.findByUser(user).orElse(null);
         if (adminUser == null) {
             adminUser = new AdminUser();
-            adminUser.setEmail(adminEmail);
-            adminUser.setName(adminName);
-            adminUser.setCreatedAt(LocalDateTime.now());
+            adminUser.setUser(user);
+            adminUser.setRole("SUPER_ADMIN");
+            adminUser.setPermissions(Map.of("all", true));
         }
-        adminUser.setPasswordHash(passwordEncoder.encode(adminPassword));
         adminUserRepository.save(adminUser);
     }
 }
