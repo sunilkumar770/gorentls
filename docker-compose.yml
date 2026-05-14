@@ -1,16 +1,30 @@
 version: '3.8'
 
+# ─────────────────────────────────────────────────────────────
+# GoRentals – Local Development docker-compose
+# NEVER use this file directly in production.
+# Production: deploy via render.yaml with secrets injected by Render.
+# ─────────────────────────────────────────────────────────────
+
+networks:
+  gorentals-net:
+    driver: bridge
+
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: rentit
       POSTGRES_PASSWORD: rentit_local
       POSTGRES_DB: gorentals
     ports:
-      - "5432:5432"
+      # Bind only to localhost – do NOT expose to 0.0.0.0 in production
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - gorentals-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U rentit"]
       interval: 5s
@@ -19,8 +33,12 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
+    # No auth needed for local dev; in prod Redis is network-isolated on Render
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
+    networks:
+      - gorentals-net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -29,8 +47,11 @@ services:
 
   backend:
     build: ./GORENTALS
+    restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
+    networks:
+      - gorentals-net
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/gorentals
@@ -38,10 +59,18 @@ services:
       SPRING_DATASOURCE_PASSWORD: rentit_local
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      # REQUIRED – must be set in .env file or exported before running docker-compose
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
-      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-mock_key}
-      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-mock_secret}
-      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-mock_mail}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:?RAZORPAY_KEY_ID must be set}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:?RAZORPAY_KEY_SECRET must be set}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:?RAZORPAY_WEBHOOK_SECRET must be set}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-mock_mail_local}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      APP_SERVER_URL: ${APP_SERVER_URL:-http://localhost:8080}
+      # Admin bootstrap – change before running
+      APP_ADMIN_EMAIL: ${APP_ADMIN_EMAIL:?APP_ADMIN_EMAIL must be set}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:?APP_ADMIN_PASSWORD must be set}
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,15 +79,17 @@ services:
 
   frontend:
     build: ./gorentals-frontend
+    restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
+    networks:
+      - gorentals-net
     environment:
       NEXT_PUBLIC_API_URL: http://backend:8080/api
       NEXT_PUBLIC_WS_URL: ws://backend:8080/ws/chat
-      NEXT_PUBLIC_RAZORPAY_KEY_ID: ${NEXT_PUBLIC_RAZORPAY_KEY_ID:-mock_key}
+      NEXT_PUBLIC_RAZORPAY_KEY_ID: ${NEXT_PUBLIC_RAZORPAY_KEY_ID:?NEXT_PUBLIC_RAZORPAY_KEY_ID must be set}
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
 
 volumes:
   postgres_data:
