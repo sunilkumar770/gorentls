@@ -6,7 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
 @RestController
@@ -51,8 +52,7 @@ public class AuthController {
             @Valid @RequestBody ForgotPasswordRequest request) {
         authService.initiatePasswordReset(request.getEmail());
         return ResponseEntity.ok(new SuccessResponse(
-                "If the account exists, a password reset email has been sent",
-                true
+                "If the account exists, a password reset email has been sent", true
         ));
     }
 
@@ -61,26 +61,33 @@ public class AuthController {
         authService.resetPassword(request.getToken(), request.getNewPassword());
         return ResponseEntity.ok(new SuccessResponse("Password has been reset successfully", true));
     }
-}
 
     /**
-     * Logout endpoint.
-     * Clears the server-side JWT token from the HttpOnly cookie.
-     * Note: JWTs are stateless; to fully invalidate a token server-side
-     * a Redis-backed token blacklist should be added (see JwtUtil TODO).
-     * The current implementation relies on the frontend cookie being cleared
-     * and the short token expiry (24h) as the primary logout mechanism.
+     * POST /api/auth/logout
+     * Clears the HttpOnly JWT cookie server-side.
+     * Note: JWTs are stateless; full server-side token invalidation requires
+     * a Redis-backed token blacklist. The current implementation relies on
+     * frontend cookie clearing and short token expiry (24h) as the primary
+     * logout mechanism.
      */
     @PostMapping("/logout")
-    public ResponseEntity<SuccessResponse> logout(
-            jakarta.servlet.http.HttpServletResponse response) {
-        // Clear the JWT cookie on the backend side
-        // (Belt-and-suspenders: frontend also clears via /api/auth/logout Next.js route)
-        jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("gorentals_token", "");
+    public ResponseEntity<SuccessResponse> logout(HttpServletResponse response) {
+        // Clear the JWT HttpOnly cookie
+        Cookie cookie = new Cookie("gorentals_token", "");
         cookie.setHttpOnly(true);
         cookie.setSecure(true); // HTTPS only
         cookie.setPath("/");
-        cookie.setMaxAge(0); // Expire immediately
+        cookie.setMaxAge(0);    // Expire immediately
         response.addCookie(cookie);
+
+        // Also clear legacy token cookie if present
+        Cookie legacyCookie = new Cookie("token", "");
+        legacyCookie.setHttpOnly(true);
+        legacyCookie.setSecure(true);
+        legacyCookie.setPath("/");
+        legacyCookie.setMaxAge(0);
+        response.addCookie(legacyCookie);
+
         return ResponseEntity.ok(new SuccessResponse("Logged out successfully", true));
     }
+}
