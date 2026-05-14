@@ -69,7 +69,13 @@ public class AuthService {
         user.setFullName(request.getFirstName() + " " + request.getLastName());
         user.setPhone(request.getPhoneNumber());
 
-        user.setUserType(User.UserType.RENTER);
+        // Support dynamic role from registration
+        if ("OWNER".equalsIgnoreCase(request.getRole())) {
+            user.setUserType(User.UserType.OWNER);
+        } else {
+            user.setUserType(User.UserType.RENTER);
+        }
+        
         user.setIsActive(true);
 
         User savedUser = userRepository.save(user);

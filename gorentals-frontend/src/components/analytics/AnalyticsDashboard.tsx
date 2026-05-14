@@ -92,3 +92,4 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
     </div>
   );
 }
+

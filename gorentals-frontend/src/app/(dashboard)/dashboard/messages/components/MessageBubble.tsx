@@ -44,3 +44,4 @@ export function MessageBubble({ message, isOwn, isOptimistic, showAvatar, sender
     </div>
   )
 }
+

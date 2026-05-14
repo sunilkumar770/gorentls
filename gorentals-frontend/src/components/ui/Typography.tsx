@@ -40,10 +40,12 @@ export function Typography({
   className,
   children
 }: TypographyProps) {
-  const Component = as ?? DEFAULT_ELEMENT[variant]
+  // Defensive check for invalid variants to prevent "Element type is invalid"
+  const safeVariant = (variant && variant in DEFAULT_ELEMENT) ? variant : 'body-md';
+  const Component = as ?? DEFAULT_ELEMENT[safeVariant] ?? 'p';
 
   return (
-    <Component className={cn(VARIANT_STYLES[variant], className)}>
+    <Component className={cn(VARIANT_STYLES[safeVariant] || VARIANT_STYLES['body-md'], className)}>
       {children}
     </Component>
   )
@@ -87,3 +89,4 @@ export function Body({
 export function Caption({ children, className }: { children: React.ReactNode; className?: string }) {
   return <Typography variant="body-xs" className={className}>{children}</Typography>
 }
+

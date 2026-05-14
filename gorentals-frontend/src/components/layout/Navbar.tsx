@@ -6,7 +6,7 @@ import { useNotifications } from '@/hooks/useNotifications'
 import { useRouter, usePathname } from 'next/navigation'
 import { useState, useRef, useEffect } from 'react'
 import { Menu, X, Bell } from 'lucide-react'
-import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 
 export function Navbar() {
   const { user, logout, isLoading } = useAuth()
@@ -16,7 +16,12 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10)
@@ -41,8 +46,10 @@ export function Navbar() {
   const hideNavbar = ['/login', '/signup', '/forgot-password'].includes(pathname)
   if (hideNavbar) return null
 
-  // Dashboard routes get their own DashboardNav, so we hide the main Navbar there
-  const isDashboard = pathname.startsWith('/dashboard') || pathname.startsWith('/owner')
+  // Dashboard and Protected routes get their own DashboardNav, so we hide the main Navbar there
+  const isDashboard = pathname.startsWith('/dashboard') || 
+                     pathname.startsWith('/owner') ||
+                     ['/notifications', '/create-listing', '/my-rentals', '/admin'].some(p => pathname.startsWith(p))
   if (isDashboard) return null
 
   const initials = user?.fullName?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'U'
@@ -74,7 +81,7 @@ export function Navbar() {
               <ThemeToggle />
             </div>
             
-            {!isLoading && (
+            {mounted && !isLoading && (
               <>
                 {user ? (
                   <div className="flex items-center gap-2 sm:gap-4">
@@ -252,3 +259,4 @@ function MobileNavLink({ href, label, active, onClick }: { href: string; label: 
     </Link>
   )
 }
+

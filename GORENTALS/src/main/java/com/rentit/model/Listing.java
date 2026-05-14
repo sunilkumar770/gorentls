@@ -41,7 +41,13 @@ public class Listing {
     
     @Column(length = 100)
     private String type;
+
     
+    @Column(length = 100)
+    private String subcategory;
+
+    @Column(length = 50)
+    private String condition;
     @Column(name = "price_per_day", nullable = false)
     private BigDecimal pricePerDay;
     

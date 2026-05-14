@@ -59,3 +59,4 @@ export default function ImageWithFallback({ src, alt, className = '', category }
     </div>
   )
 }
+

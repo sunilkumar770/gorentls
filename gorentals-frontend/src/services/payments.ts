@@ -2,7 +2,7 @@ import api from '@/lib/axios';
 
 export interface CreateOrderRequest {
   bookingId: string;
-  paymentKind: 'ADVANCE' | 'FINAL' | 'SECURITY_DEPOSIT';
+  paymentKind: 'ADVANCE' | 'FINAL' | 'securityDeposit';
 }
 
 export interface CreateOrderResponse {
@@ -15,7 +15,7 @@ export interface CreateOrderResponse {
 
 export async function createOrder(
   bookingId: string,
-  paymentKind: 'ADVANCE' | 'FINAL' | 'SECURITY_DEPOSIT' = 'ADVANCE'
+  paymentKind: 'ADVANCE' | 'FINAL' | 'securityDeposit' = 'ADVANCE'
 ): Promise<CreateOrderResponse> {
   const res = await api.post<CreateOrderResponse>('/payments/order', {
     bookingId,
@@ -29,7 +29,7 @@ export interface ConfirmPaymentRequest {
   razorpayOrderId: string;
   razorpayPaymentId: string;
   razorpaySignature: string;
-  paymentKind: 'ADVANCE' | 'FINAL' | 'SECURITY_DEPOSIT';
+  paymentKind: 'ADVANCE' | 'FINAL' | 'securityDeposit';
 }
 
 export async function confirmPayment(
@@ -38,3 +38,4 @@ export async function confirmPayment(
   const res = await api.post('/payments/confirm', data);
   return res.data;
 }
+

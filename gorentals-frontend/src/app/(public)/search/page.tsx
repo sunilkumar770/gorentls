@@ -16,7 +16,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { cn } from '@/lib/utils';
+import { cn, getListingImage } from '@/lib/utils';
 import { getListings } from '@/services/listings';
 import { Listing } from '@/types';
 import Link from 'next/link';
@@ -43,7 +43,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 
 // ── Listing Card ──────────────────────────────────────────────────
 function ListingCard({ listing, listView }: { listing: Listing; listView: boolean }) {
-  const image = listing.listing_images?.[0]?.image_url || '/placeholder-listing.jpg';
+  const image = getListingImage(listing as Parameters<typeof getListingImage>[0]);
   const ownerName = listing.stores?.store_name || listing.owner?.fullName || 'Owner';
   const city = listing.stores?.store_city || 'India';
 
@@ -82,7 +82,7 @@ function ListingCard({ listing, listView }: { listing: Listing; listView: boolea
           </div>
           <div className="flex items-end justify-between mt-4 pt-4 border-t border-border-subtle">
             <div>
-              <Typography variant="h3" as="span">₹{listing.price_per_day.toLocaleString()}</Typography>
+              <Typography variant="h3" as="span">₹{(listing.pricePerDay ?? 0).toLocaleString()}</Typography>
               <Typography variant="body-xs" as="span" className="ml-1">/day</Typography>
             </div>
             <div className="flex items-center gap-1">
@@ -151,8 +151,10 @@ function SearchPageContent() {
   const [error, setError] = useState<string | null>(null);
 
   const [query,     setQuery]     = useState(searchParams.get('q') ?? '');
+  const [city,      setCity]      = useState(searchParams.get('city') ?? '');
   const [submitted, setSubmitted] = useState(searchParams.get('q') ?? '');
   const [category,  setCategory]  = useState(searchParams.get('category') ?? '');
+  const [ownerId,   setOwnerId]   = useState(searchParams.get('ownerId') ?? '');
   const [sort,      setSort]      = useState<'newest'|'price_asc'|'price_desc'|'rating'>('newest');
   const [viewMode,  setViewMode]  = useState<'grid'|'list'>('grid');
   const [priceMax,  setPriceMax]  = useState(10000);
@@ -173,6 +175,8 @@ function SearchPageContent() {
     setQuery(searchParams.get('q') ?? '');
     setSubmitted(searchParams.get('q') ?? '');
     setCategory(searchParams.get('category') ?? '');
+    setOwnerId(searchParams.get('ownerId') ?? '');
+    setCity(searchParams.get('city') ?? '');
     const p = searchParams.get('price');
     if (p) setPriceMax(Number(p));
   }, [searchParams]);
@@ -184,20 +188,14 @@ function SearchPageContent() {
       try {
         const data = await getListings({
           category,
+          ownerId,
+          city,
           max_price: filtersApplied.priceMax,
-          sort
+          sort,
+          // Pass keyword to backend search endpoint for server-side filtering
+          ...(submitted ? { keyword: submitted } : {}),
         });
-        
-        // Client-side search for now since backend search is minimal
-        let filtered = data;
-        if (submitted) {
-          filtered = data.filter(l => 
-            l.title.toLowerCase().includes(submitted.toLowerCase()) ||
-            l.description?.toLowerCase().includes(submitted.toLowerCase())
-          );
-        }
-        
-        setListings(filtered);
+        setListings(data);
       } catch (err) {
         setError('Failed to load listings. Please try again.');
         console.error(err);
@@ -207,7 +205,7 @@ function SearchPageContent() {
     };
 
     fetchListings();
-  }, [category, submitted, filtersApplied, sort]);
+  }, [category, submitted, filtersApplied, sort, city, ownerId]);
 
   useEffect(() => {
     const parts: string[] = [];
@@ -450,3 +448,4 @@ export default function SearchPage() {
     </Suspense>
   );
 }
+

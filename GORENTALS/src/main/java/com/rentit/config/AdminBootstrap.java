@@ -12,9 +12,19 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
+/**
+ * Bootstraps the admin user on first startup.
+ * Admin credentials are sourced from environment variables:
+ *   APP_ADMIN_EMAIL      – required
+ *   APP_ADMIN_PASSWORD  – required, minimum 16 characters
+ * Never hardcode these values.
+ */
 @Component
 public class AdminBootstrap implements CommandLineRunner {
+
+    private static final int MIN_ADMIN_PASSWORD_LENGTH = 16;
 
     @Value("${app.admin.email}")
     private String adminEmail;
@@ -36,35 +46,44 @@ public class AdminBootstrap implements CommandLineRunner {
 
     @Override
     @Transactional
-    public void run(String... args) throws Exception {
-        User adminUser = userRepository.findByEmail(adminEmail).orElse(null);
+    public void run(String... args) {
+        // ── Fail-fast validations ──
+        if (adminEmail == null || adminEmail.isBlank()) {
+            throw new IllegalStateException(
+                "[AdminBootstrap] FATAL: APP_ADMIN_EMAIL is not set. " +
+                "Set this environment variable before starting the application.");
+        }
+        if (adminPassword == null || adminPassword.isBlank()) {
+            throw new IllegalStateException(
+                "[AdminBootstrap] FATAL: APP_ADMIN_PASSWORD is not set. " +
+                "Set this environment variable before starting the application.");
+        }
+        if (adminPassword.length() < MIN_ADMIN_PASSWORD_LENGTH) {
+            throw new IllegalStateException(
+                "[AdminBootstrap] FATAL: APP_ADMIN_PASSWORD must be at least " +
+                MIN_ADMIN_PASSWORD_LENGTH + " characters long. " +
+                "Use a strong, randomly generated password.");
+        }
 
+        // ── Bootstrap or update admin user ──
+        User user = userRepository.findByEmail(adminEmail).orElse(null);
+        if (user == null) {
+            user = new User();
+            user.setEmail(adminEmail);
+            user.setFullName(adminName);
+            user.setUserType(User.UserType.ADMIN);
+            user.setIsActive(true);
+        }
+        user.setPasswordHash(passwordEncoder.encode(adminPassword));
+        userRepository.save(user);
+
+        AdminUser adminUser = adminUserRepository.findByUser(user).orElse(null);
         if (adminUser == null) {
-            adminUser = new User();
-            adminUser.setEmail(adminEmail);
-            adminUser.setPasswordHash(passwordEncoder.encode(adminPassword));
-            adminUser.setFullName(adminName);
-            adminUser.setUserType(User.UserType.ADMIN);
-            adminUser.setIsActive(true);
-            adminUser.setCreatedAt(LocalDateTime.now());
-            adminUser.setUpdatedAt(LocalDateTime.now());
-            adminUser = userRepository.save(adminUser);
-        } else {
-            adminUser.setPasswordHash(passwordEncoder.encode(adminPassword));
-            if (adminUser.getUserType() != User.UserType.ADMIN) {
-                adminUser.setUserType(User.UserType.ADMIN);
-            }
-            adminUser = userRepository.save(adminUser);
+            adminUser = new AdminUser();
+            adminUser.setUser(user);
+            adminUser.setRole("SUPER_ADMIN");
+            adminUser.setPermissions(Map.of("all", true));
         }
-
-        if (adminUserRepository.findByUser(adminUser).isEmpty()) {
-            AdminUser roleUser = new AdminUser();
-            roleUser.setUser(adminUser);
-            roleUser.setRole("SUPER_ADMIN");
-            roleUser.setCreatedAt(LocalDateTime.now());
-            roleUser.setUpdatedAt(LocalDateTime.now());
-            adminUserRepository.save(roleUser);
-        } else {
-        }
+        adminUserRepository.save(adminUser);
     }
 }

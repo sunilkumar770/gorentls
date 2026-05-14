@@ -86,3 +86,4 @@ class SafeStorage {
 }
 
 export const safeStorage = new SafeStorage();
+

@@ -62,3 +62,4 @@ export function Alert({ variant, title, children, icon, className }: AlertProps)
     </div>
   )
 }
+

@@ -164,3 +164,4 @@ export default function ListingGrid({
     </div>
   );
 }
+

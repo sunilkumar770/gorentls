@@ -42,3 +42,4 @@ export function useWishlist() {
 
   return { wishlistIds, count, toggle, isWishlisted };
 }
+

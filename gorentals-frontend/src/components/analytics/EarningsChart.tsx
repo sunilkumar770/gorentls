@@ -14,8 +14,10 @@ interface EarningsChartProps {
 export function EarningsChart({ data: initialData }: EarningsChartProps) {
   const [data, setData] = useState<WeeklyStat[]>(initialData || []);
   const [loading, setLoading] = useState(!initialData);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     if (initialData && initialData.length > 0) {
       setData(initialData);
       setLoading(false);
@@ -40,7 +42,7 @@ export function EarningsChart({ data: initialData }: EarningsChartProps) {
       .finally(() => setLoading(false));
   }, [initialData]);
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-indigo-500 w-6 h-6"/></div>;
+  if (!mounted || loading) return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-indigo-500 w-6 h-6"/></div>;
 
   return (
     <div className="bg-[var(--bg-card)] rounded-[var(--r-lg)] p-6 border border-[var(--border)] shadow-sm">
@@ -66,3 +68,4 @@ export function EarningsChart({ data: initialData }: EarningsChartProps) {
     </div>
   );
 }
+

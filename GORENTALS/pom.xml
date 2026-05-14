@@ -237,7 +237,14 @@
 			<artifactId>resilience4j-micrometer</artifactId>
 			<version>2.1.0</version>
 		</dependency>
-	</dependencies>
+
+		<!-- Environment Variable Loading (.env) -->
+		<dependency>
+			<groupId>io.github.cdimascio</groupId>
+			<artifactId>dotenv-java</artifactId>
+			<version>3.0.0</version>
+		</dependency>
+			<!-- C-1 Fix: Flyway for production schema migration management --> 		<dependency> 			<groupId>org.flywaydb</groupId> 			<artifactId>flyway-core</artifactId> 		</dependency> 		<dependency> 			<groupId>org.flywaydb</groupId> 			<artifactId>flyway-database-postgresql</artifactId> 		</dependency> 	</dependencies>
     
     <build>
         <plugins>

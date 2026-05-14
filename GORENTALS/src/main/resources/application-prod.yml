@@ -1,3 +1,6 @@
+# ── Production Profile — GoRentals ──────────────────────────────────────
+# This file is merged ON TOP of application.yml when SPRING_PROFILES_ACTIVE=prod
+
 cors:
   allowed-origins: https://app.gorentals.com,https://www.gorentals.com
   allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
@@ -5,3 +8,46 @@ cors:
   expose-headers: Authorization,X-Total-Count,X-Page,X-PageSize
   allow-credentials: true
   max-age: 7200
+
+spring:
+  jpa:
+    hibernate:
+      # NEVER use 'update' in production — use Flyway for schema changes
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    out-of-order: false
+  data:
+    redis:
+      repositories:
+        enabled: false
+
+# Production logging — no DEBUG noise
+logging:
+  level:
+    root: WARN
+    com.rentit: INFO
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+
+# Only expose safe actuator endpoints in production
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+# Server hardening
+server:
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false

@@ -21,6 +21,11 @@ const ADMIN_PATHS = ['/admin'];
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // RC-4: Allow access to admin login page
+  if (pathname === '/admin/login') {
+    return NextResponse.next();
+  }
+
   // Check if this is a protected path
   const isProtected = PROTECTED_PATHS.some(path => pathname.startsWith(path));
   const isAdminPath = ADMIN_PATHS.some(path => pathname.startsWith(path));
@@ -84,3 +89,4 @@ export const config = {
     '/admin/:path*',
   ],
 };
+

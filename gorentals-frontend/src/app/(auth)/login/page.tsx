@@ -9,7 +9,7 @@ import { Typography, H1, Body } from '@/components/ui/Typography'
 import { Alert } from '@/components/ui/Alert'
 import { Card } from '@/components/ui/Card'
 import { Logo } from '@/components/ui/Logo'
-import { buildProfile } from '@/services/auth'
+import { buildProfile, signIn } from '@/services/auth'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -23,29 +23,44 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    // --- Client-side validation (US-004) ---
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Please enter a valid email address.')
+      return
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.')
+      return
+    }
+
     setIsLoading(true)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
+      const { data, error: signInError } = await signIn(email, password)
       
-      const data = await res.json()
-      
-      if (!res.ok) {
-        setError(data.message ?? 'Invalid email or password')
+      if (signInError || !data) {
+        setError(signInError ?? 'Invalid email or password')
         return
       }
       
       const profile = buildProfile(data);
       login(data.accessToken, profile);
       
-      const redirect = params.get('redirect') ?? (profile.role === 'OWNER' ? '/owner' : '/dashboard')
-      router.push(redirect)
-      router.refresh()
-    } catch {
-      setError('Connection error. Please try again.')
+      const redirect = params.get('redirect');
+      const role = profile.role.toUpperCase();
+      const dest = role === 'ADMIN' 
+        ? '/admin' 
+        : role === 'OWNER' 
+          ? '/owner' 
+          : redirect ?? '/dashboard';
+          
+      router.push(dest);
+      router.refresh();
+      
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      if (process.env.NODE_ENV === "development") console.error('[Login] Client Error:', error);
+      setError(error.message || 'Connection error. Please try again.');
     } finally {
       setIsLoading(false)
     }
@@ -131,3 +146,4 @@ export default function LoginPage() {
     </div>
   )
 }
+

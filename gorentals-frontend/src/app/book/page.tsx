@@ -87,13 +87,13 @@ function BookContent() {
   }
 
   const days = startDate && endDate ? Math.max(1, Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000)) : 0;
-  const price = listing.price_per_day || 0;
+  const price = listing.pricePerDay || 0;
   const subtotal = days * price;
   const shippingPrice = SHIPPING_OPTIONS.find(s => s.id === shipping)?.price || 0;
   const serviceFee = Math.round(subtotal * 0.1);
   const total = subtotal + shippingPrice + serviceFee;
 
-  const thumbnail = listing.listing_images?.[0]?.image_url || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&q=80';
+  const thumbnail = listing.listingImages?.[0]?.image_url || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&q=80';
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
@@ -278,3 +278,4 @@ export default function BookPage() {
     </div>
   );
 }
+

@@ -29,6 +29,8 @@ public class RegisterRequest {
     @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$", message = "Phone number must be valid")
     private String phoneNumber;
 
+    private String role; // RENTER or OWNER
+
     // Constructors, getters, setters
     public RegisterRequest() {}
 
@@ -70,5 +72,13 @@ public class RegisterRequest {
 
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 }

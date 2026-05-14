@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@ConditionalOnProperty(name = "app.redis.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "app.redis.enabled", havingValue = "true", matchIfMissing = false)
 @RequiredArgsConstructor
 public class RedisMessageSubscriber {
 

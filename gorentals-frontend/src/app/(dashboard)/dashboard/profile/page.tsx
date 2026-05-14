@@ -25,7 +25,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/login?from=/dashboard/profile')
+      router.push('/login?redirect=/dashboard/profile')
     }
   }, [authLoading, user, router])
 
@@ -107,8 +107,8 @@ export default function ProfilePage() {
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <Typography variant="h2" className="text-slate-900 dark:text-white">Account Settings</Typography>
-          <Typography variant="body-sm" className="text-slate-500">Manage your profile information and account preferences</Typography>
+          <Typography variant="h2" className="text-foreground">Account Settings</Typography>
+          <Typography variant="body-sm" className="text-muted-foreground">Manage your profile information and account preferences</Typography>
         </div>
         <div className="flex items-center gap-3">
           <Badge status={profile?.kycStatus || 'NOT_SUBMITTED'} />
@@ -129,24 +129,24 @@ export default function ProfilePage() {
                 name={profile?.fullName || 'User'} 
                 size="xl" 
                 src={profile?.profilePicture}
-                className="w-24 h-24 text-2xl mx-auto border-4 border-white dark:border-slate-800 shadow-md"
+                className="w-24 h-24 text-2xl mx-auto border-4 border-background shadow-md"
               />
               <button className="absolute bottom-0 right-0 p-2 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition-colors">
                 📷
               </button>
             </div>
             <div>
-              <Typography variant="h4" className="text-slate-900 dark:text-white">{profile?.fullName}</Typography>
-              <Typography variant="body-sm" className="text-slate-500">{profile?.email}</Typography>
+              <Typography variant="h4" className="text-foreground">{profile?.fullName}</Typography>
+              <Typography variant="body-sm" className="text-muted-foreground">{profile?.email}</Typography>
             </div>
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="pt-4 border-t border-border">
               <div className="flex justify-between text-sm py-1">
-                <span className="text-slate-500">Role</span>
-                <span className="font-medium text-slate-900 dark:text-white capitalize">{(profile?.userType || 'RENTER').toLowerCase()}</span>
+                <span className="text-muted-foreground">Role</span>
+                <span className="font-medium text-foreground capitalize">{(profile?.userType || 'RENTER').toLowerCase()}</span>
               </div>
               <div className="flex justify-between text-sm py-1">
-                <span className="text-slate-500">Member since</span>
-                <span className="font-medium text-slate-900 dark:text-white">
+                <span className="text-muted-foreground">Member since</span>
+                <span className="font-medium text-foreground">
                   {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'N/A'}
                 </span>
               </div>
@@ -154,7 +154,7 @@ export default function ProfilePage() {
           </Card>
 
           <Card className="p-6 space-y-4">
-            <Typography variant="h4" className="text-slate-900 dark:text-white">Account Status</Typography>
+            <Typography variant="h4" className="text-foreground">Account Status</Typography>
             <div className="space-y-3">
               <StatusItem label="Email Verified" status={true} />
               <StatusItem label="Phone Verified" status={!!profile?.phone} />
@@ -169,7 +169,7 @@ export default function ProfilePage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Full Name</label>
+                  <label className="text-sm font-semibold text-foreground/80">Full Name</label>
                   <Input 
                     name="fullName"
                     value={formData.fullName}
@@ -179,7 +179,7 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Phone Number</label>
+                  <label className="text-sm font-semibold text-foreground/80">Phone Number</label>
                   <Input 
                     name="phone"
                     value={formData.phone}
@@ -189,7 +189,7 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Address</label>
+                  <label className="text-sm font-semibold text-foreground/80">Address</label>
                   <Input 
                     name="address"
                     value={formData.address}
@@ -198,7 +198,7 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">City</label>
+                  <label className="text-sm font-semibold text-foreground/80">City</label>
                   <Input 
                     name="city"
                     value={formData.city}
@@ -207,7 +207,7 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">State</label>
+                  <label className="text-sm font-semibold text-foreground/80">State</label>
                   <Input 
                     name="state"
                     value={formData.state}
@@ -216,7 +216,7 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Pincode</label>
+                  <label className="text-sm font-semibold text-foreground/80">Pincode</label>
                   <Input 
                     name="pincode"
                     value={formData.pincode}
@@ -225,7 +225,7 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Date of Birth</label>
+                  <label className="text-sm font-semibold text-foreground/80">Date of Birth</label>
                   <Input 
                     type="date"
                     name="dateOfBirth"
@@ -235,11 +235,11 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+              <div className="pt-6 border-t border-border flex justify-end">
                 <Button 
                   type="submit" 
                   disabled={isSaving}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 h-11"
+                  className="bg-primary hover:bg-primary/90 text-white px-8 h-11"
                 >
                   {isSaving ? 'Saving...' : 'Save Changes'}
                 </Button>
@@ -283,10 +283,11 @@ function Badge({ status }: { status: string }) {
 function StatusItem({ label, status }: { label: string; status: boolean }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-sm text-slate-600 dark:text-slate-400">{label}</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
       <span className={status ? "text-green-500" : "text-slate-300"}>
         {status ? "✓" : "○"}
       </span>
     </div>
   )
 }
+

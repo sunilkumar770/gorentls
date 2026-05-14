@@ -33,9 +33,10 @@ public class ListingController {
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "12") int size,
         @RequestParam(required = false) String city,
-        @RequestParam(required = false) String category) {
+        @RequestParam(required = false) String category,
+        @RequestParam(required = false) UUID ownerId) {
       return ResponseEntity.ok(
-        listingService.getAllListings(page, size, city, category));
+        listingService.getAllListings(page, size, city, category, ownerId));
     }
 
     @GetMapping("/owner/mine")
@@ -61,8 +62,10 @@ public class ListingController {
             @RequestParam(required = false) String type,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) UUID ownerId,
+            @RequestParam(required = false) String keyword,
             Pageable pageable) {
-        return ResponseEntity.ok(listingService.searchListings(city, category, type, minPrice, maxPrice, pageable));
+        return ResponseEntity.ok(listingService.searchListings(city, category, type, minPrice, maxPrice, ownerId, keyword, pageable));
     }
 
     @GetMapping("/{id}")

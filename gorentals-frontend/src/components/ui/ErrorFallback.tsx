@@ -24,3 +24,4 @@ export function ErrorFallback({ error, resetErrorBoundary }: { error: any; reset
     </div>
   );
 }
+

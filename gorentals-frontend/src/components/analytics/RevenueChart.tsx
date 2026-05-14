@@ -69,3 +69,4 @@ export function RevenueChart({ data, className }: { data: RevenuePoint[], classN
     </div>
   );
 }
+

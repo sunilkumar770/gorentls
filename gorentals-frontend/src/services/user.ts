@@ -37,3 +37,4 @@ export async function submitKYC(data: {
   const res = await api.post<Profile>('/users/kyc', data);
   return res.data;
 }
+

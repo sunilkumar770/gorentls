@@ -70,10 +70,8 @@ export interface AdminListing {
   city?: string;
   category?: string;
   approvalStatus?: string;
-  is_published?: boolean;
   isPublished?: boolean;
   pricePerDay?: number;
-  price_per_day?: number;
   rentalPricePerDay?: number;
   ownerName?: string;
   owner?: { fullName?: string; email?: string };
@@ -170,3 +168,4 @@ export const adminService = {
     return r.data;
   },
 };
+

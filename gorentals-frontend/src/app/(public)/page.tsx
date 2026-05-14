@@ -1,3 +1,4 @@
+import { getApiUrl } from '@/lib/api-utils'
 import { HeroSection } from './components/HeroSection'
 import { CategoryGrid } from './components/CategoryGrid'
 import { ListingGrid } from './components/ListingGrid'
@@ -20,9 +21,8 @@ interface ListingDTO {
 }
 
 async function getListings(): Promise<ListingDTO[]> {
-  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
   try {
-    const res = await fetch(`${base}/api/listings?limit=12`, {
+    const res = await fetch(getApiUrl('/listings?limit=12'), {
       cache: 'no-store',
     })
     if (!res.ok) return []
@@ -63,3 +63,4 @@ export default async function HomePage() {
     </main>
   )
 }
+

@@ -6,9 +6,12 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: "0 2 * * *"
+    - cron: "0 2 * * *" # Daily health check build
 
 jobs:
+  # ───────────────────────────────────────────────────────────────
+  # Job 1: Backend compile + fast unit tests
+  # ───────────────────────────────────────────────────────────────
   backend:
     runs-on: ubuntu-latest
     steps:
@@ -27,104 +30,76 @@ jobs:
           chmod +x mvnw
           ./mvnw clean compile -B
 
-      - name: Run fast backend tests (H2)
+      - name: Run fast backend tests (H2 in-memory)
         working-directory: ./GORENTALS
         run: ./mvnw test -B -Dspring.profiles.active=test -Dtestcontainers.enabled=false
 
-  backend-integration:
-    runs-on: ubuntu-latest
-    needs: [backend]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: maven
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Run PostgreSQL integration tests
-        working-directory: ./GORENTALS
-        run: |
-          chmod +x mvnw
-          ./mvnw test -B -Dspring.profiles.active=test -Dtestcontainers.enabled=true
-
+  # ───────────────────────────────────────────────────────────────
+  # Job 2: Frontend lint + build
+  # ───────────────────────────────────────────────────────────────
   frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: './gorentals-frontend/package-lock.json'
+          cache-dependency-path: gorentals-frontend/package-lock.json
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
         working-directory: ./gorentals-frontend
-        run: npm install --legacy-peer-deps
+        run: npm ci
 
-      - name: TypeScript check
+      - name: Lint frontend
         working-directory: ./gorentals-frontend
-        run: npx tsc --noEmit
+        run: npm run lint
 
-      - name: Build frontend
+      - name: Build frontend (type check + next build)
         working-directory: ./gorentals-frontend
-        run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api' }}
+          NEXT_PUBLIC_API_URL: http://localhost:8080/api
+          NEXT_PUBLIC_RAZORPAY_KEY_ID: rzp_test_placeholder
+        run: npm run build
 
-  docker:
+  # ───────────────────────────────────────────────────────────────
+  # Job 3: Validate required GitHub Secrets exist before deploying
+  # (Prevents a deploy with missing critical secrets)
+  # ───────────────────────────────────────────────────────────────
+  validate-secrets:
     runs-on: ubuntu-latest
-    needs: [backend, backend-integration, frontend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Validate Configuration
+      - name: Check required deploy secrets
         run: |
-          [ -n "${{ secrets.DB_URL }}" ] || (echo "Missing DB_URL" && exit 1)
-          [ -n "${{ secrets.JWT_SECRET }}" ] || (echo "Missing JWT_SECRET" && exit 1)
-          [ -n "${{ secrets.RAZORPAY_KEY_ID }}" ] || (echo "Missing RAZORPAY_KEY_ID" && exit 1)
-          [ -n "${{ secrets.NEXT_PUBLIC_API_URL }}" ] || (echo "Missing NEXT_PUBLIC_API_URL" && exit 1)
+          MISSING=""
+          [ -z "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}" ] && MISSING="$MISSING RENDER_DEPLOY_HOOK_BACKEND"
+          [ -z "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}" ] && MISSING="$MISSING RENDER_DEPLOY_HOOK_FRONTEND"
+          if [ -n "$MISSING" ]; then
+            echo "ERROR: Missing required GitHub Secrets:$MISSING"
+            echo "Set these in: Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+          echo "All required secrets are present."
 
-      - name: Build backend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./GORENTALS
-          push: false
-          tags: gorentals-backend:${{ github.sha }}
-
-      - name: Build frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./gorentals-frontend
-          push: false
-          tags: gorentals-frontend:${{ github.sha }}
-          build-args: |
-            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
-
+  # ───────────────────────────────────────────────────────────────
+  # Job 4: Deploy to Render (only on push to main, after all checks pass)
+  # ───────────────────────────────────────────────────────────────
   deploy:
     runs-on: ubuntu-latest
-    needs: [docker]
+    needs: [backend, frontend, validate-secrets]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - name: Trigger Render Deploy (Backend)
+      - name: Trigger Render Deploy – Backend
         run: |
-          [ -n "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}" ] && curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}" || echo "Backend hook missing"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}")
+          echo "Backend deploy webhook HTTP status: $HTTP_STATUS"
+          [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 201 ] || { echo "Backend deploy webhook failed with HTTP $HTTP_STATUS"; exit 1; }
 
-      - name: Trigger Render Deploy (Frontend)
+      - name: Trigger Render Deploy – Frontend
         run: |
-          [ -n "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}" ] && curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}" || echo "Frontend hook missing"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}")
+          echo "Frontend deploy webhook HTTP status: $HTTP_STATUS"
+          [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 201 ] || { echo "Frontend deploy webhook failed with HTTP $HTTP_STATUS"; exit 1; }

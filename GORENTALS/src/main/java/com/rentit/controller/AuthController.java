@@ -6,7 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
 @RestController
@@ -51,8 +52,7 @@ public class AuthController {
             @Valid @RequestBody ForgotPasswordRequest request) {
         authService.initiatePasswordReset(request.getEmail());
         return ResponseEntity.ok(new SuccessResponse(
-                "If the account exists, a password reset email has been sent",
-                true
+                "If the account exists, a password reset email has been sent", true
         ));
     }
 
@@ -60,5 +60,34 @@ public class AuthController {
     public ResponseEntity<SuccessResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request.getToken(), request.getNewPassword());
         return ResponseEntity.ok(new SuccessResponse("Password has been reset successfully", true));
+    }
+
+    /**
+     * POST /api/auth/logout
+     * Clears the HttpOnly JWT cookie server-side.
+     * Note: JWTs are stateless; full server-side token invalidation requires
+     * a Redis-backed token blacklist. The current implementation relies on
+     * frontend cookie clearing and short token expiry (24h) as the primary
+     * logout mechanism.
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<SuccessResponse> logout(HttpServletResponse response) {
+        // Clear the JWT HttpOnly cookie
+        Cookie cookie = new Cookie("gorentals_token", "");
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true); // HTTPS only
+        cookie.setPath("/");
+        cookie.setMaxAge(0);    // Expire immediately
+        response.addCookie(cookie);
+
+        // Also clear legacy token cookie if present
+        Cookie legacyCookie = new Cookie("token", "");
+        legacyCookie.setHttpOnly(true);
+        legacyCookie.setSecure(true);
+        legacyCookie.setPath("/");
+        legacyCookie.setMaxAge(0);
+        response.addCookie(legacyCookie);
+
+        return ResponseEntity.ok(new SuccessResponse("Logged out successfully", true));
     }
 }

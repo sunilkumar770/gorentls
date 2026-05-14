@@ -29,3 +29,4 @@ export function BookingStatusBadge({ status, className = '' }: BookingStatusBadg
     </span>
   );
 }
+

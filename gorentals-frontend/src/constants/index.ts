@@ -16,3 +16,4 @@ export const CITIES = [
 ] as const;
 
 export const SERVICE_FEE_PERCENTAGE = 0.10; // 10%
+

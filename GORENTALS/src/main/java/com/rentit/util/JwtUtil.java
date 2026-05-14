@@ -14,7 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import java.nio.charset.StandardCharsets;
-
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,6 +31,10 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private Long expiration;
 
+    /** Read refresh expiry from config (was hardcoded before — BE-02 fix) */
+    @Value("${jwt.refresh-expiration}")
+    private Long refreshExpiration;
+
     @jakarta.annotation.PostConstruct
     public void validateSecret() {
         if (secret == null || secret.isBlank() || secret.contains("your-secret-key")) {
@@ -40,31 +43,19 @@ public class JwtUtil {
         }
     }
 
-    /**
-     * Extract username from token
-     */
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
-    /**
-     * Extract expiration date from token
-     */
     public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    /**
-     * Extract specific claim from token
-     */
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
 
-    /**
-     * Extract all claims from token
-     */
     private Claims extractAllClaims(String token) {
         try {
             return Jwts.parser()
@@ -72,48 +63,29 @@ public class JwtUtil {
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-        } catch (ExpiredJwtException e) {
-            logger.error("JWT token expired: {}", e.getMessage());
-            throw e;
-        } catch (MalformedJwtException e) {
-            logger.error("Invalid JWT token: {}", e.getMessage());
-            throw e;
-        } catch (SecurityException e) {
-            logger.error("Invalid JWT signature/security: {}", e.getMessage());
-            throw e;
-        } catch (Exception e) {
-            logger.error("Error parsing JWT token: {}", e.getMessage());
-            throw e;
-        }
+        } catch (ExpiredJwtException e) { logger.error("JWT token expired: {}", e.getMessage()); throw e; }
+        catch (MalformedJwtException e) { logger.error("Invalid JWT token: {}", e.getMessage()); throw e; }
+        catch (SecurityException e)     { logger.error("Invalid JWT signature: {}", e.getMessage()); throw e; }
+        catch (Exception e)             { logger.error("Error parsing JWT token: {}", e.getMessage()); throw e; }
     }
 
-    /**
-     * Get signing key
-     */
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    /**
-     * Check if token is expired
-     */
     private Boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
 
-    /**
-     * Generate token for user
-     */
     public String generateToken(String username, String role) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("role", role);
+        // Normalize RENTER to USER for frontend role consistency
+        String normalizedRole = "RENTER".equals(role) ? "USER" : role;
+        claims.put("role", normalizedRole);
         claims.put("created", new Date());
         return createToken(claims, username);
     }
 
-    /**
-     * Generate refresh token
-     */
     public String generateRefreshToken(String username) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "refresh");
@@ -121,9 +93,6 @@ public class JwtUtil {
         return createRefreshToken(claims, username);
     }
 
-    /**
-     * Create access token
-     */
     private String createToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()
                 .claims(claims)
@@ -134,11 +103,8 @@ public class JwtUtil {
                 .compact();
     }
 
-    /**
-     * Create refresh token (longer expiry)
-     */
+    /** Uses configured jwt.refresh-expiration (not hardcoded formula) — BE-02 fix */
     private String createRefreshToken(Map<String, Object> claims, String subject) {
-        long refreshExpiration = expiration * 24 * 7; // 7 days (was only 2x access token)
         return Jwts.builder()
                 .claims(claims)
                 .subject(subject)
@@ -148,9 +114,6 @@ public class JwtUtil {
                 .compact();
     }
 
-    /**
-     * Validate token
-     */
     public Boolean validateToken(String token, String username) {
         try {
             final String extractedUsername = extractUsername(token);
@@ -161,9 +124,6 @@ public class JwtUtil {
         }
     }
 
-    /**
-     * Extract role from token
-     */
     public String extractRole(String token) {
         try {
             Claims claims = extractAllClaims(token);
@@ -174,42 +134,25 @@ public class JwtUtil {
         }
     }
 
-    /**
-     * Check if token is refresh token
-     */
     public Boolean isRefreshToken(String token) {
         try {
             Claims claims = extractAllClaims(token);
-            String type = (String) claims.get("type");
-            return "refresh".equals(type);
-        } catch (Exception e) {
-            return false;
-        }
+            return "refresh".equals((String) claims.get("type"));
+        } catch (Exception e) { return false; }
     }
 
-    /**
-     * Get token expiration in milliseconds
-     */
-    public Long getExpirationMs() {
-        return expiration;
-    }
+    public Long getExpirationMs()      { return expiration; }
+    public Long getRefreshExpirationMs() { return refreshExpiration; }
 
-    /**
-     * Check if token can be refreshed
-     */
     public Boolean canBeRefreshed(String token) {
         return (!isTokenExpired(token) || isRefreshToken(token));
     }
 
-    /**
-     * Refresh token - create new token from old one
-     */
     public String refreshToken(String token) {
         try {
             final Claims claims = extractAllClaims(token);
             Map<String, Object> newClaims = new HashMap<>(claims);
-            newClaims.remove("type"); // Remove refresh type for new access token
-            
+            newClaims.remove("type");
             return Jwts.builder()
                     .claims(newClaims)
                     .issuedAt(new Date())
@@ -217,41 +160,26 @@ public class JwtUtil {
                     .signWith(getSigningKey())
                     .compact();
         } catch (ExpiredJwtException e) {
-            logger.error("Token refresh failed - token is expired: {}", e.getMessage());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token has expired and cannot be refreshed", e);
         } catch (Exception e) {
-            logger.error("Token refresh failed: {}", e.getMessage());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unable to refresh token", e);
         }
     }
 
-    /**
-     * Get token issued at date
-     */
     public Date getIssuedAtDateFromToken(String token) {
         return extractClaim(token, Claims::getIssuedAt);
     }
 
-    /**
-     * Get remaining validity in milliseconds
-     */
     public Long getRemainingValidityMs(String token) {
-        Date expiration = extractExpiration(token);
-        Date now = new Date();
-        return expiration.getTime() - now.getTime();
+        Date exp = extractExpiration(token);
+        return exp.getTime() - System.currentTimeMillis();
     }
 
-    /**
-     * Check if token is valid for user
-     */
     public Boolean isTokenValid(String token, String username) {
         final String tokenUsername = extractUsername(token);
         return (tokenUsername.equals(username) && !isTokenExpired(token));
     }
 
-    /**
-     * Generate token with custom claims
-     */
     public String generateTokenWithClaims(Map<String, Object> claims, String subject) {
         claims.put("created", new Date());
         return Jwts.builder()

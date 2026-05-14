@@ -8,6 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -77,6 +78,23 @@ public class GlobalExceptionHandler {
         errorDetails.put("message", ex.getMessage());
 
         return new ResponseEntity<>(errorDetails, HttpStatus.CONFLICT);
+    }
+
+    /**
+     * Handle type mismatch exceptions (e.g. invalid UUID in path)
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<?> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex,
+            WebRequest request) {
+
+        Map<String, Object> errorDetails = new HashMap<>();
+        errorDetails.put("timestamp", LocalDateTime.now());
+        errorDetails.put("status", HttpStatus.BAD_REQUEST.value());
+        errorDetails.put("message", String.format("Parameter '%s' should be of type %s", 
+                ex.getName(), ex.getRequiredType().getSimpleName()));
+
+        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
     }
 
     /**

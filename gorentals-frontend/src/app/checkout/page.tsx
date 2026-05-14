@@ -118,9 +118,9 @@ function CheckoutContent() {
     );
   }
 
-  const rentalCost   = (listing.price_per_day || 0) * days;
+  const rentalCost   = (listing.pricePerDay || 0) * days;
   const platformFee  = Math.round(rentalCost * 0.1); // Using 10% for service fee consistency
-  const deposit      = listing.security_deposit || 0;
+  const deposit      = listing.securityDeposit || 0;
   const totalToday   = rentalCost + platformFee + deposit;
 
   const handleBookingSubmit = async () => {
@@ -192,7 +192,7 @@ function CheckoutContent() {
               <div className="p-8 flex flex-col sm:flex-row gap-8">
                 <div className="w-full sm:w-32 h-32 rounded-3xl overflow-hidden bg-slate-100 flex-shrink-0 relative shadow-inner">
                   <Image 
-                    src={listing.listing_images?.[0]?.image_url || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&q=80'} 
+                    src={listing.listingImages?.[0]?.image_url || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&q=80'} 
                     alt={listing.title} 
                     fill
                     className="object-cover"
@@ -402,3 +402,4 @@ export default function CheckoutPage() {
     </Suspense>
   );
 }
+

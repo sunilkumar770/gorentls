@@ -6,11 +6,11 @@ import type { Listing, SearchFilters } from '@/types';
 
 interface ListingBackendResponse {
   id?: string | number;
-  owner?: { id?: string | number; fullName?: string };
+  owner?: { id?: string | number; fullName?: string; isVerified?: boolean };
   title?: string; description?: string; category?: string; type?: string;
   pricePerDay?: number | string; securityDeposit?: number | string;
   isPublished?: boolean; isAvailable?: boolean; createdAt?: string;
-  images?: string[]; city?: string;
+  images?: string[]; city?: string; state?: string; location?: string;
   ratingCount?: number; totalRatings?: number;
   [key: string]: unknown;
 }
@@ -24,7 +24,12 @@ function mapListingResponse(data: ListingBackendResponse): Listing {
   return {
     // Identity
     id:       String(data.id),
-    owner_id: data.owner ? String(data.owner.id) : undefined,
+    ownerId: data.owner ? String(data.owner.id) : undefined,
+    owner: data.owner ? {
+      id: String(data.owner.id),
+      fullName: data.owner.fullName ?? 'GoRentals Owner',
+      isVerified: data.owner.isVerified !== false,
+    } : undefined,
 
     // Content
     title:       data.title       ?? '',
@@ -33,18 +38,18 @@ function mapListingResponse(data: ListingBackendResponse): Listing {
     subcategory: data.type        ?? null,
 
     // Pricing — backend sends BigDecimal → JSON number
-    price_per_day:    Number(data.pricePerDay)     || 0,
-    security_deposit: Number(data.securityDeposit) || 0,
+    pricePerDay:    Number(data.pricePerDay)     || 0,
+    securityDeposit: Number(data.securityDeposit) || 0,
 
     // Status — strict boolean coercion, not truthy/falsy
-    is_published: data.isPublished === true,   // null → false (was draft)
-    is_available: data.isAvailable !== false,  // null → true  (assume live)
+    isPublished: data.isPublished === true,   // null → false (was draft)
+    isAvailable: data.isAvailable !== false,  // null → true  (assume live)
 
     // Timestamp
-    created_at: data.createdAt ?? new Date().toISOString(),
+    createdAt: data.createdAt ?? new Date().toISOString(),
 
     // Images — backend sends String[], interface wants ListingImage[]
-    listing_images: (data.images ?? []).map((url: string, idx: number) => ({
+    listingImages: (data.images ?? []).map((url: string, idx: number) => ({
       id:            `${data.id}-img-${idx}`,
       image_url:     url,
     })),
@@ -53,21 +58,38 @@ function mapListingResponse(data: ListingBackendResponse): Listing {
     stores: data.owner
       ? {
           id:                  String(data.owner.id),
+          ownerId:             String(data.owner.id),
           store_name:          data.owner.fullName ?? 'GoRentals',
+          store_description:   null,
+          store_logo_url:      null,
+          store_rating:        data.totalRatings ? Number(data.totalRatings) : 5.0,
           store_city:          data.city ?? 'Unknown',
           verification_status: 'verified',
+          is_active:           true,
         }
       : undefined,
+
+    // Additional required fields for Listing interface
+    city:          data.city      ?? 'Unknown',
+    state:         data.state     ?? 'Unknown',
+    location:      data.location  ?? 'Unknown',
+    type:          data.type      ?? 'General',
+    ratingCount:   Number(data.ratingCount)  || 0,
+    totalRatings:  Number(data.totalRatings) || 0,
   };
 }
 
 export async function getListings(filters: SearchFilters = {}): Promise<Listing[]> {
   try {
     const params = new URLSearchParams();
-    if (filters.category)  params.append('category', filters.category);
-    if (filters.city)      params.append('city', filters.city);
-    if (filters.min_price) params.append('minPrice', filters.min_price.toString());
-    if (filters.max_price) params.append('maxPrice', filters.max_price.toString());
+    if (filters.category)  params.append('category', String(filters.category));
+    if (filters.city)      params.append('city', String(filters.city));
+    if (filters.ownerId)   params.append('ownerId', String(filters.ownerId));
+    if (filters.min_price) params.append('minPrice', String(filters.min_price));
+    if (filters.max_price) params.append('maxPrice', String(filters.max_price));
+    if (filters.keyword)   params.append('keyword', String(filters.keyword));
+    if (filters.page != null) params.append('page', filters.page.toString());
+    if (filters.size != null) params.append('size', filters.size.toString());
 
     let sortBy = 'createdAt', dir = 'desc';
     if (filters.sort === 'price_asc')  { sortBy = 'pricePerDay'; dir = 'asc'; }
@@ -77,8 +99,21 @@ export async function getListings(filters: SearchFilters = {}): Promise<Listing[
     const res = await api.get('/listings/search', { params });
     return (res.data.content ?? []).map(mapListingResponse);
   } catch (err: unknown) {
-    const error = err as { response?: { data?: unknown }; message?: string };
-    console.error('[listings] getListings failed:', error?.response?.data ?? error.message);
+    const error = err as {
+      response?: { status?: number; data?: unknown };
+      request?: unknown;
+      message?: string;
+      code?: string;
+    };
+    if (process.env.NODE_ENV === "development") {
+      if (error?.response) {
+        console.error('[listings] getListings failed — HTTP', error.response.status, error.response.data);
+      } else if (error?.request) {
+        console.error('[listings] getListings failed — No response from server. Is the backend running on', process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080/api', '? Code:', error.code);
+      } else {
+        console.error('[listings] getListings failed —', error?.message ?? String(err));
+      }
+    }
     return [];
   }
 }
@@ -89,7 +124,7 @@ export async function getListing(id: string): Promise<Listing | null> {
     return mapListingResponse(res.data);
   } catch (err: unknown) {
     const error = err as { response?: { data?: unknown }; message?: string };
-    console.error(`[listings] getListing(${id}) failed:`, error?.response?.data ?? error.message);
+    if (process.env.NODE_ENV === "development") console.error(`[listings] getListing(${id}) failed:`, error?.response?.data ?? error.message);
     return null;
   }
 }
@@ -109,16 +144,16 @@ function mapListingToRequest(listing: Partial<Listing>) {
     description:     listing.description,
     category:        listing.category,
     type:            listing.subcategory ?? 'General',
-    pricePerDay:     listing.price_per_day,
-    securityDeposit: listing.security_deposit,
-    isAvailable:     listing.is_available,
-    isPublished:     listing.is_published,
-    images:          listing.listing_images?.map(i => i.image_url),
+    pricePerDay:     listing.pricePerDay,
+    securityDeposit: listing.securityDeposit,
+    isAvailable:     listing.isAvailable,
+    isPublished:     listing.isPublished,
+    images:          listing.listingImages?.map(i => i.image_url),
   };
 }
 
 export async function createListing(
-  listing: Omit<Listing, 'id' | 'created_at' | 'average_rating' | 'total_reviews' | 'total_views'>
+  listing: Omit<Listing, 'id' | 'createdAt' | 'average_rating' | 'total_reviews' | 'total_views'>
 ): Promise<Listing> {
   const payload = mapListingToRequest(listing);
   const res = await api.post('/listings', payload);
@@ -193,16 +228,17 @@ export async function updateListingImages(listingId: string, imageUrls: string[]
 // Keeping these as no-ops or removing if they are replaced by direct listing update logic
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function uploadListingImages(_listingId: string, _files: File[]): Promise<void> {
-  console.warn('Use direct Supabase upload instead of uploadListingImages');
+  if (process.env.NODE_ENV === "development") console.warn('Use direct Supabase upload instead of uploadListingImages');
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function deleteListingImage(_listingId: string, _imageId: string): Promise<void> {
-  console.warn('Handle deletion via updateListingImages');
+  if (process.env.NODE_ENV === "development") console.warn('Handle deletion via updateListingImages');
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function setPrimaryImage(_listingId: string, _imageId: string): Promise<void> {
-  console.warn('Handle primary image via order in updateListingImages');
+  if (process.env.NODE_ENV === "development") console.warn('Handle primary image via order in updateListingImages');
 }
+
 

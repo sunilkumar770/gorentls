@@ -24,3 +24,4 @@ export function handleApiError(err: unknown): string {
   
   return 'An unexpected error occurred';
 }
+

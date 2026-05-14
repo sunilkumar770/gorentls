@@ -39,3 +39,4 @@ export async function deleteFile(bucket: string, path: string) {
     throw error;
   }
 }
+

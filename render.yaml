@@ -1,25 +1,86 @@
+# render.yaml – GoRentals Production Deployment
+# All secrets marked sync: false MUST be set manually in the Render dashboard.
+# Do NOT commit real secrets to this file.
+
 services:
   - type: web
     name: gorentals-backend
     runtime: docker
     repo: https://github.com/sunilkumar770/gorentls
     dockerfilePath: ./GORENTALS/Dockerfile
+    healthCheckPath: /api/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
+
+      # Database – injected automatically from linked Render DB
       - key: SPRING_DATASOURCE_URL
         fromDatabase:
           name: gorentals-db
           property: connectionString
+      - key: DB_URL
+        fromDatabase:
+          name: gorentals-db
+          property: connectionString
+      - key: DB_USERNAME
+        fromDatabase:
+          name: gorentals-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: gorentals-db
+          property: password
+
+      # JWT – auto-generated 64-byte random secret by Render
       - key: JWT_SECRET
         generateValue: true
+
+      # Razorpay – set manually in Render dashboard
       - key: RAZORPAY_KEY_ID
         sync: false
       - key: RAZORPAY_KEY_SECRET
         sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+
+      # Mail – set manually in Render dashboard
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
       - key: SPRING_MAIL_PASSWORD
         sync: false
-    healthCheckPath: /api/health
+
+      # CORS – production frontend domain
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://app.gorentals.com,https://www.gorentals.com
+
+      # App URLs
+      - key: FRONTEND_URL
+        value: https://app.gorentals.com
+      - key: APP_SERVER_URL
+        fromService:
+          type: web
+          name: gorentals-backend
+          property: url
+
+      # Admin bootstrap – set manually in Render dashboard BEFORE first deploy
+      - key: APP_ADMIN_EMAIL
+        sync: false
+      - key: APP_ADMIN_PASSWORD
+        sync: false
+
+      # Cloudinary image storage
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
 
   - type: web
     name: gorentals-frontend
@@ -32,8 +93,22 @@ services:
           type: web
           name: gorentals-backend
           property: url
+      # WebSocket URL – derived from backend service URL
+      - key: NEXT_PUBLIC_WS_URL
+        fromService:
+          type: web
+          name: gorentals-backend
+          property: url
       - key: NEXT_PUBLIC_RAZORPAY_KEY_ID
         sync: false
+      # Supabase – required for file uploads and realtime chat
+      # Set manually in Render dashboard
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production
 
 databases:
   - name: gorentals-db

@@ -8,7 +8,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
-@ConditionalOnProperty(name = "app.redis.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "app.redis.enabled", havingValue = "true", matchIfMissing = false)
 @RequiredArgsConstructor
 public class RedisMessagePublisher {
 

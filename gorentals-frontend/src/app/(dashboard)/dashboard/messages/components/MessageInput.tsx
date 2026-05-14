@@ -75,3 +75,4 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
     </div>
   )
 }
+

@@ -93,3 +93,4 @@ export function BookingActionBar({ booking, role, onUpdate }: BookingActionBarPr
     </div>
   );
 }
+

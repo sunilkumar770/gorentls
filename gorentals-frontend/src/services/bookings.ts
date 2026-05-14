@@ -84,3 +84,4 @@ export async function triggerReceiptDownload(bookingId: string): Promise<void> {
   link.remove();
   window.URL.revokeObjectURL(url);
 }
+

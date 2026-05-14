@@ -26,6 +26,7 @@ export default function MyRentalsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   
   const { subscribe } = useStomp();
@@ -35,11 +36,9 @@ export default function MyRentalsPage() {
       loadBookings();
       
       // H-06: Subscribe to real-time booking updates for this user
-      const unsubscribe = subscribe(`/topic/bookings/user/${user.id}`, (message) => {
-        const data = JSON.parse(message.body);
-        console.log('[Realtime] Booking update received:', data);
+      const unsubscribe = subscribe(`/topic/bookings/user/${user.id}`, () => {
         loadBookings(); // Refresh list on any change
-        toast.success(`Booking status updated to ${data.status.replace('_', ' ')}`, {
+        toast.success('A booking status was updated.', {
           icon: '🔄',
           id: 'booking-update-toast' // Use same ID to prevent spamming
         });
@@ -72,7 +71,11 @@ export default function MyRentalsPage() {
   };
 
   const handleCancel = async (id: string) => {
-    if (!confirm('Are you sure you want to cancel this booking request?')) return;
+    if (confirmCancelId !== id) {
+      setConfirmCancelId(id); // First click: show confirm state
+      return;
+    }
+    setConfirmCancelId(null);
     try {
       setCancellingId(id);
       await cancelBooking(id);
@@ -203,6 +206,7 @@ export default function MyRentalsPage() {
                       status={getStatusStyle(b.status)}
                       onCancel={() => handleCancel(b.id)}
                       cancelling={cancellingId === b.id}
+                      confirming={confirmCancelId === b.id}
                       onDownload={() => handleDownloadReceipt(b.id)}
                       downloading={downloadingId === b.id}
                     />
@@ -282,8 +286,18 @@ export default function MyRentalsPage() {
 // ── Components ──────────────────────────────────────────────────────────────
 
 function BookingCard({ booking, status, onCancel, cancelling, onDownload, downloading }: any) {
+  const [confirming, setConfirming] = useState(false);
   const StatusIcon = status.icon;
-  const image = booking.listing?.listing_images?.[0]?.image_url || booking.listing?.images?.[0];
+  const image = booking.listing?.listingImages?.[0]?.image_url || booking.listing?.images?.[0];
+
+  const handleCancelClick = () => {
+    if (!confirming) {
+      setConfirming(true);
+      setTimeout(() => setConfirming(false), 3000); // Reset after 3s
+    } else {
+      onCancel();
+    }
+  };
 
   return (
     <div className="bg-card rounded-3xl border border-slate-200 p-5 md:p-6 shadow-sm hover:shadow-md transition-all group">
@@ -348,11 +362,15 @@ function BookingCard({ booking, status, onCancel, cancelling, onDownload, downlo
             )}
             {booking.status === 'PENDING_PAYMENT' && (
               <button 
-                onClick={onCancel}
+                onClick={handleCancelClick}
                 disabled={cancelling}
-                className="px-5 py-2.5 border border-slate-200 text-muted text-sm font-bold rounded-xl hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100 transition-all disabled:opacity-50"
+                className={`px-5 py-2.5 border text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${
+                  confirming
+                    ? 'border-rose-400 bg-rose-50 text-rose-600'
+                    : 'border-slate-200 text-muted hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100'
+                }`}
               >
-                {cancelling ? 'Cancelling...' : 'Cancel Request'}
+                {cancelling ? 'Cancelling...' : confirming ? 'Tap again to confirm' : 'Cancel Request'}
               </button>
             )}
             <Link href={`/messages?bookingId=${booking.id}`} className="px-5 py-2.5 border border-slate-200 text-muted text-sm font-bold rounded-xl hover:bg-subtle transition-all">
@@ -408,7 +426,7 @@ function HistoryRow({ booking, status, onDownload, downloading }: any) {
 
 function FavoriteCard({ fav, onRemove }: any) {
   const listing = fav.listing;
-  const image = listing?.listing_images?.[0]?.image_url || listing?.images?.[0];
+  const image = listing?.listingImages?.[0]?.image_url || listing?.images?.[0];
 
   return (
     <div className="bg-card rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group">
@@ -472,3 +490,4 @@ function EmptyState({ title, desc, icon, action }: any) {
     </div>
   );
 }
+

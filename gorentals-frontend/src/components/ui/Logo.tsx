@@ -71,3 +71,4 @@ export function LogoMark({ className, size = 32 }: { className?: string, size?: 
     </div>
   )
 }
+

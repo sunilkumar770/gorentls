@@ -49,7 +49,7 @@ api.interceptors.response.use(
       const retryAfter = error.response.headers['retry-after'];
       const waitSeconds = retryAfter ? parseInt(retryAfter as string) : 60;
       
-      console.error(`❌ Rate Limited: Please wait ${waitSeconds} seconds before retrying`);
+      if (process.env.NODE_ENV === "development") console.error(`❌ Rate Limited: Please wait ${waitSeconds} seconds before retrying`);
       
       // Show user-friendly message
       throw new Error(
@@ -58,10 +58,12 @@ api.interceptors.response.use(
     }
 
     // Handle CORS or Network errors (status code 0 or undefined response)
+    // Only log + throw after all retries are exhausted to suppress warm-up noise.
     if (!response || response.status === 0) {
-      console.error('❌ CORS Error or Network Issue');
-      console.error(`Failed to connect to: ${config?.baseURL}`);
-      // Only throw if it's not a retry attempt
+      if (process.env.NODE_ENV === "development") {
+        console.error('❌ CORS Error or Network Issue');
+        console.error(`Failed to connect to: ${config?.baseURL}`);
+      }
       if (!isGet || retryCount >= 3) {
         throw new Error('Cannot connect to API. Check CORS configuration and API URL.');
       }
@@ -87,3 +89,4 @@ api.interceptors.response.use(
 
 export default api;
 export { TOKEN_KEY };
+
