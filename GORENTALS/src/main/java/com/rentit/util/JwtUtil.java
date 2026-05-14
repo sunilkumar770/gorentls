@@ -106,7 +106,7 @@ public class JwtUtil {
      */
     public String generateToken(String username, String role) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("role", role);
+        // H-2 fix: normalize RENTER to USER for frontend role consistency         String normalizedRole = "RENTER".equals(role) ? "USER" : role;         claims.put("role", normalizedRole);
         claims.put("created", new Date());
         return createToken(claims, username);
     }
