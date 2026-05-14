@@ -40,6 +40,10 @@ import java.util.UUID;
  *             (PENDING_PAYMENT, CONFIRMED, IN_USE).
  * BUG-22 FIX: removed the duplicate updateAvailability(UUID, boolean, String)
  *             overload that had inconsistent error types. One method remains.
+ * SEARCH FIX: searchListings() passes null-safe patterns to the corrected JPQL
+ *             query in ListingRepository. The old cast(:param as string) IS NULL
+ *             pattern has been replaced with standard :param IS NULL, eliminating
+ *             the HTTP 500 on category/city/type filtered searches.
  */
 @Slf4j
 @Service
@@ -48,57 +52,78 @@ public class ListingService {
 
     /** Booking statuses that represent an active, in-flight rental. */
     private static final Set<BookingStatus> ACTIVE_BOOKING_STATUSES = EnumSet.of(
-        BookingStatus.PENDING_PAYMENT,
-        BookingStatus.CONFIRMED,
-        BookingStatus.IN_USE
+            BookingStatus.PENDING_PAYMENT,
+            BookingStatus.CONFIRMED,
+            BookingStatus.IN_USE
     );
 
-    private final ListingRepository     listingRepository;
-    private final UserRepository        userRepository;
+    private final ListingRepository  listingRepository;
+    private final UserRepository     userRepository;
     private final BlockedDateRepository blockedDateRepository;
-    private final BookingRepository     bookingRepository;
-    private final NotificationService   notificationService;
+    private final BookingRepository  bookingRepository;
+    private final NotificationService notificationService;
 
-    public PagedResponse<ListingResponse> getAllListings(int page, int size, 
-        String city, String category) {
-      Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-      
-      // Normalize empty strings to null for the check and fallback search
-      String normCity = (city == null || city.isEmpty()) ? null : city;
-      String normCategory = (category == null || category.isEmpty()) ? null : category;
+    private void assertKycApproved(User user) {
+        boolean approved = user.getProfile() != null &&
+            user.getProfile().getKycStatus() == UserProfile.KYCStatus.APPROVED;
+        if (!approved) {
+            throw BusinessException.badRequest(
+                "Your identity verification (KYC) must be APPROVED before you can publish listings.",
+                "KYC_NOT_APPROVED"
+            );
+        }
+    }
 
-      if (normCity == null && normCategory == null) {
-        Page<Listing> listings = listingRepository
-          .findByIsPublishedTrueAndIsAvailableTrue(pageable);
-        return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
-      }
-      return searchListings(normCity, normCategory, null, null, null, pageable);
+    // ── Public browse ─────────────────────────────────────────────────────────
+
+    public PagedResponse<ListingResponse> getAllListings(
+            int page, int size, String city, String category, UUID ownerId) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        String normCity     = (city     == null || city.isEmpty())     ? null : city;
+        String normCategory = (category == null || category.isEmpty()) ? null : category;
+
+        if (normCity == null && normCategory == null && ownerId == null) {
+            Page<Listing> listings =
+                    listingRepository.findByIsPublishedTrueAndIsAvailableTrue(pageable);
+            return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
+        }
+        return searchListings(normCity, normCategory, null, null, null, ownerId, null, pageable);
     }
 
     /**
-     * Search listings with filters
+     * Search listings with optional filters.
      */
-    public PagedResponse<ListingResponse> searchListings(String city, String category, String type, 
-                                                BigDecimal minPrice, BigDecimal maxPrice, 
-                                                Pageable pageable) {
-        // Normalize empty strings to null to ensure they match (cast(:param as string) IS NULL) in JPA query
-        String normCity = (city == null || city.isEmpty()) ? null : city;
-        String normCategory = (category == null || category.isEmpty()) ? null : category;
-        String normType = (type == null || type.isEmpty()) ? null : type;
+    public PagedResponse<ListingResponse> searchListings(
+            String city, String category, String type, 
+            BigDecimal minPrice, BigDecimal maxPrice, 
+            UUID ownerId, String keyword, Pageable pageable) {
 
-        // Optimization: If no filters are provided, use a simpler query to avoid potential null-param evaluation issues
-        if (normCity == null && 
-            normCategory == null && 
-            normType == null && 
-            minPrice == null && 
-            maxPrice == null) {
+        // Keyword search takes priority — uses dedicated JPQL method
+        if (keyword != null && !keyword.isBlank()) {
+            Page<Listing> listings = listingRepository.searchByKeyword(keyword.trim(), pageable);
+            return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
+        }
+        
+        // Normalize empty strings to null for standard :param IS NULL checks
+        String normCity     = (city     == null || city.isEmpty())     ? null : city;
+        String normCategory = (category == null || category.isEmpty()) ? null : category;
+        String normType     = (type     == null || type.isEmpty())     ? null : type;
+
+        // Optimization: If no filters, return top published listings
+        if (normCity == null && normCategory == null && normType == null && 
+            minPrice == null && maxPrice == null && ownerId == null) {
             Page<Listing> listings = listingRepository.findByIsPublishedTrueAndIsAvailableTrue(pageable);
             return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
         }
 
+        // City uses LIKE, so we wrap in wildcards via SearchUtils
         String cityPattern = SearchUtils.likeContents(normCity);
+        
         Page<Listing> listings = listingRepository.searchListings(
-            cityPattern, normCategory, normType, minPrice, maxPrice, pageable);
+                cityPattern, normCategory, normType, minPrice, maxPrice, ownerId, pageable);
+                
         return PagedResponse.fromPage(listings.map(DtoMapper::mapToListingResponse));
     }
 
@@ -139,17 +164,11 @@ public class ListingService {
         listing.setImages(request.getImages());
         listing.setIsAvailable(request.getIsAvailable()  != null ? request.getIsAvailable()  : Boolean.TRUE);
 
-        // KYC Guard: Force isPublished=false and throw error if explicitly requested true
-        boolean isKycApproved = owner.getProfile() != null &&
-                                owner.getProfile().getKycStatus() == UserProfile.KYCStatus.APPROVED;
+        // KYC Guard: Set false by default, and assert approved if requested true
+        boolean requestedPublish = request.getIsPublished() != null ? request.getIsPublished() : Boolean.FALSE;
 
-        boolean requestedPublish = request.getIsPublished() != null ? request.getIsPublished() : Boolean.TRUE;
-
-        if (requestedPublish && !isKycApproved) {
-            throw BusinessException.badRequest(
-                "Your identity verification (KYC) must be APPROVED before you can publish listings. Please complete your profile verification.",
-                "KYC_NOT_APPROVED"
-            );
+        if (requestedPublish) {
+            assertKycApproved(owner);
         }
 
         listing.setIsPublished(requestedPublish);
@@ -179,7 +198,7 @@ public class ListingService {
         User user = userRepository.findByEmail(userEmail)
             .orElseThrow(() -> BusinessException.notFound("User", userEmail));
 
-        if (!listing.getOwner().getId().equals(user.getId())) {
+        if (!listing.getOwner().getId().equals(user.getId()) && user.getUserType() != User.UserType.ADMIN) {
             throw BusinessException.forbidden("You are not authorized to update this listing");
         }
 
@@ -197,14 +216,8 @@ public class ListingService {
         if (request.getIsAvailable() != null) listing.setIsAvailable(request.getIsAvailable());
         
         if (request.getIsPublished() != null) {
-            boolean isKycApproved = user.getProfile() != null &&
-                                    user.getProfile().getKycStatus() == UserProfile.KYCStatus.APPROVED;
-            
-            if (request.getIsPublished() && !isKycApproved) {
-                throw BusinessException.badRequest(
-                    "You cannot publish this listing because your identity verification is not APPROVED.",
-                    "KYC_NOT_APPROVED"
-                );
+            if (request.getIsPublished()) {
+                assertKycApproved(user);
             }
             listing.setIsPublished(request.getIsPublished());
         }
@@ -225,15 +238,7 @@ public class ListingService {
             throw BusinessException.forbidden("You are not authorized to publish this listing");
         }
 
-        // KYC gate: owner cannot publish if KYC is not APPROVED
-        boolean kycApproved = user.getProfile() != null
-            && user.getProfile().getKycStatus() == UserProfile.KYCStatus.APPROVED;
-        if (!kycApproved) {
-            throw BusinessException.unprocessable(
-                "KYC verification must be approved before publishing a listing",
-                "KYC_REQUIRED"
-            );
-        }
+        assertKycApproved(user);
 
         if (listing.getTitle() == null || listing.getTitle().isEmpty()) {
             throw BusinessException.badRequest("Please add a title before publishing", "MISSING_TITLE");
@@ -287,15 +292,10 @@ public class ListingService {
             throw BusinessException.forbidden("You are not authorized to delete this listing");
         }
 
-        // BUG-21 FIX: block deletion if active bookings exist
-        long activeCount = bookingRepository.findByListingId(id, Pageable.unpaged())
-            .stream()
-            .filter(b -> ACTIVE_BOOKING_STATUSES.contains(b.getBookingStatus()))
-            .count();
-        if (activeCount > 0) {
+        // BUG-21 FIX: block deletion if active bookings exist (OPTIMIZED)
+        if (bookingRepository.existsByListingIdAndBookingStatusIn(id, ACTIVE_BOOKING_STATUSES)) {
             throw BusinessException.conflict(
-                "Cannot delete listing with " + activeCount + " active booking(s). "
-                + "Cancel all bookings first.",
+                "Cannot delete listing with active booking(s). Cancel all bookings first.",
                 "ACTIVE_BOOKINGS_EXIST"
             );
         }
@@ -384,6 +384,11 @@ public class ListingService {
             throw BusinessException.forbidden("You do not own this listing");
         }
 
+        // Validate against active bookings
+        if (bookingRepository.existsConflictingBooking(listingId, startDate, endDate, List.copyOf(ACTIVE_BOOKING_STATUSES))) {
+            throw BusinessException.conflict("Dates overlap with an active booking", "DATE_CONFLICT");
+        }
+
         BlockedDate blockedDate = new BlockedDate();
         blockedDate.setListing(listing);
         blockedDate.setStartDate(startDate);
@@ -416,16 +421,8 @@ public class ListingService {
         // Get manual blocks from blocked_dates table
         List<BlockedDate> manualBlocks = blockedDateRepository.findByListing_Id(listingId);
         
-        // Get active bookings (PENDING_PAYMENT, CONFIRMED, IN_USE)
-        List<com.rentit.model.Booking> activeBookings = bookingRepository.findByListingId(listingId, Pageable.unpaged())
-            .stream()
-            .filter(b -> {
-                BookingStatus status = b.getBookingStatus();
-                return status == BookingStatus.PENDING_PAYMENT ||
-                       status == BookingStatus.CONFIRMED ||
-                       status == BookingStatus.IN_USE;
-            })
-            .collect(java.util.stream.Collectors.toList());
+        // Get active bookings (PENDING_PAYMENT, CONFIRMED, IN_USE) (OPTIMIZED)
+        List<com.rentit.model.Booking> activeBookings = bookingRepository.findByListingIdAndBookingStatusIn(listingId, ACTIVE_BOOKING_STATUSES);
         
         List<AvailabilityResponse.BlockedRange> ranges = new java.util.ArrayList<>();
         

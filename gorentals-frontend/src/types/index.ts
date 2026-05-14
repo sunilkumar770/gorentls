@@ -40,7 +40,7 @@ export interface ListingImage {
 // ── Store ─────────────────────────────────────────────────────
 export interface Store {
   id:                  string;
-  owner_id:            string;
+  ownerId:            string;
   store_name:          string;
   store_description:   string | null;
   store_logo_url:      string | null;
@@ -70,38 +70,41 @@ export interface Listing {
   description: string | null;
   category: string;
   subcategory: string | null;
-  price_per_day: number;
-  security_deposit: number;
-  is_available: boolean;
-  is_published: boolean;
-  created_at: string;
-  updated_at?: string;
-  owner_id?: string;
+  pricePerDay: number;
+  securityDeposit: number;
+  isAvailable: boolean;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  ownerId?: string;
   images?: string[] | null;
-  listing_images: { id: string; image_url: string }[];
+  listingImages: { id: string; image_url: string }[];
+  city: string;
+  state: string;
+  location: string;
+  type: string;
+  ratingCount: number;
+  totalRatings: number;
   owner?: {
     id: string;
     fullName: string;
-    email: string;
-    kycStatus: string;
+    isVerified: boolean;
+    kycStatus?: string;
   };
-  stores?: {
-    id: string;
-    store_name: string;
-    store_city: string;
-    verification_status: string;
-  };
+  stores?: Store;
 }
 
 // ── Search filters ────────────────────────────────────────────
 export interface SearchFilters {
   category?:  string;
   city?:      string;
+  ownerId?:   string;
   min_price?: number;
   max_price?: number;
   sort?:      'price_asc' | 'price_desc' | 'newest' | 'rating';
   page?:      number;
   size?:      number;
+  keyword?:   string;  // Server-side full-text search
 }
 
 // ── BookingListing — lean shape returned inside booking responses ────────────
@@ -113,7 +116,7 @@ export interface BookingListing {
   pricePerDay?:    number;
   securityDeposit?: number | null;
   images?:         string[] | null;
-  listing_images?: ListingImage[];
+  listingImages?: ListingImage[];
   type?:           string;
 }
 
@@ -259,3 +262,4 @@ export interface BlockedRange {
 export interface AvailabilityResponse {
   blockedRanges: BlockedRange[];
 }
+
