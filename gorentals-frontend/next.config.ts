@@ -43,6 +43,15 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: '/listings',
+        destination: '/search',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
