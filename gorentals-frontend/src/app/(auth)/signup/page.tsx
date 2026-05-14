@@ -68,10 +68,16 @@ export default function SignupPage() {
       
       const profile = buildProfile(data);
       login(data.accessToken, profile);
-      router.push(formData.userType === 'OWNER' ? '/owner' : '/dashboard')
-      router.refresh()
-    } catch {
-      setError('Connection error. Please try again.')
+      const role = profile.role.toUpperCase();
+      const dest = role === 'OWNER' ? '/owner' : '/dashboard';
+      
+      router.push(dest);
+      router.refresh();
+      
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      if (process.env.NODE_ENV === "development") console.error('[Signup] Client Error:', error);
+      setError(error.message || 'Connection error. Please try again.');
     } finally {
       setIsLoading(false)
     }

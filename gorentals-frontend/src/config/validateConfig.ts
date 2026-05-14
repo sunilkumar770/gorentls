@@ -36,7 +36,7 @@ export function validateConfiguration(): void {
       .filter(Boolean)
       .join("");
 
-    console.error(errorMessage);
+    if (process.env.NODE_ENV === "development") console.error(errorMessage);
     throw new Error("Application configuration is invalid");
   }
 

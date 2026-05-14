@@ -56,9 +56,7 @@ public class AdminService {
                 return "%" + escaped + "%";
         }
 
-
-
-        // ── Dashboard ─────────────────────────────────────────────────────────────
+	// ── Dashboard ─────────────────────────────────────────────────────────────
         @Transactional(readOnly = true)
         public AdminDashboardStats getDashboardStats() {
                 long totalUsers = userRepository.count();

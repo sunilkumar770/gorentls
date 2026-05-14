@@ -46,11 +46,21 @@ export default function LoginPage() {
       const profile = buildProfile(data);
       login(data.accessToken, profile);
       
-      const redirect = params.get('redirect') ?? (profile.role === 'OWNER' ? '/owner' : '/dashboard')
-      router.push(redirect)
-      router.refresh()
-    } catch {
-      setError('Connection error. Please try again.')
+      const redirect = params.get('redirect');
+      const role = profile.role.toUpperCase();
+      const dest = role === 'ADMIN' 
+        ? '/admin' 
+        : role === 'OWNER' 
+          ? '/owner' 
+          : redirect ?? '/dashboard';
+          
+      router.push(dest);
+      router.refresh();
+      
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      if (process.env.NODE_ENV === "development") console.error('[Login] Client Error:', error);
+      setError(error.message || 'Connection error. Please try again.');
     } finally {
       setIsLoading(false)
     }

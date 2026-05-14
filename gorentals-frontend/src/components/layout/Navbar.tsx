@@ -16,7 +16,12 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10)
@@ -76,7 +81,7 @@ export function Navbar() {
               <ThemeToggle />
             </div>
             
-            {!isLoading && (
+            {mounted && !isLoading && (
               <>
                 {user ? (
                   <div className="flex items-center gap-2 sm:gap-4">
