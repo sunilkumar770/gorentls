@@ -53,11 +53,11 @@ services:
     networks:
       - gorentals-net
     environment:
-      SPRING_PROFILES_ACTIVE: prod
+      SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/gorentals
       SPRING_DATASOURCE_USERNAME: rentit
       SPRING_DATASOURCE_PASSWORD: rentit_local
-      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_HOST: rdev
       SPRING_DATA_REDIS_PORT: 6379
       # REQUIRED – must be set in .env file or exported before running docker-compose
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
