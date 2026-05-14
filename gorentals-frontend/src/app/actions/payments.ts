@@ -7,7 +7,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
 export interface CreateOrderInput {
   bookingId: string;
-  paymentKind: 'ADVANCE' | 'FINAL' | 'SECURITY_DEPOSIT';
+  paymentKind: 'ADVANCE' | 'FINAL' | 'securityDeposit';
 }
 
 export interface ConfirmPaymentInput {
@@ -15,7 +15,7 @@ export interface ConfirmPaymentInput {
   razorpayOrderId: string;
   razorpayPaymentId: string;
   razorpaySignature: string;
-  paymentKind: 'ADVANCE' | 'FINAL' | 'SECURITY_DEPOSIT';
+  paymentKind: 'ADVANCE' | 'FINAL' | 'securityDeposit';
 }
 
 export async function createOrderAction(data: CreateOrderInput) {
@@ -63,3 +63,4 @@ export async function confirmPaymentAction(data: ConfirmPaymentInput) {
 
   return res.json();
 }
+

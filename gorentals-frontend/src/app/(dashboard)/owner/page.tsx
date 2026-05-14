@@ -1,4 +1,5 @@
 // src/app/(dashboard)/owner/page.tsx
+import { getApiUrl } from '@/lib/api-utils'
 import { getCurrentUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
@@ -9,279 +10,221 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { EarningsChart } from '@/components/analytics/EarningsChart'
-import { AlertCircle, TrendingUp, Info } from 'lucide-react'
+import { 
+  AlertCircle, TrendingUp, ShieldCheck, 
+  Package, Calendar, DollarSign, ArrowUpRight,
+  Clock, CheckCircle2, XCircle, ChevronRight
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-async function getOwnerData(ownerId: string, token: string) {
-  const base = process.env.NEXT_PUBLIC_API_URL
+// ── Types matching OwnerAnalyticsDTO from OwnerAnalyticsService ───────────────
+interface RevenuePoint {
+  week: string
+  revenue: number
+}
+
+interface RecentBooking {
+  id: string
+  renterName: string
+  listingTitle: string
+  startDate: string
+  endDate: string
+  totalAmount: number
+  status: string
+}
+
+interface OwnerAnalytics {
+  totalRevenue: number
+  pendingRevenue: number
+  totalBookings: number
+  confirmedBookings: number
+  pendingBookings: number
+  rejectedBookings: number
+  completionRate: number
+  activeListings: number
+  totalListings: number
+  averageBookingValue: number
+  recentBookings: RecentBooking[]
+  revenueChart: RevenuePoint[]
+}
+
+// ── Data fetcher ─────────────────────────────────────────────────────────────
+async function getOwnerData(token: string) {
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
   const headers = { Authorization: `Bearer ${token}` }
+
   try {
-    const [listingsRes, bookingRequestsRes, earningsRes, statsRes] = await Promise.all([
-      fetch(`${base}/api/items/owner/mine`, { headers, cache: 'no-store' }),
-      fetch(`${base}/api/bookings/owner/bookings?status=PENDING`, { headers, cache: 'no-store' }),
-      fetch(`${base}/api/earnings/owner/current`, { headers, cache: 'no-store' }),
-      fetch(`${base}/api/bookings/owner/stats?period=8weeks`, { headers, cache: 'no-store' }),
+    const [listingsRes, bookingsRes, analyticsRes] = await Promise.all([
+      fetch(getApiUrl('/listings/owner/mine'), { headers, next: { revalidate: 60 } }),
+      fetch(getApiUrl('/bookings/owner/bookings'), { headers, next: { revalidate: 60 } }),
+      fetch(getApiUrl('/owner/analytics'), { headers, next: { revalidate: 60 } })
     ])
-    return {
-      listings: listingsRes.ok ? (await listingsRes.json()).content || [] : [],
-      pendingBookings: bookingRequestsRes.ok ? (await bookingRequestsRes.json()).content || [] : [],
-      earnings: earningsRes.ok ? await earningsRes.json() : null,
-      stats: statsRes.ok ? await statsRes.json() : [],
-    }
-  } catch {
-    return { listings: [], pendingBookings: [], earnings: null, stats: [] }
+
+    if (!analyticsRes.ok) throw new Error('Failed to fetch analytics')
+
+    const listings = listingsRes.ok ? await listingsRes.json() : []
+    const bookings = bookingsRes.ok ? await bookingsRes.json() : []
+    const analytics: OwnerAnalytics = await analyticsRes.json()
+
+    return { listings, bookings, analytics }
+  } catch (error) {
+    console.error('Owner dashboard fetch error:', error)
+    return null
   }
 }
 
 export default async function OwnerDashboardPage() {
   const cookieStore = await cookies()
-  const token = cookieStore.get('gorentals_token')?.value ?? ''
-  const user = await getCurrentUser()
+  const token = cookieStore.get('gorentals_token')?.value
+  if (!token) redirect('/login')
 
-  if (!user) redirect('/login?from=/owner')
-  if (user.role !== 'OWNER' && user.role !== 'ADMIN') redirect('/dashboard')
+  const data = await getOwnerData(token)
+  if (!data) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+        <Typography variant="h3" className="mb-2">Dashboard Unavailable</Typography>
+        <Typography variant="body-md" className="text-slate-500 mb-6">
+          There was a problem connecting to the server. Please check your connection.
+        </Typography>
+        <Link href="/owner">
+          <Button>Retry Connection</Button>
+        </Link>
+      </div>
+    )
+  }
 
-  const { listings, pendingBookings, earnings, stats } = await getOwnerData(user.id, token)
+  const { analytics } = data
+
+  const stats = [
+    { label: 'Total Revenue', value: `₹${(analytics.totalRevenue ?? 0).toLocaleString()}`, subValue: `₹${(analytics.pendingRevenue ?? 0).toLocaleString()} pending`, icon: DollarSign, color: 'emerald' },
+    { label: 'Active Listings', value: analytics.activeListings ?? 0, subValue: `out of ${analytics.totalListings ?? 0}`, icon: Package, color: 'indigo' },
+    { label: 'Total Bookings', value: analytics.totalBookings ?? 0, subValue: `${analytics.completionRate ?? 0}% completion`, icon: Calendar, color: 'amber' },
+    { label: 'Avg. Booking', value: `₹${(analytics.averageBookingValue ?? 0).toLocaleString()}`, subValue: 'per rental', icon: TrendingUp, color: 'violet' },
+  ]
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-normal">
-      {/* KYC Alert if not verified */}
-      {!user.isVerified && (
-        <Card className="bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 p-4">
-          <div className="flex gap-4">
-            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center shrink-0">
-              <AlertCircle className="w-5 h-5 text-amber-600" />
+    <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <Typography variant="h1" className="text-3xl font-bold tracking-tight">Dashboard Overview</Typography>
+          <div className="flex items-center gap-2 mt-2 text-slate-500 font-medium">
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <Typography variant="body-sm">Your store is active and generating revenue</Typography>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link href="/owner/listings/new">
+            <Button size="lg" className="rounded-2xl shadow-lg shadow-indigo-500/20">
+              <Package className="w-4 h-4 mr-2" />
+              Add New Item
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat, i) => (
+          <Card key={i} className="p-6 border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-start justify-between">
+              <div>
+                <Typography variant="label" className="text-slate-400 uppercase tracking-widest text-[10px] mb-2">
+                  {stat.label}
+                </Typography>
+                <Typography variant="h2" className="text-2xl font-bold">{stat.value}</Typography>
+                <Typography variant="body-xs" className="text-slate-500 mt-1 flex items-center gap-1 font-medium">
+                  {stat.subValue}
+                </Typography>
+              </div>
+              <div className={cn(
+                "p-3 rounded-2xl",
+                stat.color === 'emerald' ? "bg-emerald-50 text-emerald-600" :
+                stat.color === 'indigo' ? "bg-indigo-50 text-indigo-600" :
+                stat.color === 'amber' ? "bg-amber-50 text-amber-600" :
+                "bg-violet-50 text-violet-600"
+              )}>
+                <stat.icon className="w-5 h-5" />
+              </div>
             </div>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Chart */}
+        <Card className="lg:col-span-2 p-8 border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <Typography variant="body-md" className="font-bold text-amber-900 dark:text-amber-100">
-                KYC Verification Required
-              </Typography>
-              <Typography variant="body-sm" className="mt-0.5 text-amber-700 dark:text-amber-400">
-                Your listings are currently held in draft mode. Complete your identity verification to start accepting bookings and earning.
-              </Typography>
-              <Button asChild variant="secondary" size="sm" className="mt-3 bg-white dark:bg-slate-900 border-amber-200 hover:bg-amber-100">
-                <Link href="/dashboard/profile">Complete Verification</Link>
-              </Button>
+              <Typography variant="h3" className="text-xl font-bold">Revenue Performance</Typography>
+              <Typography variant="body-sm" className="text-slate-500">Weekly earnings trends for your gear</Typography>
             </div>
+            <div className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full text-xs font-bold">
+              <ArrowUpRight className="w-3 h-3" />
+              {analytics.completionRate}%
+            </div>
+          </div>
+          <div className="h-[350px] w-full">
+            <EarningsChart data={analytics.revenueChart} />
           </div>
         </Card>
-      )}
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <Typography variant="h2">
-            {user.storeName ?? `${user.fullName.split(' ')[0]}'s Store`}
-          </Typography>
-          <div className="flex items-center gap-2 mt-1">
-            <Typography variant="body-sm" className="font-medium text-text-secondary">
-              Owner Dashboard
-            </Typography>
-            {user.isVerified && (
-              <Badge variant="success" dot size="sm">KYC VERIFIED</Badge>
+
+        {/* Recent Activity */}
+        <Card className="p-8 border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between mb-6">
+            <Typography variant="h3" className="text-xl font-bold">Recent Requests</Typography>
+            <Link href="/owner/bookings" className="text-indigo-600 text-xs font-bold hover:underline flex items-center gap-1">
+              View All
+              <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          <div className="space-y-6">
+            {analytics.recentBookings.length > 0 ? (
+              analytics.recentBookings.map((booking) => (
+                <div key={booking.id} className="group relative flex items-start gap-4 pb-6 border-b border-slate-50 dark:border-slate-800 last:border-0 last:pb-0">
+                  <div className={cn(
+                    "mt-1 p-2 rounded-xl shrink-0",
+                    booking.status === 'PENDING' ? "bg-amber-50 text-amber-600" :
+                    booking.status === 'CONFIRMED' ? "bg-emerald-50 text-emerald-600" :
+                    "bg-slate-50 text-slate-400"
+                  )}>
+                    {booking.status === 'PENDING' ? <Clock className="w-4 h-4" /> :
+                     booking.status === 'CONFIRMED' ? <CheckCircle2 className="w-4 h-4" /> :
+                     <XCircle className="w-4 h-4" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <Typography variant="body-sm" className="font-bold truncate text-slate-900 dark:text-white">
+                        {booking.listingTitle}
+                      </Typography>
+                      <Typography variant="body-xs" className="font-bold text-emerald-600 whitespace-nowrap">
+                        ₹{(booking.totalAmount ?? 0).toLocaleString()}
+                      </Typography>
+                    </div>
+                    <Typography variant="body-xs" className="text-slate-500 mt-0.5">
+                      requested by {booking.renterName}
+                    </Typography>
+                    <div className="flex items-center gap-3 mt-2">
+                      <Badge variant={booking.status === 'PENDING' ? 'warning' : booking.status === 'CONFIRMED' ? 'brand' : 'neutral'} size="sm">
+                        {booking.status}
+                      </Badge>
+                      <Typography variant="body-xs" className="text-slate-400 text-[10px] uppercase font-bold">
+                        {booking.startDate ? new Date(booking.startDate).toLocaleDateString() : '—'}
+                      </Typography>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="py-12 text-center">
+                <Typography variant="body-sm" className="text-slate-400">No recent activity</Typography>
+              </div>
             )}
           </div>
-        </div>
-        <Button asChild variant="primary" size="lg">
-          <Link href="/owner/listings/new">+ Create Listing</Link>
-        </Button>
+        </Card>
       </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <StatItem label="Listings" value={listings.length} />
-        <StatItem label="Requests" value={pendingBookings.length} highlight={pendingBookings.length > 0} />
-        <Link href="/owner/drafts">
-          <StatItem label="Drafts" value="View" highlight={!user.isVerified} />
-        </Link>
-        <StatItem 
-          label="This Month" 
-          value={earnings?.totalEarned != null ? `₹${earnings.totalEarned.toLocaleString('en-IN')}` : '₹0'} 
-          variant="success"
-        />
-        <StatItem 
-          label="Payouts" 
-          value={earnings?.pendingPayout != null ? `₹${earnings.pendingPayout.toLocaleString('en-IN')}` : '₹0'} 
-        />
-      </div>
-
-      {/* Analytics Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <section className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <Typography variant="h4" className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-indigo-600" />
-              Earnings Trend
-            </Typography>
-            <Typography variant="body-xs" className="font-bold text-slate-500 uppercase tracking-wider">
-              Last 7 Days
-            </Typography>
-          </div>
-          <Card className="p-6">
-            <EarningsChart data={stats} />
-          </Card>
-        </section>
-
-        <section className="space-y-4">
-          <Typography variant="h4" className="flex items-center gap-2">
-            <Info className="w-5 h-5 text-indigo-600" />
-            Performance Tips
-          </Typography>
-          <div className="space-y-3">
-            <TipCard 
-              icon="📸" 
-              title="Add 5 High-Quality Photos" 
-              desc="Listings with more photos get 2.4x more inquiries." 
-            />
-            <TipCard 
-              icon="⚡" 
-              title="Faster Response Time" 
-              desc="Replying within 1 hour boosts your visibility." 
-            />
-            <TipCard 
-              icon="🛡️" 
-              title="Review Descriptions" 
-              desc="Mention included accessories clearly to avoid disputes." 
-            />
-          </div>
-        </section>
-      </div>
-
-      {/* Pending requests */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Typography variant="h4" className="flex items-center gap-2">
-            New Requests
-            {pendingBookings.length > 0 && (
-              <Badge variant="warning" size="sm">{pendingBookings.length}</Badge>
-            )}
-          </Typography>
-          <Link href="/owner/bookings" className="text-sm text-brand-600 font-semibold hover:underline">
-            Manage all
-          </Link>
-        </div>
-        {pendingBookings.length === 0 ? (
-          <EmptyState
-            icon="📋"
-            title="All caught up"
-            description="New rental requests from customers will show up here."
-          />
-        ) : (
-          <div className="space-y-3">
-            {pendingBookings.slice(0, 5).map((booking: any) => (
-              <BookingRequestCard key={booking.id} booking={booking} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Inventory */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Typography variant="h4">Your Inventory</Typography>
-          <Link href="/owner/listings" className="text-sm text-brand-600 font-semibold hover:underline">
-            Manage items
-          </Link>
-        </div>
-        {listings.length === 0 ? (
-          <EmptyState
-            icon="🏷️"
-            title="No active listings"
-            description="Add your first item to start earning today."
-            action={<Button asChild variant="secondary" size="sm"><Link href="/owner/listings/new">Add Item</Link></Button>}
-          />
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {listings.slice(0, 6).map((item: any) => (
-              <OwnerListingCard key={item.id} item={item} />
-            ))}
-          </div>
-        )}
-      </section>
     </div>
   )
 }
-
-function StatItem({ label, value, highlight, variant }: { label: string; value: any; highlight?: boolean; variant?: 'success' | 'brand' }) {
-  return (
-    <Card 
-      interactive
-      variant={highlight ? 'raised' : 'default'}
-      className={highlight ? 'border-brand-300 dark:border-brand-700 bg-brand-50/10' : ''}
-    >
-      <Typography variant="h3" className={cn(
-        variant === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 
-        highlight ? 'text-brand-600 dark:text-brand-400' : 'text-text-primary'
-      )}>
-        {value}
-      </Typography>
-      <Typography variant="label" className="mt-1 block">{label}</Typography>
-    </Card>
-  )
-}
-
-function BookingRequestCard({ booking }: { booking: any }) {
-  return (
-    <Card variant="bordered" className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 hover:bg-surface-subtle transition-all group">
-      <div className="flex-1 min-w-0">
-        <Typography variant="body-md" className="font-bold text-text-primary">
-          {booking.renterName ?? 'Customer'} wants {booking.listing?.title}
-        </Typography>
-        <Typography variant="body-xs" className="mt-1">
-          {new Date(booking.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} –{' '}
-          {new Date(booking.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-          {' · '} <span className="font-bold text-text-primary">₹{booking.totalAmount?.toLocaleString('en-IN')}</span>
-        </Typography>
-      </div>
-      <div className="flex gap-2 shrink-0">
-        <Button variant="success" size="sm" className="flex-1 sm:flex-none">Accept</Button>
-        <Button variant="secondary" size="sm" className="flex-1 sm:flex-none">Decline</Button>
-      </div>
-    </Card>
-  )
-}
-
-function OwnerListingCard({ item }: { item: any }) {
-  return (
-    <Card padding="none" interactive className="overflow-hidden group">
-      <div className="aspect-[4/3] bg-surface-raised relative overflow-hidden">
-        {item.images?.[0] ? (
-          <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        ) : (
-          <div className="flex items-center justify-center h-full text-text-tertiary text-4xl">📷</div>
-        )}
-        <div className="absolute top-3 right-3">
-          <Badge variant="success" size="sm">Active</Badge>
-        </div>
-      </div>
-      <div className="p-4">
-        <Typography variant="body-sm" className="font-bold text-text-primary truncate">{item.title}</Typography>
-        <div className="flex items-center justify-between mt-3">
-          <Typography variant="body-md" className="font-extrabold text-brand-600">
-            ₹{item.pricePerDay?.toLocaleString('en-IN')}/day
-          </Typography>
-          <Link
-            href={`/owner/listings/${item.id}/edit`}
-            className="text-xs font-bold text-text-tertiary hover:text-brand-600 transition-colors"
-          >
-            EDIT
-          </Link>
-        </div>
-      </div>
-    </Card>
-  )
-}
-
-function TipCard({ icon, title, desc }: { icon: string; title: string; desc: string }) {
-  return (
-    <Card variant="bordered" className="p-4 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors">
-      <div className="flex gap-3">
-        <span className="text-xl shrink-0">{icon}</span>
-        <div>
-          <Typography variant="body-sm" className="font-bold leading-none">{title}</Typography>
-          <Typography variant="body-xs" className="mt-1 leading-relaxed text-slate-500">{desc}</Typography>
-        </div>
-      </div>
-    </Card>
-  )
-}
-
-import { cn } from '@/lib/utils'

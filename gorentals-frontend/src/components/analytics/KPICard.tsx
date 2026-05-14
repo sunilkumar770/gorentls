@@ -33,3 +33,4 @@ export function KPICard({ title, value, icon, trend, trendUp = true }: KPICardPr
     </div>
   );
 }
+

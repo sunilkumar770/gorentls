@@ -9,7 +9,7 @@ import { Typography, H1, Body } from '@/components/ui/Typography'
 import { Alert } from '@/components/ui/Alert'
 import { Card } from '@/components/ui/Card'
 import { Logo } from '@/components/ui/Logo'
-import { buildProfile } from '@/services/auth'
+import { buildProfile, signIn } from '@/services/auth'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -23,18 +23,23 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    // --- Client-side validation (US-004) ---
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Please enter a valid email address.')
+      return
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.')
+      return
+    }
+
     setIsLoading(true)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
+      const { data, error: signInError } = await signIn(email, password)
       
-      const data = await res.json()
-      
-      if (!res.ok) {
-        setError(data.message ?? 'Invalid email or password')
+      if (signInError || !data) {
+        setError(signInError ?? 'Invalid email or password')
         return
       }
       
@@ -131,3 +136,4 @@ export default function LoginPage() {
     </div>
   )
 }
+

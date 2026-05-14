@@ -70,3 +70,4 @@ export function ListingGrid({ listings }: { listings: Listing[] }) {
   )
 }
 
+

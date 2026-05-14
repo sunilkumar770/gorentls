@@ -67,3 +67,4 @@ export function Badge({ variant = 'neutral', size = 'md', dot, className, childr
     </span>
   )
 }
+

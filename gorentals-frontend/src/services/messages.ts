@@ -84,3 +84,4 @@ export async function markConversationRead(conversationId: string): Promise<void
     console.warn('[messages] markConversationRead non-critical failure:', err?.message);
   });
 }
+

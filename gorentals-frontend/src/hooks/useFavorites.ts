@@ -63,3 +63,4 @@ export function useFavorites() {
 
   return { favorites, loading, error, refetch, addFavorite, removeFavorite };
 }
+

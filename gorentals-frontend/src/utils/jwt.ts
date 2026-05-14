@@ -29,3 +29,4 @@ export function isTokenExpired(token: string | UserJWT): boolean {
   const buffer = 10; // 10s buffer
   return (payload.exp - buffer) < (Date.now() / 1000);
 }
+

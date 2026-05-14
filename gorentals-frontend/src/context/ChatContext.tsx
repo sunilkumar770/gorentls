@@ -139,3 +139,4 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useChat = () => useContext(ChatContext);
+

@@ -73,7 +73,7 @@ export function isActiveBooking(status: string | undefined): boolean {
 
 // ── Listing image resolver ────────────────────────────────────
 // Backend returns `images: string[] | null` (plain URLs).
-// Legacy type had `listing_images: { image_url }[]`.
+// Legacy type had `listingImages: { image_url }[]`.
 // This helper normalises both so components never break.
 const FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80';
@@ -81,15 +81,16 @@ const FALLBACK_IMAGE =
 export function getListingImage(
   listing: {
     images?: string[] | null;
-    listing_images?: { image_url: string; is_primary?: boolean }[];
+    listingImages?: { image_url: string; is_primary?: boolean }[];
   } | null | undefined,
 ): string {
   if (!listing) return FALLBACK_IMAGE;
   if (listing.images && listing.images.length > 0) return listing.images[0];
-  if (listing.listing_images && listing.listing_images.length > 0) {
-    const primary = listing.listing_images.find(i => i.is_primary);
-    return primary?.image_url ?? listing.listing_images[0].image_url;
+  if (listing.listingImages && listing.listingImages.length > 0) {
+    const primary = listing.listingImages.find(i => i.is_primary);
+    return primary?.image_url ?? listing.listingImages[0].image_url;
   }
   return FALLBACK_IMAGE;
 }
+
 

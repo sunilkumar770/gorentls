@@ -188,3 +188,4 @@ function groupMessagesByDate(messages: ChatMessage[]): { dateLabel: string; mess
   }
   return Object.entries(groups).map(([dateLabel, msgs]) => ({ dateLabel, messages: msgs }))
 }
+

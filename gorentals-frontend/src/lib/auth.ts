@@ -42,3 +42,4 @@ export async function getCurrentUser(): Promise<Profile | null> {
     return null
   }
 }
+

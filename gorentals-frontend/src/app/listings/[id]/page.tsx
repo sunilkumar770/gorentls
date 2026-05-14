@@ -87,13 +87,13 @@ export default function ListingDetailPage() {
     );
   }
 
-  const images = listing.listing_images?.length > 0 
-    ? listing.listing_images.map(img => img.image_url) 
+  const images = (listing.listingImages || []).length > 0 
+    ? listing.listingImages.map(img => img.image_url) 
     : ['https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=900&q=85']; // Fallback
 
   const condition = listing.subcategory || 'Good';
-  const price = listing.price_per_day || 0;
-  const deposit = listing.security_deposit || 0;
+  const price = listing.pricePerDay || 0;
+  const deposit = listing.securityDeposit || 0;
   
   const days = selectedRange?.from && selectedRange?.to 
     ? Math.max(1, Math.ceil((selectedRange.to.getTime() - selectedRange.from.getTime()) / 86400000) + 1) 
@@ -184,7 +184,7 @@ export default function ListingDetailPage() {
                   <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
                   <span className="text-sm font-bold text-text">New listing</span>
                 </div>
-                {listing.is_available === false && (
+                {listing.isAvailable === false && (
                   <span className="px-3 py-1 bg-red-50 text-red-600 text-xs font-bold rounded-full">Currently Unavailable</span>
                 )}
               </div>
@@ -209,7 +209,7 @@ export default function ListingDetailPage() {
                 </div>
                 <p className="text-sm text-muted">Trusted provider · Quality gear guaranteed</p>
               </div>
-              <Link href={`/stores/${listing.stores?.id || '1'}`} className="px-5 py-2.5 bg-subtle hover:bg-indigo-50 text-indigo-600 text-sm font-bold rounded-xl transition-colors">
+              <Link href={`/search?ownerId=${listing.ownerId}`} className="px-5 py-2.5 bg-subtle hover:bg-indigo-50 text-indigo-600 text-sm font-bold rounded-xl transition-colors">
                 View Store
               </Link>
             </div>
@@ -261,7 +261,7 @@ export default function ListingDetailPage() {
                   blockedRanges={blockedRanges}
                   selectedRange={selectedRange}
                   onSelect={setSelectedRange}
-                  disabled={listing.is_available === false}
+                  disabled={listing.isAvailable === false}
                 />
               </div>
 
@@ -283,7 +283,7 @@ export default function ListingDetailPage() {
 
               <button 
                 onClick={handleBookNow}
-                disabled={listing.is_available === false}
+                disabled={listing.isAvailable === false}
                 className="w-full h-16 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:grayscale text-white rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-200 active:scale-95 group"
               >
                 <Zap className="w-6 h-6 fill-white group-hover:scale-110 transition-transform" />

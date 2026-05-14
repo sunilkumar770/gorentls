@@ -35,7 +35,7 @@ export function AuthProvider({
     async function initAuth() {
       try {
         // 1. Recover token from persistent storage
-        let storedToken = safeStorage.getItem('gr_token');
+        let storedToken = safeStorage.getItem('gorentals_token');
         
         // Fallback to cookie if safeStorage is empty
         if (!storedToken) {
@@ -45,7 +45,7 @@ export function AuthProvider({
             ?.split('=')[1];
           if (cookieToken) {
             storedToken = cookieToken;
-            safeStorage.setItem('gr_token', cookieToken);
+            safeStorage.setItem('gorentals_token', cookieToken);
           }
         }
 
@@ -112,8 +112,6 @@ export function AuthProvider({
 
   const login = (newToken: string, newUser: Profile) => {
     setToken(newToken);
-    // Set cookie for middleware edge reads
-    document.cookie = `gorentals_token=${newToken}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`;
     safeStorage.setItem('gr_user', JSON.stringify(newUser));
     setTokenState(newToken);
     setUser(newUser);
@@ -155,3 +153,4 @@ export function AuthProvider({
     </AuthContext.Provider>
   );
 }
+

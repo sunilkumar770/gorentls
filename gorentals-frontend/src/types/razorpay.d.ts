@@ -58,3 +58,4 @@ declare global {
     Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
   }
 }
+

@@ -1,123 +1,114 @@
-// src/app/(dashboard)/components/DashboardNav.tsx
 'use client'
+
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useAuth } from '@/hooks/useAuth'
-import type { AuthUser } from '@/context/AuthContext'
-import { Logo } from '@/components/ui/Logo'
-import { Avatar } from '@/components/ui/Avatar'
-import { Typography, Body } from '@/components/ui/Typography'
-import { cn } from '@/lib/utils'
-import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { Bell } from 'lucide-react'
-import { useNotifications } from '@/hooks/useNotifications'
+import ThemeToggle from '@/components/ui/ThemeToggle'
+import { useAuth } from '@/hooks/useAuth'
 
 const RENTER_NAV = [
-  { href: '/dashboard',           label: 'Overview',  icon: '🏠' },
-  { href: '/dashboard/bookings',  label: 'Bookings',  icon: '📋' },
-  { href: '/dashboard/messages',  label: 'Messages',  icon: '💬' },
-  { href: '/dashboard/profile',   label: 'Profile',   icon: '👤' },
+  { href: '/dashboard',           label: 'Overview',  emoji: '🏠' },
+  { href: '/dashboard/bookings',  label: 'Bookings',  emoji: '📋' },
+  { href: '/dashboard/messages',  label: 'Messages',  emoji: '💬' },
+  { href: '/dashboard/profile',   label: 'Profile',   emoji: '👤' },
 ]
 
 const OWNER_NAV = [
-  { href: '/owner',               label: 'Overview',  icon: '🏠' },
-  { href: '/owner/listings',      label: 'Listings',  icon: '🏷️' },
-  { href: '/owner/bookings',      label: 'Bookings',  icon: '📋' },
-  { href: '/dashboard/messages',  label: 'Messages',  icon: '💬' },
-  { href: '/dashboard/profile',   label: 'Profile',   icon: '👤' },
+  { href: '/owner',               label: 'Overview',  emoji: '🏠' },
+  { href: '/owner/listings',      label: 'Listings',  emoji: '🏷️' },
+  { href: '/create-listing',      label: 'Create',    emoji: '➕' },
+  { href: '/owner/bookings',      label: 'Bookings',  emoji: '📋' },
+  { href: '/dashboard/messages',  label: 'Messages',  emoji: '💬' },
+  { href: '/dashboard/profile',   label: 'Profile',   emoji: '👤' },
 ]
 
-export function DashboardNav({ user }: { user: AuthUser }) {
+export default function DashboardNav() {
   const pathname = usePathname()
-  const { logout } = useAuth()
-  const { unreadCount } = useNotifications(user?.id)
-  const nav = user.role === 'OWNER' ? OWNER_NAV : RENTER_NAV
+  const { user, logout } = useAuth()
+  const navLinks = user?.role === 'OWNER' ? OWNER_NAV : RENTER_NAV
 
   return (
-    <nav className="border-b border-border-subtle bg-surface-base sticky top-0 z-50">
+    <nav className="
+      sticky top-0 z-50 w-full
+      bg-background/80 backdrop-blur-md dark:bg-background/80
+      border-b border-border
+      shadow-sm
+    ">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Logo />
+        <div className="flex items-center justify-between h-16 gap-4">
 
-          {/* Nav items — horizontal on desktop */}
-          <div className="hidden md:flex items-center gap-1">
-            {nav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors min-h-[40px]',
-                  pathname === item.href
-                    ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/50 dark:text-brand-400'
-                    : 'text-text-secondary hover:bg-surface-subtle hover:text-text-primary'
-                )}
-              >
-                <span className="text-base" aria-hidden="true">{item.icon}</span>
-                {item.label}
-              </Link>
-            ))}
+          {/* LEFT: Logo */}
+          <Link href="/" className="flex items-center gap-2 shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-sm">
+              G
+            </div>
+            <span className="font-bold text-base text-foreground hidden sm:block">
+              GoRentals
+            </span>
+          </Link>
+
+          {/* CENTER: Nav Links */}
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-nowrap">
+            {navLinks.map(({ href, label, emoji }) => {
+              const isActive = pathname === href || 
+                (href !== '/dashboard' && pathname.startsWith(href))
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`
+                    flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium
+                    transition-all duration-200 whitespace-nowrap shrink-0
+                    ${isActive
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }
+                  `}
+                >
+                  <span>{emoji}</span>
+                  <span>{label}</span>
+                </Link>
+              )
+            })}
           </div>
 
-          {/* User section */}
-          <div className="flex items-center gap-3">
-            {/* Notifications */}
-            <Link 
-              href="/dashboard/notifications" 
-              className="relative p-2 text-text-secondary hover:text-brand-600 transition-colors"
-              title="Notifications"
+          {/* RIGHT: Actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Bell */}
+            <Link
+              href="/notifications"
+              className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
-              <Bell size={20} />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-slate-950">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
+              <Bell size={18} />
             </Link>
 
-            <div className="hidden sm:block">
-              <ThemeToggle />
-            </div>
+            {/* Theme Toggle */}
+            <ThemeToggle />
+
+            {/* User Avatar + Name */}
             <div className="flex items-center gap-2">
-              <Avatar name={user.fullName} size="sm" />
-              <div className="hidden sm:block text-left">
-                <Typography variant="body-xs" className="font-bold text-text-primary leading-tight">
-                  {(user?.fullName || 'User').split(' ')[0]}
-                </Typography>
-                <Typography variant="body-xs" className="capitalize leading-tight">
-                  {(user.role || 'RENTER').toLowerCase()}
-                </Typography>
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold shrink-0">
+                {user?.fullName?.slice(0, 2).toUpperCase() ?? 'RT'}
+              </div>
+              <div className="hidden md:flex flex-col leading-tight max-w-[100px]">
+                <span className="text-xs font-semibold text-foreground truncate">
+                  {user?.fullName ?? 'renter'}
+                </span>
+                <span className="text-xs text-muted-foreground capitalize">
+                  {user?.role?.toLowerCase() ?? 'Renter'}
+                </span>
               </div>
             </div>
-            <div className="sm:hidden">
-               <ThemeToggle />
-            </div>
+
+            {/* Sign Out */}
             <button
               onClick={logout}
-              className="text-xs text-text-tertiary hover:text-text-primary font-medium transition-colors px-3 py-2 rounded-lg hover:bg-surface-subtle min-h-[40px]"
+              className="hidden md:block text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded hover:bg-muted"
             >
               Sign out
             </button>
           </div>
-        </div>
 
-        {/* Mobile bottom nav */}
-        <div className="md:hidden flex items-center gap-1 pb-2 overflow-x-auto no-scrollbar">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'shrink-0 flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl text-[10px] font-medium transition-colors min-h-[48px] justify-center',
-                pathname === item.href
-                  ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/50 dark:text-brand-400'
-                  : 'text-text-tertiary'
-              )}
-            >
-              <span className="text-base" aria-hidden="true">{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
         </div>
       </div>
     </nav>

@@ -182,3 +182,4 @@ export default function KYCModal({ isOpen, onClose, onSuccess }: KYCModalProps) 
     </div>
   );
 }
+

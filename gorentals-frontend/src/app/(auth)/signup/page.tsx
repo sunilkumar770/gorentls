@@ -10,7 +10,7 @@ import { Alert } from '@/components/ui/Alert'
 import { Card } from '@/components/ui/Card'
 import { Logo } from '@/components/ui/Logo'
 import { cn } from '@/lib/utils'
-import { buildProfile } from '@/services/auth'
+import { buildProfile, signUp } from '@/services/auth'
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -28,19 +28,41 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    // --- Client-side validation matching backend Bean Validation (US-004) ---
+    const name = formData.fullName.trim()
+    const nameParts = name.split(/\s+/)
+    if (nameParts.length < 2 || nameParts.some(p => p.length < 2)) {
+      setError('Please enter your full name (first and last name).')
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setError('Please enter a valid email address.')
+      return
+    }
+    const phoneDigits = formData.phone.replace(/\D/g, '')
+    if (phoneDigits.length < 10) {
+      setError('Please enter a valid 10-digit phone number.')
+      return
+    }
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      })
+      const { data, error: signUpError } = await signUp(
+        formData.email,
+        formData.password,
+        formData.fullName,
+        formData.phone,
+        formData.userType
+      )
       
-      const data = await res.json()
-      
-      if (!res.ok) {
-        setError(data.message ?? 'Registration failed. Please try again.')
+      if (signUpError || !data) {
+        setError(signUpError ?? 'Registration failed. Please try again.')
         return
       }
       
@@ -48,7 +70,7 @@ export default function SignupPage() {
       login(data.accessToken, profile);
       router.push(formData.userType === 'OWNER' ? '/owner' : '/dashboard')
       router.refresh()
-    } catch (err) {
+    } catch {
       setError('Connection error. Please try again.')
     } finally {
       setIsLoading(false)
@@ -159,3 +181,4 @@ export default function SignupPage() {
     </div>
   )
 }
+

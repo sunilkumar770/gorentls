@@ -23,7 +23,7 @@ export interface PriceBreakdownLine {
 }
 
 export interface Phase1Quote {
-  /** Base rental: days × price_per_day */
+  /** Base rental: days × pricePerDay */
   base:        number;
   /** 18% GST on base */
   gst:         number;
@@ -70,7 +70,7 @@ function safePositive(n: number): number {
 /**
  * Calculate a Phase 1 price quote.
  *
- * @param baseRental  days × price_per_day (NOT including deposit)
+ * @param baseRental  days × pricePerDay (NOT including deposit)
  * @param deposit     security deposit (refundable)
  *
  * GST         = 18% of baseRental
@@ -109,7 +109,7 @@ export function calcQuotePhase1(
  * Phase 2 — configurable rates. Activate after 3 months.
  * Backwards-compatible: pass (base, 0.05, 0.00) for Phase 1 behaviour.
  *
- * @param baseRental   days × price_per_day
+ * @param baseRental   days × pricePerDay
  * @param userFeePct   platform fee rate to renter  (0.05 = 5%)
  * @param ownerFeePct  commission rate from owner    (0.10 = 10%)
  * @param deposit      security deposit
@@ -190,3 +190,4 @@ export function formatINRInt(amount: number): string {
     maximumFractionDigits: 0,
   }).format(amount);
 }
+

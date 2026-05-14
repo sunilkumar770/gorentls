@@ -25,3 +25,4 @@ export function EmptyState({ icon, title, description, cta }: Props) {
     </div>
   )
 }
+

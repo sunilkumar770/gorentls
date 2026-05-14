@@ -70,3 +70,4 @@ export function useWebSocketChat({
 
   return { sendMessage, sendTyping, status }
 }
+

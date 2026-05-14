@@ -63,7 +63,7 @@ razorpay:
 
 app:
   redis:
-    enabled: ${REDIS_ENABLED:true}
+    enabled: ${REDIS_ENABLED:false}
   admin:
     email: ${APP_ADMIN_EMAIL:}
     password: ${APP_ADMIN_PASSWORD:}

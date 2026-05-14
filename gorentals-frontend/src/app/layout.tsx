@@ -22,7 +22,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${manrope.variable} font-sans min-h-screen flex flex-col antialiased dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider>
           <AuthProvider initialUser={user}>
             <Navbar />
             <main className="flex-1 pt-16 flex flex-col">
@@ -43,3 +43,4 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     </html>
   );
 }
+

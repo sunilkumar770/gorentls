@@ -162,12 +162,17 @@ export async function signUp(
   userType: 'RENTER' | 'OWNER' = 'RENTER'
 ): Promise<{ data?: BackendAuthResponse; error?: string }> {
   try {
+    const nameParts = fullName.trim().split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '.'; // Use dot if last name is missing to satisfy @NotBlank
+
     const response = await api.post<BackendAuthResponse>('/auth/register', {
       email,
       password,
-      fullName,
-      phone,
-      userType,
+      firstName,
+      lastName,
+      phoneNumber: phone,
+      role: userType,
     });
     // FIX: store token on registration — same as signIn()
     const token = response.data.accessToken;
@@ -178,3 +183,4 @@ export async function signUp(
     return { error: err.response?.data?.message || err.message || 'Failed to create account' };
   }
 }
+

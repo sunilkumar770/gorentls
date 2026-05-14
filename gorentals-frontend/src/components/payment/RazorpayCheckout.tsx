@@ -5,7 +5,7 @@ import { createOrderAction, confirmPaymentAction } from '@/app/actions/payments'
 
 interface RazorpayCheckoutProps {
   bookingId: string;
-  paymentKind: 'ADVANCE' | 'FINAL' | 'SECURITY_DEPOSIT';
+  paymentKind: 'ADVANCE' | 'FINAL' | 'securityDeposit';
   amountToPay: number;
   onSuccess?: () => void;
   onError?: (error: string) => void;
@@ -161,3 +161,4 @@ export function RazorpayCheckout({
     </div>
   );
 }
+

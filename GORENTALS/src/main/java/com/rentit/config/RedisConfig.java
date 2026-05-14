@@ -16,7 +16,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ConditionalOnProperty(name = "app.redis.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "app.redis.enabled", havingValue = "true", matchIfMissing = false)
 public class RedisConfig {
 
     public static final String CHAT_CHANNEL = "chat-messages";

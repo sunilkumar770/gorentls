@@ -1,4 +1,5 @@
 // src/app/(dashboard)/dashboard/page.tsx
+import { getApiUrl } from '@/lib/api-utils'
 import { getCurrentUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
@@ -12,12 +13,11 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { MessagePreview } from '../components/MessagePreview'
 
 async function getRenterData(userId: string, token: string) {
-  const base = process.env.NEXT_PUBLIC_API_URL
   const headers = { Authorization: `Bearer ${token}` }
   try {
     const [bookingsRes, messagesRes] = await Promise.all([
-      fetch(`${base}/api/bookings?userId=${userId}&limit=5`, { headers, cache: 'no-store' }),
-      fetch(`${base}/api/conversations?userId=${userId}&limit=3`, { headers, cache: 'no-store' }),
+      fetch(getApiUrl(`/bookings?userId=${userId}&limit=5`), { headers, cache: 'no-store' }),
+      fetch(getApiUrl(`/conversations?userId=${userId}&limit=3`), { headers, cache: 'no-store' }),
     ])
     return {
       bookings: bookingsRes.ok ? await bookingsRes.json() : [],
@@ -187,3 +187,4 @@ function StatCard({
     </Card>
   )
 }
+

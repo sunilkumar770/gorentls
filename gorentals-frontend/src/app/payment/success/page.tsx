@@ -108,9 +108,9 @@ function PaymentSuccessContent() {
                 {/* Booking Summary */}
                 <div className="flex gap-6 items-start pb-8 border-b border-border">
                   <div className="w-28 h-24 bg-subtle rounded-2xl overflow-hidden flex-shrink-0">
-                    {(booking.listing?.images?.[0] || booking.listing?.listing_images?.[0]?.image_url) ? (
+                    {(booking.listing?.images?.[0] || booking.listing?.listingImages?.[0]?.image_url) ? (
                       <img 
-                        src={booking.listing?.images?.[0] || booking.listing?.listing_images?.[0]?.image_url} 
+                        src={booking.listing?.images?.[0] || booking.listing?.listingImages?.[0]?.image_url} 
                         alt={booking.listing?.title} 
                         className="w-full h-full object-cover"
                       />
@@ -194,3 +194,4 @@ export default function PaymentSuccessPage() {
     </Suspense>
   );
 }
+

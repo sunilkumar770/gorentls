@@ -24,15 +24,18 @@ public class PaymentOutboxProcessor {
     private final RazorpayIntegrationService razorpayService;
     private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
     private final com.rentit.service.AlertService alertService;
+    private final boolean isRedisEnabled;
 
     public PaymentOutboxProcessor(PaymentOutboxRepository paymentOutboxRepository,
                                   RazorpayIntegrationService razorpayService,
                                   @org.springframework.beans.factory.annotation.Autowired(required = false) org.springframework.data.redis.core.StringRedisTemplate redisTemplate,
-                                  com.rentit.service.AlertService alertService) {
+                                  com.rentit.service.AlertService alertService,
+                                  @org.springframework.beans.factory.annotation.Value("${app.redis.enabled:false}") boolean isRedisEnabled) {
         this.paymentOutboxRepository = paymentOutboxRepository;
         this.razorpayService = razorpayService;
         this.redisTemplate = redisTemplate;
         this.alertService = alertService;
+        this.isRedisEnabled = isRedisEnabled;
     }
 
     private static final String LOCK_KEY = "outbox:processor:lock";
@@ -40,8 +43,8 @@ public class PaymentOutboxProcessor {
 
     @Scheduled(fixedDelay = 30000) // Every 30 seconds
     public void processOutbox() {
-        if (redisTemplate == null) {
-            // Local mode: No distributed lock needed
+        if (!isRedisEnabled || redisTemplate == null) {
+            // Local mode or Redis not configured: No distributed lock needed
             processEvents();
             return;
         }

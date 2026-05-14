@@ -18,9 +18,9 @@ import java.util.UUID;
 
 @Repository
 public interface ListingRepository extends JpaRepository<Listing, UUID> {
-    
+
     boolean existsByTitle(String title);
-    // ── N+1 ELIMINATION: Single listing detail — eager-fetches owner ───────────
+
     @EntityGraph(attributePaths = {"owner", "owner.profile"})
     Optional<Listing> findById(UUID id);
 
@@ -33,158 +33,109 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
     @EntityGraph(attributePaths = {"owner", "owner.profile"})
     Page<Listing> findAll(Pageable pageable);
 
-    /**
-     * Find listings by owner ID (paginated)
-     */
     @EntityGraph(attributePaths = {"owner", "owner.profile"})
     Page<Listing> findByOwnerId(UUID ownerId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"owner", "owner.profile"})
     List<Listing> findByOwnerId(UUID ownerId);
-    
-    /**
-     * Find published listings
-     */
+
     Page<Listing> findByIsPublishedTrue(Pageable pageable);
-    
-    /**
-     * Find available published listings
-     */
+
     @EntityGraph(attributePaths = {"owner", "owner.profile"})
     Page<Listing> findByIsPublishedTrueAndIsAvailableTrue(Pageable pageable);
-    
-    /**
-     * Count published and available listings
-     */
+
     @Query("SELECT COUNT(l) FROM Listing l WHERE l.isPublished = true AND l.isAvailable = true")
     long countByIsPublishedTrueAndIsAvailableTrue();
-    
-    /**
-     * Count unpublished listings
-     */
+
     @Query("SELECT COUNT(l) FROM Listing l WHERE l.isPublished = false")
     long countByIsPublishedFalse();
-    
+
     /**
-     * Search listings with filters
+     * FIXED: Replaced Hibernate-specific cast(:param as string) IS NULL
+     * with standard JPQL :param IS NULL to eliminate HTTP 500 on PostgreSQL
+     * when any non-null filter value (category, city, type) is supplied.
+     *
+     * city  → LIKE match using %-wrapped escaped pattern from SearchUtils.likeContents()
+     * category/type → exact case-insensitive equality via LOWER()
+     * minPrice/maxPrice → BigDecimal comparison, null-safe via :param IS NULL
      */
     @EntityGraph(attributePaths = {"owner", "owner.profile"})
     @Query("SELECT l FROM Listing l WHERE " +
-           "(cast(:city as string) IS NULL OR LOWER(l.city) LIKE LOWER(:city)) " +
-           "AND (cast(:category as string) IS NULL OR LOWER(l.category) = LOWER(:category)) " +
-           "AND (cast(:type as string) IS NULL OR LOWER(l.type) = LOWER(:type)) " +
-           "AND (cast(:minPrice as java.math.BigDecimal) IS NULL OR l.pricePerDay >= :minPrice) " +
-           "AND (cast(:maxPrice as java.math.BigDecimal) IS NULL OR l.pricePerDay <= :maxPrice) " +
+           "(:city IS NULL OR LOWER(l.city) LIKE LOWER(cast(:city as string))) " +
+           "AND (:category IS NULL OR LOWER(l.category) = LOWER(cast(:category as string))) " +
+           "AND (:type IS NULL OR LOWER(l.type) = LOWER(cast(:type as string))) " +
+           "AND (:ownerId IS NULL OR l.owner.id = :ownerId) " +
+           "AND (:minPrice IS NULL OR l.pricePerDay >= :minPrice) " +
+           "AND (:maxPrice IS NULL OR l.pricePerDay <= :maxPrice) " +
            "AND l.isPublished = true AND l.isAvailable = true " +
            "ORDER BY l.createdAt DESC")
-    Page<Listing> searchListings(@Param("city") String city,
-                                 @Param("category") String category,
-                                 @Param("type") String type,
-                                 @Param("minPrice") BigDecimal minPrice,
-                                 @Param("maxPrice") BigDecimal maxPrice,
-                                 Pageable pageable);
-    
-    /**
-     * Search listings by title or description
-     */
+    Page<Listing> searchListings(
+            @Param("city")     String city,
+            @Param("category") String category,
+            @Param("type")     String type,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("maxPrice") BigDecimal maxPrice,
+            @Param("ownerId")  UUID ownerId,
+            Pageable pageable);
+
     @EntityGraph(attributePaths = {"owner", "owner.profile"})
     @Query("SELECT l FROM Listing l WHERE l.isPublished = true AND l.isAvailable = true " +
            "AND (LOWER(l.title) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "OR LOWER(l.description) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     Page<Listing> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
-    
-    /**
-     * Find listings by city
-     */
+
     @EntityGraph(attributePaths = {"owner", "owner.profile"})
     Page<Listing> findByCityIgnoreCaseAndIsPublishedTrue(String city, Pageable pageable);
-    
-    /**
-     * Find listings by category
-     */
+
     @EntityGraph(attributePaths = {"owner", "owner.profile"})
     Page<Listing> findByCategoryIgnoreCaseAndIsPublishedTrue(String category, Pageable pageable);
-    
-    /**
-     * Find listings by type (bike, car, etc.)
-     */
+
     @EntityGraph(attributePaths = {"owner", "owner.profile"})
     Page<Listing> findByTypeIgnoreCaseAndIsPublishedTrue(String type, Pageable pageable);
-    
-    /**
-     * Get top categories by listing count
-     */
+
     @Query("SELECT l.category, COUNT(l), SUM(l.pricePerDay) FROM Listing l " +
            "WHERE l.isPublished = true GROUP BY l.category ORDER BY COUNT(l) DESC")
     List<Object[]> getTopCategories();
-    
-    /**
-     * Get top cities by listing count and bookings
-     */
+
     @Query("SELECT l.city, COUNT(DISTINCT l), COUNT(b), COALESCE(SUM(b.totalAmount), 0) " +
            "FROM Listing l LEFT JOIN Booking b ON b.listing = l AND b.bookingStatus = 'COMPLETED' " +
            "WHERE l.isPublished = true AND l.city IS NOT NULL " +
            "GROUP BY l.city ORDER BY COUNT(b) DESC")
     List<Object[]> getTopCities();
-    
-    
- // Add this method to ListingRepository.java
+
     Page<Listing> findByIsPublishedFalse(Pageable pageable);
-    
-    /**
-     * Get listings by price range
-     */
+
     @EntityGraph(attributePaths = {"owner", "owner.profile"})
-    Page<Listing> findByPricePerDayBetweenAndIsPublishedTrue(BigDecimal minPrice, 
-                                                             BigDecimal maxPrice, 
-                                                             Pageable pageable);
-    
-    /**
-     * Get listings with highest ratings
-     */
+    Page<Listing> findByPricePerDayBetweenAndIsPublishedTrue(
+            BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable);
+
     @EntityGraph(attributePaths = {"owner", "owner.profile"})
     Page<Listing> findByIsPublishedTrueOrderByTotalRatingsDesc(Pageable pageable);
-    
-    /**
-     * Get owner's listings with stats
-     */
+
     @Query("SELECT l, COUNT(b), COALESCE(SUM(b.totalAmount), 0) " +
            "FROM Listing l LEFT JOIN Booking b ON b.listing = l AND b.bookingStatus = 'COMPLETED' " +
            "WHERE l.owner.id = :ownerId GROUP BY l")
     List<Object[]> findListingsWithStatsByOwner(@Param("ownerId") UUID ownerId);
-    
-    /**
-     * Count listings by category
-     */
+
     @Query("SELECT l.category, COUNT(l) FROM Listing l WHERE l.isPublished = true GROUP BY l.category")
     List<Object[]> countListingsByCategory();
-    
-    /**
-     * Count listings by city
-     */
-    @Query("SELECT l.city, COUNT(l) FROM Listing l WHERE l.isPublished = true AND l.city IS NOT NULL GROUP BY l.city")
+
+    @Query("SELECT l.city, COUNT(l) FROM Listing l " +
+           "WHERE l.isPublished = true AND l.city IS NOT NULL GROUP BY l.city")
     List<Object[]> countListingsByCity();
-    
-    /**
-     * Get available listings count
-     */
+
     @Query("SELECT COUNT(l) FROM Listing l WHERE l.isPublished = true AND l.isAvailable = true")
     long getAvailableListingsCount();
-    
-    /**
-     * Get total listings value
-     */
+
     @Query("SELECT SUM(l.pricePerDay) FROM Listing l WHERE l.isPublished = true")
     BigDecimal getTotalListingsValue();
-    
-    /**
-     * Find listings by owner and published status
-     */
+
     Page<Listing> findByOwnerIdAndIsPublished(UUID ownerId, Boolean isPublished, Pageable pageable);
 
     @Query("SELECT COUNT(l) FROM Listing l WHERE l.owner.id = :ownerId")
     long countByOwnerId(@Param("ownerId") UUID ownerId);
 
-    @Query("SELECT COUNT(l) FROM Listing l WHERE l.owner.id = :ownerId AND l.isPublished = true AND l.isAvailable = true")
+    @Query("SELECT COUNT(l) FROM Listing l " +
+           "WHERE l.owner.id = :ownerId AND l.isPublished = true AND l.isAvailable = true")
     long countActiveByOwnerId(@Param("ownerId") UUID ownerId);
 }

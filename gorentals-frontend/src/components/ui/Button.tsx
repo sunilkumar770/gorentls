@@ -50,6 +50,23 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const Component = asChild ? Slot : 'button'
     const isDisabled = disabled || loading
 
+    // When used as a Slot (asChild), Radix needs a single React element — not a
+    // Fragment — because it clones the child and merges props onto it.
+    // Fragments don't accept arbitrary props (like `disabled`), so we wrap in a
+    // span for the asChild path. For a plain <button> no wrapping is needed.
+    const inner = loading ? (
+      <>
+        <Spinner size={size === 'sm' ? 14 : 16} className="shrink-0 mr-2" />
+        <span>{children}</span>
+      </>
+    ) : (
+      <>
+        {leftIcon && <span className="shrink-0">{leftIcon}</span>}
+        {children}
+        {rightIcon && <span className="shrink-0">{rightIcon}</span>}
+      </>
+    )
+
     return (
       <Component
         ref={ref}
@@ -72,18 +89,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         )}
         {...props}
       >
-        {loading ? (
-          <>
-            <Spinner size={size === 'sm' ? 14 : 16} className="shrink-0 mr-2" />
-            <span>{children}</span>
-          </>
-        ) : (
-          <>
-            {leftIcon && <span className="shrink-0">{leftIcon}</span>}
-            {children}
-            {rightIcon && <span className="shrink-0">{rightIcon}</span>}
-          </>
-        )}
+        {asChild ? <span className="contents">{inner}</span> : inner}
       </Component>
     )
   }
@@ -105,3 +111,4 @@ function Spinner({ size, className }: { size: number; className?: string }) {
     </svg>
   )
 }
+

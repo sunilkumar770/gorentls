@@ -17,3 +17,4 @@ export async function blockDates(
 export async function unblockDates(listingId: string, blockId: string): Promise<void> {
   await api.delete(`/listings/${listingId}/block-dates/${blockId}`);
 }
+

@@ -5,6 +5,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { EmptyState } from '../../components/EmptyState'
 import { BookingCard } from '../../components/BookingCard'
 import { Loader2, Calendar, Filter } from 'lucide-react'
+import { safeStorage } from '@/lib/safeStorage'
+import { getApiUrl } from '@/lib/api-utils'
 
 import { useRouter } from 'next/navigation'
 
@@ -24,8 +26,8 @@ export default function RenterBookingsPage() {
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const token = document.cookie.split('; ').find(row => row.startsWith('gorentals_token='))?.split('=')[1]
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/bookings?userId=${user?.id}`, {
+        const token = safeStorage.getItem('gorentals_token')
+        const res = await fetch(getApiUrl(`/bookings?userId=${user?.id}`), {
           headers: { 'Authorization': `Bearer ${token}` }
         })
         if (res.ok) {
@@ -64,23 +66,23 @@ export default function RenterBookingsPage() {
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight font-display">
+          <h1 className="text-3xl font-bold text-foreground tracking-tight font-display">
             Your Bookings
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">
+          <p className="text-muted-foreground mt-1 font-medium">
             Manage your rental requests and history
           </p>
         </div>
 
-        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex items-center gap-2 bg-card p-1.5 rounded-2xl border border-border shadow-sm">
           {['ALL', 'UPCOMING', 'COMPLETED'].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wider ${
                 filter === f
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {f}
@@ -90,7 +92,7 @@ export default function RenterBookingsPage() {
       </div>
 
       {filteredBookings.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 p-12">
+        <div className="bg-card rounded-3xl border border-dashed border-border p-12">
           <EmptyState
             icon="📅"
             title="No bookings found"
@@ -108,3 +110,4 @@ export default function RenterBookingsPage() {
     </div>
   )
 }
+

@@ -49,3 +49,4 @@ export function subscribeToConversation(
     supabase.removeChannel(channel)
   }
 }
+
