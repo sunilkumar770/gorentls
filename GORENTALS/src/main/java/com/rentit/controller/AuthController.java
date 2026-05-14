@@ -62,3 +62,25 @@ public class AuthController {
         return ResponseEntity.ok(new SuccessResponse("Password has been reset successfully", true));
     }
 }
+
+    /**
+     * Logout endpoint.
+     * Clears the server-side JWT token from the HttpOnly cookie.
+     * Note: JWTs are stateless; to fully invalidate a token server-side
+     * a Redis-backed token blacklist should be added (see JwtUtil TODO).
+     * The current implementation relies on the frontend cookie being cleared
+     * and the short token expiry (24h) as the primary logout mechanism.
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<SuccessResponse> logout(
+            jakarta.servlet.http.HttpServletResponse response) {
+        // Clear the JWT cookie on the backend side
+        // (Belt-and-suspenders: frontend also clears via /api/auth/logout Next.js route)
+        jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("gorentals_token", "");
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true); // HTTPS only
+        cookie.setPath("/");
+        cookie.setMaxAge(0); // Expire immediately
+        response.addCookie(cookie);
+        return ResponseEntity.ok(new SuccessResponse("Logged out successfully", true));
+    }
