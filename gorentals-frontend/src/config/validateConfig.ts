@@ -3,6 +3,15 @@
  * This runs at build time (next.config.ts) and server-side on startup.
  */
 
+ * 
+ * P2-2: All critical NEXT_PUBLIC environment variables are validated:
+ *   - NEXT_PUBLIC_API_URL (backend API base, auto-injected from render.yaml)
+ *   - NEXT_PUBLIC_RAZORPAY_KEY_ID (payment gateway, manually set in Render dashboard)
+ *   - NEXT_PUBLIC_WS_URL (WebSocket for real-time chat, auto-injected from render.yaml)
+ * 
+ * Supabase variables are OPTIONAL (file uploads will be disabled if missing):
+ *   - NEXT_PUBLIC_SUPABASE_URL
+ *   - NEXT_PUBLIC_SUPABASE_ANON_KEY
 function isValidUrl(value: string): boolean {
   try {
     new URL(value);
