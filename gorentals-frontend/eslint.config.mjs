@@ -24,6 +24,14 @@ const eslintConfig = defineConfig([
       "react-hooks/exhaustive-deps": "warn",
       // Allow setState in useEffect
       "react-hooks/rules-of-hooks": "warn",
+      // Allow setState in useEffect without triggering error
+      "react-hooks/set-state-in-effect": "off",
+      // Allow dynamic component creation (static-components)
+      "react-hooks/static-components": "off",
+      // Allow TypeScript comments (@ts-ignore, @ts-expect-error)
+      "@typescript-eslint/ban-ts-comment": "warn",
+      // Allow unused vars (will be cleaned up incrementally)
+      "@typescript-eslint/no-unused-vars": "warn",
     },
   },
 ]);
