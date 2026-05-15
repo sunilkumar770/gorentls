@@ -30,7 +30,6 @@ public class AdminService {
         private final UserRepository userRepository;
         private final UserProfileRepository userProfileRepository;
         private final BusinessOwnerRepository businessOwnerRepository;
-        private final AdminUserRepository adminUserRepository;
         private final ListingRepository listingRepository;
         private final BookingRepository bookingRepository;
         private final PaymentRepository paymentRepository;

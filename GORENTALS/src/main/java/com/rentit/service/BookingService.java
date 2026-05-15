@@ -342,8 +342,8 @@ public class BookingService {
      * BUG-09 FIX: IN_USE added to the owner-action authorization matrix so
      *             owner can transition CONFIRMED→IN_USE (mark handover).
      * BUG-10 FIX: single notification per cancellation; refund notification
-     *             only sent if payment was actually completed (still TODO for
-     *             actual refund processing, but notification is correct).
+     *             only sent if payment was actually completed. Automated refund
+     *             processing is now integrated via Razorpay and the Escrow outbox.
      */
     @Transactional
     public BookingResponse updateStatus(UUID bookingId, BookingStatus newStatus, String callerEmail) {

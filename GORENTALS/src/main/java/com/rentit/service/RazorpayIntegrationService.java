@@ -14,6 +14,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -177,7 +179,10 @@ public class RazorpayIntegrationService {
     ) {
         try {
             RazorpayClient client = client();
-
+            String idempotencyKey = "ref_" + bookingId.toString() + "_" + razorpayPaymentId;
+            Map<String, String> headers = new HashMap<>();
+            headers.put("X-Idempotency-Key", idempotencyKey);
+            client.addHeaders(headers);
             JSONObject options = new JSONObject();
             if (amountINR != null) {
                 options.put("amount", toPaise(amountINR));

@@ -3,7 +3,6 @@ package com.rentit.service;
 import com.rentit.exception.BusinessException;
 import com.rentit.model.Notification;
 import com.rentit.repository.NotificationRepository;
-import com.rentit.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.data.domain.Page;
@@ -18,7 +17,6 @@ import java.util.UUID;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
-    private final UserRepository         userRepository;
     private final SimpMessagingTemplate  messagingTemplate;
 
     // ─── SEND ────────────────────────────────────────────────────────────────

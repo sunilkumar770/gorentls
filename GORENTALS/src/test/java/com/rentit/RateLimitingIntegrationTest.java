@@ -3,6 +3,8 @@ package com.rentit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -18,9 +20,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ActiveProfiles("test")
-@SpringBootTest
+@SpringBootTest(properties = "app.redis.enabled=false")
 @AutoConfigureMockMvc
-@EnableAutoConfiguration(exclude = {DataSourceAutoConfiguration.class, HibernateJpaAutoConfiguration.class})
+@EnableAutoConfiguration(exclude = {
+    DataSourceAutoConfiguration.class, 
+    HibernateJpaAutoConfiguration.class,
+    RedisAutoConfiguration.class,
+    RedisRepositoriesAutoConfiguration.class
+})
 public class RateLimitingIntegrationTest {
 
     @Autowired
@@ -120,6 +127,18 @@ public class RateLimitingIntegrationTest {
 
     @MockBean
     private FavoriteService favoriteService;
+
+    @MockBean
+    private PaymentOutboxRepository paymentOutboxRepository;
+
+    @MockBean
+    private WebhookEventRepository webhookEventRepository;
+
+    @MockBean
+    private RefundOutboxRepository refundOutboxRepository;
+
+    @MockBean
+    private UserSettingsRepository userSettingsRepository;
 
     @Test
     public void testAuthenticationRateLimitingReturns429() throws Exception {

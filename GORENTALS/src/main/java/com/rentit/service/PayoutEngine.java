@@ -5,7 +5,6 @@ import com.rentit.model.OwnerPayoutAccount;
 import com.rentit.model.Payout;
 import com.rentit.model.enums.EscrowStatus;
 import com.rentit.model.enums.PayoutOnboardingStatus;
-import com.rentit.model.enums.PayoutStatus;
 import com.rentit.pricing.PricingCalculator;
 import com.rentit.repository.BookingRepository;
 import com.rentit.repository.OwnerPayoutAccountRepository;
@@ -45,7 +44,6 @@ public class PayoutEngine {
 
     private static final Logger log = LoggerFactory.getLogger(PayoutEngine.class);
 
-    private static final int MAX_RETRY_ATTEMPTS = 3;
 
     private final BookingRepository            bookingRepo;
     private final PayoutRepository             payoutRepo;

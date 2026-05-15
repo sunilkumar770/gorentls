@@ -57,7 +57,6 @@ public class ListingService {
     private final UserRepository        userRepository;
     private final BlockedDateRepository blockedDateRepository;
     private final BookingRepository     bookingRepository;
-    private final NotificationService   notificationService;
 
     public PagedResponse<ListingResponse> getAllListings(int page, int size, 
         String city, String category) {

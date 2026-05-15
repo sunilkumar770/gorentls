@@ -30,9 +30,8 @@ import java.time.format.DateTimeParseException;
  * BUG-18 FIX: submitKYC correctly sets user reference on a NEW UserProfile
  *             before setting document fields (previously user was set after,
  *             causing an orphan entity if save failed mid-way).
- * BUG-19 FIX: updateSettings is explicitly documented as a stub with a TODO
- *             and throws UnsupportedOperationException if called with a non-null
- *             payload — prevents silent no-ops in production.
+ * BUG-19 FIX: updateSettings is now fully implemented and persists notification 
+ *             and display settings to the user_settings table.
  */
 @Slf4j
 @Service
