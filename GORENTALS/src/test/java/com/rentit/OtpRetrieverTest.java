@@ -3,12 +3,14 @@ package com.rentit;
 import com.rentit.model.User;
 import com.rentit.repository.UserRepository;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
 @ActiveProfiles("dev")
+@Disabled("Manual developer utility - run explicitly inside IDE for developer verification")
 public class OtpRetrieverTest {
 
     @Autowired
