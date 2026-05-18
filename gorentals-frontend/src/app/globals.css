@@ -37,6 +37,27 @@
   --color-brand-selected:        var(--brand-selected);
   --color-brand-selected-border: var(--brand-selected-border);
 
+  /* Status Colors */
+  --color-status-success-bg:     var(--status-success-bg);
+  --color-status-success-text:   var(--status-success-text);
+  --color-status-success-border: var(--status-success-border);
+
+  --color-status-warning-bg:     var(--status-warning-bg);
+  --color-status-warning-text:   var(--status-warning-text);
+  --color-status-warning-border: var(--status-warning-border);
+
+  --color-status-error-bg:       var(--status-error-bg);
+  --color-status-error-text:     var(--status-error-text);
+  --color-status-error-border:   var(--status-error-border);
+
+  --color-status-info-bg:        var(--status-info-bg);
+  --color-status-info-text:      var(--status-info-text);
+  --color-status-info-border:    var(--status-info-border);
+
+  --color-status-neutral-bg:     var(--status-neutral-bg);
+  --color-status-neutral-text:   var(--status-neutral-text);
+  --color-status-neutral-border: var(--status-neutral-border);
+
   /* Radii */
   --radius-sm:   var(--radius-sm);
   --radius-md:   var(--radius-md);

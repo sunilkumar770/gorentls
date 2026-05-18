@@ -13,10 +13,10 @@ interface Listing {
 }
 
 const CONDITION_STYLES: Record<string, string> = {
-  'New':       'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  'Like New':  'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  'Good':      'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  'Fair':      'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  'New':       'bg-status-success-bg text-status-success-text border border-status-success-border',
+  'Like New':  'bg-status-info-bg text-status-info-text border border-status-info-border',
+  'Good':      'bg-status-warning-bg text-status-warning-text border border-status-warning-border',
+  'Fair':      'bg-status-error-bg text-status-error-text border border-status-error-border',
 }
 
 export function ListingCard({ item }: { item: Listing }) {

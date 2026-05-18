@@ -51,7 +51,7 @@ export default async function HomePage() {
   const listings = await getListings()
 
   return (
-    <main className="min-h-screen bg-white dark:bg-slate-950">
+    <main className="min-h-screen bg-surface-base">
       <HeroSection />
       
       <div className="space-y-4">
