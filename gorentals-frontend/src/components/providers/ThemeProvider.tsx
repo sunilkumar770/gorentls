@@ -1,4 +1,5 @@
 'use client'
+// GoRentals Theme Provider
 import * as React from 'react'
 import { ThemeProvider as NextThemesProvider, ThemeProviderProps } from 'next-themes'
 
