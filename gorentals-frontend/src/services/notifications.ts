@@ -24,7 +24,7 @@ export async function deleteNotification(notificationId: string): Promise<void> 
 }
 
 export async function getUnreadCount(): Promise<number> {
-  const res = await api.get<{ unreadCount: number }>('/notifications/unread-count');
+  const res = await api.get<{ unreadCount: number }>('/notifications?size=1');
   return res.data.unreadCount ?? 0;
 }
 

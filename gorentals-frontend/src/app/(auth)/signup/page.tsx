@@ -10,7 +10,7 @@ import { Alert } from '@/components/ui/Alert'
 import { Card } from '@/components/ui/Card'
 import { Logo } from '@/components/ui/Logo'
 import { cn } from '@/lib/utils'
-import { buildProfile } from '@/services/auth'
+import { buildProfile, signUp } from '@/services/auth'
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -31,25 +31,35 @@ export default function SignupPage() {
     setIsLoading(true)
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      })
-      
-      const data = await res.json()
-      
-      if (!res.ok) {
-        setError(data.message ?? 'Registration failed. Please try again.')
+      const { data, error: apiError } = await signUp(
+        formData.email,
+        formData.password,
+        formData.fullName,
+        formData.phone,
+        formData.userType
+      )
+
+      if (apiError) {
+        setError(apiError)
         return
       }
-      
-      const profile = buildProfile(data);
-      login(data.accessToken, profile);
-      router.push(formData.userType === 'OWNER' ? '/owner' : '/dashboard')
-      router.refresh()
-    } catch (err) {
-      setError('Connection error. Please try again.')
+
+      if (data) {
+        const profile = buildProfile(data);
+        login(data.accessToken, profile);
+        router.push(formData.userType === 'OWNER' ? '/owner' : '/dashboard')
+        router.refresh()
+      }
+    } catch (err: any) {
+      console.error('[SignupPage] Error:', err);
+      const backendError = err.response?.data;
+      if (backendError?.errors) {
+        // Concatenate field errors
+        const messages = Object.values(backendError.errors).join('. ');
+        setError(messages || backendError.message || 'Validation failed');
+      } else {
+        setError(backendError?.message || err.message || 'Connection error. Please try again.');
+      }
     } finally {
       setIsLoading(false)
     }
@@ -124,6 +134,7 @@ export default function SignupPage() {
                 onChange={e => setFormData({ ...formData, password: e.target.value })}
                 placeholder="••••••••"
                 minLength={8}
+                hint="Min 8 chars, 1 uppercase, 1 number, 1 special char (!@#$%^&*)"
               />
             </div>
 

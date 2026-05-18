@@ -10,6 +10,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 
 /**
  * Repository for outgoing owner payouts.
@@ -71,6 +75,26 @@ public interface PayoutRepository extends JpaRepository<Payout, UUID> {
      * Filter by status — used by admin payout management panel.
      */
     List<Payout> findByStatusOrderByScheduledAtAsc(PayoutStatus status);
+
+    Page<Payout> findByStatus(PayoutStatus status, Pageable pageable);
+
+    Page<Payout> findByOwnerId(UUID ownerId, Pageable pageable);
+
+    Page<Payout> findByStatusAndOwnerId(PayoutStatus status, UUID ownerId, Pageable pageable);
+
+    @Query("""
+        SELECT p FROM Payout p
+        WHERE p.ownerId = :ownerId
+          AND p.status IN (:statuses)
+        """)
+    List<Payout> findByOwnerIdAndStatusIn(
+        @Param("ownerId") UUID ownerId,
+        @Param("statuses") List<PayoutStatus> statuses
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Payout p WHERE p.id = :id")
+    Optional<Payout> findByIdWithLock(@Param("id") UUID id);
 
     /**
      * Reconciliation — find payout by RazorpayX payout ID.

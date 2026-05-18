@@ -276,4 +276,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     List<Object[]> getMonthlyRevenueByOwnerId(@Param("ownerId") UUID ownerId, @Param("startDate") LocalDateTime startDate);
     @Query("SELECT b FROM Booking b WHERE b.listing.owner.id = :ownerId AND b.bookingStatus = :status AND b.startDate BETWEEN :start AND :end")
     List<Booking> findByOwnerIdAndStatusAndStartDateBetween(@Param("ownerId") UUID ownerId, @Param("status") BookingStatus status, @Param("start") LocalDate start, @Param("end") LocalDate end);
+
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.renter.id = :renterId AND b.bookingStatus IN :statuses")
+    long countByRenterIdAndBookingStatusIn(@Param("renterId") UUID renterId, @Param("statuses") List<BookingStatus> statuses);
 }

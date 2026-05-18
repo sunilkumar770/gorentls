@@ -1,107 +1,120 @@
-'use client'
-import { useState } from 'react'
-import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useAuth } from '@/hooks/useAuth'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import { Typography, H1, Body } from '@/components/ui/Typography'
-import { Alert } from '@/components/ui/Alert'
-import { Card } from '@/components/ui/Card'
-import { Logo } from '@/components/ui/Logo'
-import { buildProfile } from '@/services/auth'
+"use client"
+
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { LogIn, Mail, Lock, AlertCircle, ArrowRight } from "lucide-react"
+import { useAuth } from "@/hooks/useAuth"
+import { Button } from "@/components/ui/Button"
+import { Input } from "@/components/ui/Input"
+import { Alert } from "@/components/ui/Alert"
+import { signIn, buildProfile } from "@/services/auth"
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const params = useSearchParams()
-  const { login } = useAuth()
+  const { login, user } = useAuth()
+  
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  // If already logged in, redirect away from login page
+  useEffect(() => {
+    if (user) {
+      const redirect = params.get('from') || '/dashboard'
+      router.replace(redirect)
+    }
+  }, [user, router, params])
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
+    if (e) e.preventDefault()
+    console.log('[LoginPage] handleSubmit started');
+    setError("")
     setIsLoading(true)
+
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
+      console.log('[LoginPage] Calling signIn with:', email);
+      const { data, error: apiError } = await signIn(email, password)
       
-      const data = await res.json()
-      
-      if (!res.ok) {
-        setError(data.message ?? 'Invalid email or password')
+      if (apiError) {
+        console.warn('[LoginPage] signIn error:', apiError);
+        setError(apiError)
         return
       }
-      
-      const profile = buildProfile(data);
-      login(data.accessToken, profile);
-      
-      const redirect = params.get('redirect') ?? (profile.role === 'OWNER' ? '/owner' : '/dashboard')
-      router.push(redirect)
-      router.refresh()
-    } catch {
-      setError('Connection error. Please try again.')
+
+      if (data) {
+        console.log('[LoginPage] Login successful, building profile...');
+        const profile = buildProfile(data);
+        login(data.accessToken, profile);
+        
+        const redirectPath = params.get('from') || (profile.role === 'OWNER' ? '/owner' : '/dashboard')
+        console.log('[LoginPage] Redirecting to:', redirectPath);
+        router.push(redirectPath)
+      }
+    } catch (err: any) {
+      console.error('[LoginPage] Unexpected error:', err);
+      setError("An unexpected error occurred. Please try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-subtle px-4">
-      <div className="w-full max-sm:max-w-xs max-w-sm">
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <Logo size="lg" />
-        </div>
-
-        <Card padding="lg" className="shadow-xl">
-          <div className="mb-8">
-            <H1 className="text-2xl">Welcome back</H1>
-            <Body subtle className="mt-1">Sign in to your premium gear hub</Body>
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-surface-base">
+      <div className="w-full max-w-md">
+        {/* Card */}
+        <div className="bg-surface-elevated p-8 rounded-3xl shadow-xl border border-border-subtle relative overflow-hidden">
+          {/* Header */}
+          <div className="relative z-10 mb-8 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-50 text-brand-600 mb-4">
+              <LogIn size={32} />
+            </div>
+            <h1 className="text-3xl font-bold text-text-primary">Welcome Back</h1>
+            <p className="text-text-secondary mt-2">Enter your credentials to access your account</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <Input
-              label="Email"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              placeholder="you@example.com"
-            />
+          <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
+            {error && (
+              <Alert variant="error" className="rounded-2xl">
+                {error}
+              </Alert>
+            )}
 
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-text-secondary">Password</label>
-                <Link
-                  href="/forgot-password"
-                  className="text-xs text-brand-600 hover:underline font-semibold"
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-text-secondary ml-1">Email Address</label>
+              <Input
+                type="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                leftIcon={<Mail size={18} />}
+                className="h-12 rounded-xl border-border-default focus:border-brand-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-center ml-1">
+                <label className="text-sm font-semibold text-text-secondary">Password</label>
+                <Link 
+                  href="/forgot-password" 
+                  className="text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors"
                 >
-                  Forgot?
+                  Forgot Password?
                 </Link>
               </div>
               <Input
                 type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
                 placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                leftIcon={<Lock size={18} />}
+                className="h-12 rounded-xl border-border-default focus:border-brand-500"
               />
             </div>
-
-            {/* Error state */}
-            {error && (
-              <Alert variant="error" className="py-2.5">
-                {error}
-              </Alert>
-            )}
 
             <Button
               type="submit"
@@ -114,19 +127,18 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-8 pt-4 border-t border-border-subtle text-center">
-            <p className="text-xs text-text-tertiary font-medium">
-              🔒 Secure, encrypted session
+          <div className="mt-8 pt-4 border-t border-border-subtle text-center relative z-10">
+            <p className="text-sm text-text-secondary">
+              Don't have an account?{" "}
+              <Link 
+                href="/signup" 
+                className="font-semibold text-brand-600 hover:text-brand-700 transition-colors inline-flex items-center gap-1"
+              >
+                Create one now <ArrowRight size={14} />
+              </Link>
             </p>
           </div>
-        </Card>
-
-        <p className="mt-6 text-center text-sm text-text-secondary">
-          New to GoRentals?{' '}
-          <Link href="/signup" className="font-bold text-brand-600 hover:underline">
-            Create account
-          </Link>
-        </p>
+        </div>
       </div>
     </div>
   )

@@ -40,4 +40,23 @@ public class EmailService {
             log.error("Failed to send password reset email to {}", to, e);
         }
     }
+
+    @Async
+    public void sendPasswordResetOtp(String to, String otp) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(to);
+            message.setSubject("GoRentals - Password Reset Verification OTP");
+            message.setText("Hello,\n\n" +
+                            "Your password reset verification code is:\n\n" +
+                            "👉  " + otp + "  👈\n\n" +
+                            "This OTP is valid for 5 minutes. Do not share this code with anyone.");
+            
+            mailSender.send(message);
+            log.info("Password reset OTP email sent successfully to {}", to);
+        } catch (Exception e) {
+            log.error("Failed to send password reset OTP to {}", to, e);
+        }
+    }
 }

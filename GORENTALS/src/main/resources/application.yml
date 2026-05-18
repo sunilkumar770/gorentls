@@ -115,8 +115,8 @@ rate-limiting:
   global:
     requests: 1000
   auth:
-    requests: 5
-    duration-minutes: 15
+    requests: 50
+    duration-minutes: 1
   registration:
     requests: 5
   upload:

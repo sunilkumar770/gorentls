@@ -10,7 +10,7 @@ interface ListingBackendResponse {
   title?: string; description?: string; category?: string; type?: string;
   pricePerDay?: number | string; securityDeposit?: number | string;
   isPublished?: boolean; isAvailable?: boolean; createdAt?: string;
-  images?: string[]; city?: string;
+  images?: string[]; city?: string; state?: string;
   ratingCount?: number; totalRatings?: number;
   [key: string]: unknown;
 }
@@ -35,6 +35,10 @@ function mapListingResponse(data: ListingBackendResponse): Listing {
     // Pricing — backend sends BigDecimal → JSON number
     price_per_day:    Number(data.pricePerDay)     || 0,
     security_deposit: Number(data.securityDeposit) || 0,
+
+    // Geographic Location
+    city:             data.city ? String(data.city) : null,
+    state:            data.state ? String(data.state) : null,
 
     // Status — strict boolean coercion, not truthy/falsy
     is_published: data.isPublished === true,   // null → false (was draft)

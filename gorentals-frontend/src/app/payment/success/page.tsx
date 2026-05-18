@@ -85,8 +85,8 @@ function PaymentSuccessContent() {
             <div className="w-8 h-8 bg-[#4f46e5] rounded-lg flex items-center justify-center text-white text-xs font-black shadow-sm">G</div>
             GoRentals
           </Link>
-          <Link href="/my-rentals" className="text-sm font-medium text-[#64748b] hover:text-[#4f46e5] transition-colors">
-            My Rentals
+          <Link href="/dashboard/bookings" className="text-sm font-medium text-[#64748b] hover:text-[#4f46e5] transition-colors">
+            My Bookings
           </Link>
         </div>
       </nav>
@@ -108,9 +108,9 @@ function PaymentSuccessContent() {
                 {/* Booking Summary */}
                 <div className="flex gap-6 items-start pb-8 border-b border-border">
                   <div className="w-28 h-24 bg-subtle rounded-2xl overflow-hidden flex-shrink-0">
-                    {(booking.listing?.images?.[0] || booking.listing?.listing_images?.[0]?.image_url) ? (
+                    {booking.listing?.images?.[0] ? (
                       <img 
-                        src={booking.listing?.images?.[0] || booking.listing?.listing_images?.[0]?.image_url} 
+                        src={booking.listing.images[0]} 
                         alt={booking.listing?.title} 
                         className="w-full h-full object-cover"
                       />
@@ -148,10 +148,10 @@ function PaymentSuccessContent() {
                     Download Receipt
                   </button>
                   <Link
-                    href="/my-rentals"
+                    href="/dashboard/bookings"
                     className="flex items-center justify-center gap-2 px-6 py-4 bg-card border-2 border-[#e2e8f0] text-[#0f172a] font-bold rounded-2xl hover:border-[#4f46e5] hover:text-[#4f46e5] transition-all group"
                   >
-                    Go to My Rentals
+                    Go to My Bookings
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
                   </Link>
                 </div>

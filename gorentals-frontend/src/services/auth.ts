@@ -60,7 +60,7 @@ export function setToken(token: string): void {
  */
 export function clearToken(): void {
   safeStorage.removeItem('gorentals_token');
-  safeStorage.removeItem('gr_user');
+  safeStorage.removeItem('gorentals_user');
   document.cookie = 'gorentals_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
 }
 

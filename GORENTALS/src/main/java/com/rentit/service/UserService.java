@@ -120,9 +120,18 @@ public class UserService {
                 .build();
         }
 
-        settings.setEmailNotifications(request.getEmailNotifications());
-        settings.setSmsNotifications(request.getSmsNotifications());
-        settings.setMarketingEmails(request.getMarketingEmails());
+        if (request.getEmailNotifications() != null) {
+            settings.setEmailNotifications(request.getEmailNotifications());
+        }
+        if (request.getSmsNotifications() != null) {
+            settings.setSmsNotifications(request.getSmsNotifications());
+        }
+        if (request.getMarketingEmails() != null) {
+            settings.setMarketingEmails(request.getMarketingEmails());
+        }
+        if (request.getAutoApproveBookings() != null) {
+            settings.setAutoApproveBookings(request.getAutoApproveBookings());
+        }
 
         userSettingsRepository.save(settings);
         log.info("Settings updated for user: {}", LogUtils.maskEmail(email));

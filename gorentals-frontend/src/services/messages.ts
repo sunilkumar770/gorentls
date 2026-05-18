@@ -68,11 +68,13 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
 // Note: backend derives ownerId from the listing — do NOT send ownerId in payload
 export async function startConversation(
   listingId: string,
-  initialMessage: string
+  initialMessage: string,
+  renterId?: string
 ): Promise<Conversation> {
   const res = await api.post<Conversation>('/conversations', { 
     listingId, 
-    message: initialMessage 
+    message: initialMessage,
+    renterId
   });
   return res.data;
 }

@@ -36,6 +36,7 @@ export function useWebSocketChat({
         senderName: msg.senderName,
         content: msg.messageText,
         sentAt: msg.createdAt,
+        tempId: msg.tempId ?? undefined,
       }
       onMessage(chatMsg)
     }
@@ -53,10 +54,10 @@ export function useWebSocketChat({
     }
   }, [conversationId, token, onMessage])
 
-  const sendMessage = useCallback((content: string) => {
-    // Generate tempId for optimistic UI mapping
-    const tempId = `temp-${Date.now()}`
-    websocketService.sendMessage(conversationId, content, tempId)
+  const sendMessage = useCallback((content: string, tempId?: string) => {
+    // Use passed tempId or generate a new one
+    const actualTempId = tempId || `temp-${Date.now()}`
+    websocketService.sendMessage(conversationId, content, actualTempId)
   }, [conversationId])
 
   const sendTyping = useCallback((isTyping: boolean) => {

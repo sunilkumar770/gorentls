@@ -36,8 +36,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
         
-        // Only apply rate limiting to auth endpoints
-        if (path.startsWith("/api/auth/")) {
+        // Only apply rate limiting to auth endpoints, and skip OPTIONS requests
+        if (path.startsWith("/api/auth/") && !request.getMethod().equalsIgnoreCase("OPTIONS")) {
             String ip = request.getRemoteAddr();
             Bucket bucket = buckets.computeIfAbsent(ip, k -> createNewBucket());
 

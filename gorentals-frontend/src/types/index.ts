@@ -77,6 +77,8 @@ export interface Listing {
   created_at: string;
   updated_at?: string;
   owner_id?: string;
+  city?: string | null;
+  state?: string | null;
   images?: string[] | null;
   listing_images: { id: string; image_url: string }[];
   owner?: {
@@ -194,6 +196,7 @@ export interface Profile {
   dateOfBirth?: string;
   kycStatus?:  'NOT_SUBMITTED' | 'PENDING' | 'APPROVED' | 'REJECTED';
   isActive?:   boolean;
+  autoApproveBookings?: boolean;
   createdAt:   string;
   updatedAt:   string;
 }

@@ -48,6 +48,7 @@ public class ListingService {
 
     /** Booking statuses that represent an active, in-flight rental. */
     private static final Set<BookingStatus> ACTIVE_BOOKING_STATUSES = EnumSet.of(
+        BookingStatus.PENDING,
         BookingStatus.PENDING_PAYMENT,
         BookingStatus.CONFIRMED,
         BookingStatus.IN_USE
@@ -415,15 +416,10 @@ public class ListingService {
         // Get manual blocks from blocked_dates table
         List<BlockedDate> manualBlocks = blockedDateRepository.findByListing_Id(listingId);
         
-        // Get active bookings (PENDING_PAYMENT, CONFIRMED, IN_USE)
+        // Get active bookings (PENDING, PENDING_PAYMENT, CONFIRMED, IN_USE)
         List<com.rentit.model.Booking> activeBookings = bookingRepository.findByListingId(listingId, Pageable.unpaged())
             .stream()
-            .filter(b -> {
-                BookingStatus status = b.getBookingStatus();
-                return status == BookingStatus.PENDING_PAYMENT ||
-                       status == BookingStatus.CONFIRMED ||
-                       status == BookingStatus.IN_USE;
-            })
+            .filter(b -> ACTIVE_BOOKING_STATUSES.contains(b.getBookingStatus()))
             .collect(java.util.stream.Collectors.toList());
         
         List<AvailabilityResponse.BlockedRange> ranges = new java.util.ArrayList<>();

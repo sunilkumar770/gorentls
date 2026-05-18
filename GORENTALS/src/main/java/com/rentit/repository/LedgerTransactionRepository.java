@@ -6,6 +6,8 @@ import com.rentit.model.enums.LedgerDirection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -35,6 +37,10 @@ public interface LedgerTransactionRepository extends JpaRepository<LedgerTransac
     List<LedgerTransaction> findByBookingIdAndAccountOrderByCreatedAtAsc(
         UUID bookingId, LedgerAccount account
     );
+
+    Page<LedgerTransaction> findByAccount(LedgerAccount account, Pageable pageable);
+
+    Page<LedgerTransaction> findByBookingId(UUID bookingId, Pageable pageable);
 
     // ── Balance queries ───────────────────────────────────────────────────────
 

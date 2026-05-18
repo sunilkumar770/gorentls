@@ -68,7 +68,7 @@ public class SecurityConfig {
                     })
                 .requestMatchers(HttpMethod.GET, "/api/listings/owner/mine").hasRole("OWNER")
                 .requestMatchers(HttpMethod.GET, "/api/listings/**").permitAll()
-                .requestMatchers("/ws/**").authenticated()
+                .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )

@@ -54,9 +54,18 @@ public class BookingController {
     @GetMapping("/owner/bookings")
     @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<Page<BookingResponse>> getOwnerBookings(
+            @RequestParam(required = false) String status,
             @AuthenticationPrincipal UserDetails userDetails,
             Pageable pageable) {
-        return ResponseEntity.ok(bookingService.getBookingsForOwner(userDetails.getUsername(), pageable));
+        BookingStatus bookingStatus = null;
+        if (status != null && !status.trim().isEmpty()) {
+            try {
+                bookingStatus = BookingStatus.valueOf(status.toUpperCase().trim());
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid status values gracefully
+            }
+        }
+        return ResponseEntity.ok(bookingService.getBookingsForOwner(userDetails.getUsername(), bookingStatus, pageable));
     }
 
     @PostMapping("/{id}/confirm")

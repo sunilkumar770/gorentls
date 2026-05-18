@@ -126,6 +126,9 @@ public class BookingLifecycleManager {
             }
             // Note: PAID_OUT is an EscrowStatus, not a BookingStatus. 
             // Payout notifications should be handled separately or when status reaches COMPLETED.
+            default -> {
+                // PENDING, PENDING_PAYMENT, NO_SHOW, DISPUTED do not trigger direct status notifications here
+            }
         }
     }
 

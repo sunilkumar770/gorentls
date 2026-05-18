@@ -1,4 +1,4 @@
-package com.rentit.config;
+package com.rentit.testconfig;
 
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;

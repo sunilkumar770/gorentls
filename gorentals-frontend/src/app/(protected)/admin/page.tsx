@@ -6,7 +6,7 @@ import {
   Shield, Users, Package, TrendingUp,
   CheckCircle2, XCircle, Building2, BookOpen,
   ChevronLeft, ChevronRight, RefreshCw, AlertCircle,
-  Search, X, ClipboardList,
+  Search, X, ClipboardList, CreditCard, Coins, Banknote,
 } from 'lucide-react';
 import {
   adminService,
@@ -15,13 +15,16 @@ import {
   type AdminBooking,
   type AuditLog,
   type AdminListing,
+  type AdminPayout,
+  type AdminLedgerTransaction,
+  type AdminOwnerPayoutAccount,
 } from '@/services/admin';
 import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useRouter } from 'next/navigation';
 
-type Tab = 'overview' | 'users' | 'owners' | 'listings' | 'bookings' | 'audit';
+type Tab = 'overview' | 'users' | 'owners' | 'listings' | 'bookings' | 'payouts' | 'ledger' | 'payout-accounts' | 'audit';
 
 // ─── Shared UI pieces ─────────────────────────────────────────────────────────
 
@@ -215,9 +218,16 @@ function UsersTab() {
 
   const act = async (id: string, fn: () => Promise<unknown>) => {
     setBusy(id);
-    try { await fn(); await load(); }
-    catch (e) { console.error(e); }
-    finally { setBusy(null); }
+    try {
+      await fn();
+      await load();
+    } catch (e: any) {
+      console.error(e);
+      const errMsg = e.response?.data?.message || e.message || "An unexpected error occurred.";
+      alert("Action Failed: " + errMsg);
+    } finally {
+      setBusy(null);
+    }
   };
 
   return (
@@ -264,6 +274,15 @@ function UsersTab() {
                           disabled={busy === u.id}
                           onClick={() => act(u.id, () => adminService.unsuspendUser(u.id))} />
                       )}
+                      {u.userType !== 'ADMIN' && (
+                        <ActionBtn label="Delete" variant="danger"
+                          disabled={busy === u.id}
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to permanently delete/anonymize the user "${u.fullName}"? This action cannot be undone.`)) {
+                              act(u.id, () => adminService.deleteUser(u.id));
+                            }
+                          }} />
+                      )}
                     </div>
                   </Td>
                 </tr>
@@ -298,6 +317,20 @@ function OwnersTab() {
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, [page, debouncedSearch]);
+
+  const act = async (id: string, fn: () => Promise<unknown>) => {
+    setBusy(id);
+    try {
+      await fn();
+      await load();
+    } catch (e: any) {
+      console.error(e);
+      const errMsg = e.response?.data?.message || e.message || "An unexpected error occurred.";
+      alert("Action Failed: " + errMsg);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   useEffect(() => { setPage(0); }, [debouncedSearch]);
   useEffect(() => { load(); }, [load]);
@@ -334,33 +367,25 @@ function OwnersTab() {
                       {!o.isVerified && (
                         <ActionBtn label="Verify Owner" variant="success"
                           disabled={busy === o.id}
-                          onClick={async () => {
-                            setBusy(o.id);
-                            try { await adminService.verifyOwner(o.id); await load(); }
-                            catch (e) { console.error(e); }
-                            finally { setBusy(null); }
-                          }} />
+                          onClick={() => act(o.id, () => adminService.verifyOwner(o.id))} />
                       )}
                       {o.isActive && (
                         <ActionBtn label="Suspend" variant="danger"
                           disabled={busy === o.id}
-                          onClick={async () => {
-                            setBusy(o.id);
-                            try { await adminService.suspendUser(o.id); await load(); }
-                            catch (e) { console.error(e); }
-                            finally { setBusy(null); }
-                          }} />
+                          onClick={() => act(o.id, () => adminService.suspendUser(o.id))} />
                       )}
                       {!o.isActive && (
                         <ActionBtn label="Restore" variant="success"
                           disabled={busy === o.id}
-                          onClick={async () => {
-                            setBusy(o.id);
-                            try { await adminService.unsuspendUser(o.id); await load(); }
-                            catch (e) { console.error(e); }
-                            finally { setBusy(null); }
-                          }} />
+                          onClick={() => act(o.id, () => adminService.unsuspendUser(o.id))} />
                       )}
+                      <ActionBtn label="Delete" variant="danger"
+                        disabled={busy === o.id}
+                        onClick={() => {
+                          if (window.confirm(`Are you sure you want to permanently delete/anonymize the owner "${o.fullName}"? This action cannot be undone.`)) {
+                            act(o.id, () => adminService.deleteUser(o.id));
+                          }
+                        }} />
                     </div>
                   </Td>
                 </tr>
@@ -401,9 +426,16 @@ function ListingsTab() {
 
   const act = async (id: string, fn: () => Promise<unknown>) => {
     setBusy(id);
-    try { await fn(); await load(); }
-    catch (e) { console.error(e); }
-    finally { setBusy(null); }
+    try {
+      await fn();
+      await load();
+    } catch (e: any) {
+      console.error(e);
+      const errMsg = e.response?.data?.message || e.message || "An unexpected error occurred.";
+      alert("Action Failed: " + errMsg);
+    } finally {
+      setBusy(null);
+    }
   };
 
   const getStatus = (l: AdminListing) => l.approvalStatus || (l.is_published ? 'LIVE' : 'PENDING');
@@ -450,16 +482,25 @@ function ListingsTab() {
                   </Td>
                   <Td><StatusBadge status={getStatus(l)} /></Td>
                   <Td>
-                    {(l.isPublished === false || l.is_published === false) && (
-                      <div className="flex gap-1.5">
-                        <ActionBtn label="Approve" variant="success"
-                          disabled={busy === l.id}
-                          onClick={() => act(l.id, () => adminService.approveListing(l.id))} />
-                        <ActionBtn label="Reject" variant="danger"
-                          disabled={busy === l.id}
-                          onClick={() => act(l.id, () => adminService.rejectListing(l.id))} />
-                      </div>
-                    )}
+                    <div className="flex gap-1.5 flex-wrap">
+                      {(getStatus(l) === 'PENDING' || l.approvalStatus === 'PENDING' || l.isPublished === false || l.is_published === false) && (
+                        <>
+                          <ActionBtn label="Approve" variant="success"
+                            disabled={busy === l.id}
+                            onClick={() => act(l.id, () => adminService.approveListing(l.id))} />
+                          <ActionBtn label="Reject" variant="danger"
+                            disabled={busy === l.id}
+                            onClick={() => act(l.id, () => adminService.rejectListing(l.id))} />
+                        </>
+                      )}
+                      <ActionBtn label="Delete" variant="danger"
+                        disabled={busy === l.id}
+                        onClick={() => {
+                          if (window.confirm(`Are you sure you want to permanently delete/anonymize the listing "${l.title}"? This action cannot be undone.`)) {
+                            act(l.id, () => adminService.deleteListing(l.id));
+                          }
+                        }} />
+                    </div>
                   </Td>
                 </tr>
               ))}
@@ -619,6 +660,478 @@ function AuditLogTab() {
   );
 }
 
+// ─── Payouts Tab ──────────────────────────────────────────────────────────────
+
+function PayoutsTab({ payoutTrigger, onPayoutAltered }: { payoutTrigger: number; onPayoutAltered: () => void }) {
+  const [payouts, setPayouts] = useState<AdminPayout[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [status, setStatus] = useState<string>('');
+  const [ownerId, setOwnerId] = useState<string>('');
+  const debouncedOwnerId = useDebounce(ownerId, 350);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const d = await adminService.getPayouts(page, 20, status || undefined, debouncedOwnerId || undefined);
+      setPayouts(d.content);
+      setTotalPages(d.totalPages);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, status, debouncedOwnerId, payoutTrigger]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedOwnerId]);
+
+  const act = async (id: string, fn: () => Promise<any>) => {
+    setBusy(id);
+    try {
+      await fn();
+      await load();
+      onPayoutAltered();
+    } catch (e) {
+      console.error(e);
+      alert('Action failed. Check logs.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const forceFailed = async (id: string) => {
+    const reason = prompt('Enter failure reason:', 'Manual override');
+    if (reason === null) return;
+    await act(id, () => adminService.forceFailedPayout(id, reason));
+  };
+
+  const fmt = (d: string | null) =>
+    d ? new Date(d).toLocaleString('en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    }) : '—';
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+        <div className="flex flex-wrap gap-2 items-center">
+          <select
+            value={status}
+            onChange={e => { setStatus(e.target.value); setPage(0); }}
+            className="px-3 py-2 text-sm font-medium rounded-xl border border-[#e0c0b1]/30 bg-card focus:outline-none"
+          >
+            <option value="">All Statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="INITIATED">Initiated</option>
+            <option value="SUCCESS">Success</option>
+            <option value="FAILED">Failed</option>
+            <option value="ON_HOLD">On Hold</option>
+          </select>
+          <SearchBar value={ownerId} onChange={v => { setOwnerId(v); setPage(0); }} placeholder="Filter by Owner UUID" />
+        </div>
+      </div>
+
+      {loading ? <Loader label="payouts" /> : (
+        <>
+          <TableWrap>
+            <thead className="bg-[#251913]/[0.04]">
+              <tr>
+                <Th>Booking</Th>
+                <Th>Owner</Th>
+                <Th>Amounts (Gross / TDS / Net)</Th>
+                <Th>Status</Th>
+                <Th>Schedule / Executed</Th>
+                <Th>Gateway Ref</Th>
+                <Th>Actions</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#251913]/5">
+              {payouts.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center text-[#8c7164]">
+                    No payouts found matching criteria.
+                  </td>
+                </tr>
+              )}
+              {payouts.map(p => (
+                <tr key={p.id} className="hover:bg-[#251913]/[0.02] transition-colors">
+                  <Td>
+                    <span className="block text-xs font-mono text-[#251913] truncate max-w-[100px]" title={p.bookingId}>
+                      {p.bookingId.slice(0, 8)}…
+                    </span>
+                  </Td>
+                  <Td>
+                    <span className="block text-xs font-mono text-[#8c7164] truncate max-w-[100px]" title={p.ownerId}>
+                      {p.ownerId.slice(0, 8)}…
+                    </span>
+                  </Td>
+                  <Td>
+                    <div className="text-xs">
+                      <div className="font-bold text-[#251913]">{formatCurrency(p.grossAmount)} Gross</div>
+                      <div className="text-[#8c7164]">{formatCurrency(p.tdsAmount)} TDS (1%)</div>
+                      <div className="font-bold text-emerald-700">{formatCurrency(p.netAmount)} Net</div>
+                    </div>
+                  </Td>
+                  <Td>
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      p.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-800' :
+                      p.status === 'FAILED' ? 'bg-red-100 text-red-800' :
+                      p.status === 'ON_HOLD' ? 'bg-amber-100 text-amber-800' :
+                      p.status === 'INITIATED' ? 'bg-blue-100 text-blue-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {p.status}
+                    </span>
+                    {p.failureReason && (
+                      <span className="block text-[10px] text-red-500 mt-1 max-w-[150px] truncate" title={p.failureReason}>
+                        {p.failureReason}
+                      </span>
+                    )}
+                  </Td>
+                  <Td>
+                    <div className="text-[11px] text-[#8c7164] space-y-0.5">
+                      <div>Scheduled: {fmt(p.scheduledAt)}</div>
+                      <div>Executed: {fmt(p.executedAt)}</div>
+                    </div>
+                  </Td>
+                  <Td>
+                    <div className="text-[11px] font-mono text-[#8c7164]">
+                      {p.rpPayoutId ? (
+                        <span className="bg-card px-1.5 py-0.5 rounded border border-[#e0c0b1]/30">{p.rpPayoutId}</span>
+                      ) : '—'}
+                    </div>
+                  </Td>
+                  <Td>
+                    <div className="flex flex-wrap gap-1.5">
+                      {p.status === 'ON_HOLD' && (
+                        <ActionBtn label="Release" onClick={() => act(p.id, () => adminService.releasePayout(p.id))} variant="success" disabled={busy === p.id} />
+                      )}
+                      {p.status === 'PENDING' && (
+                        <>
+                          <ActionBtn label="Hold" onClick={() => act(p.id, () => adminService.holdPayout(p.id))} disabled={busy === p.id} />
+                          <ActionBtn label="Success" onClick={() => act(p.id, () => adminService.forceSuccessPayout(p.id))} variant="success" disabled={busy === p.id} />
+                          <ActionBtn label="Fail" onClick={() => forceFailed(p.id)} variant="danger" disabled={busy === p.id} />
+                        </>
+                      )}
+                      {p.status === 'INITIATED' && (
+                        <>
+                          <ActionBtn label="Success" onClick={() => act(p.id, () => adminService.forceSuccessPayout(p.id))} variant="success" disabled={busy === p.id} />
+                          <ActionBtn label="Fail" onClick={() => forceFailed(p.id)} variant="danger" disabled={busy === p.id} />
+                        </>
+                      )}
+                      {p.status === 'FAILED' && (
+                        <ActionBtn label="Force Success" onClick={() => act(p.id, () => adminService.forceSuccessPayout(p.id))} variant="success" disabled={busy === p.id} />
+                      )}
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </TableWrap>
+          <Pagination page={page} totalPages={totalPages}
+            onPrev={() => setPage(p => p - 1)} onNext={() => setPage(p => p + 1)} />
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Ledger Tab ───────────────────────────────────────────────────────────────
+
+function LedgerTab({ payoutTrigger }: { payoutTrigger: number }) {
+  const [transactions, setTransactions] = useState<AdminLedgerTransaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [account, setAccount] = useState<string>('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const d = await adminService.getLedger(page, 20, account || undefined);
+      setTransactions(d.content);
+      setTotalPages(d.totalPages);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, account, payoutTrigger]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const fmt = (d: string) =>
+    d ? new Date(d).toLocaleString('en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    }) : '—';
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+        <div className="flex gap-2 items-center">
+          <select
+            value={account}
+            onChange={e => { setAccount(e.target.value); setPage(0); }}
+            className="px-3 py-2 text-sm font-medium rounded-xl border border-[#e0c0b1]/30 bg-card focus:outline-none"
+          >
+            <option value="">All Ledger Accounts</option>
+            <option value="BANK_SETTLEMENT">Bank Settlement</option>
+            <option value="RENTER_ESCROW">Renter Escrow</option>
+            <option value="OWNER_ESCROW">Owner Escrow</option>
+            <option value="SECURITY_HOLD">Security Hold</option>
+            <option value="PLATFORM_FEE">Platform Fee</option>
+            <option value="TAX_TCS">Tax TCS (1%)</option>
+            <option value="TAX_TDS">Tax TDS (1%)</option>
+          </select>
+        </div>
+      </div>
+
+      {loading ? <Loader label="ledger transactions" /> : (
+        <>
+          <TableWrap>
+            <thead className="bg-[#251913]/[0.04]">
+              <tr>
+                <Th>Time</Th>
+                <Th>Ledger Account</Th>
+                <Th>Direction</Th>
+                <Th>Amount</Th>
+                <Th>Booking</Th>
+                <Th>Description</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#251913]/5">
+              {transactions.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-12 text-center text-[#8c7164]">
+                    No ledger entries found.
+                  </td>
+                </tr>
+              )}
+              {transactions.map(t => (
+                <tr key={t.id} className="hover:bg-[#251913]/[0.02] transition-colors">
+                  <Td>
+                    <span className="text-[#8c7164] text-xs whitespace-nowrap">{fmt(t.createdAt)}</span>
+                  </Td>
+                  <Td>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                      t.account === 'PLATFORM_FEE' ? 'bg-emerald-100 text-emerald-800' :
+                      t.account === 'BANK_SETTLEMENT' ? 'bg-blue-100 text-blue-800' :
+                      t.account === 'RENTER_ESCROW' || t.account === 'OWNER_ESCROW' ? 'bg-amber-100 text-amber-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {t.account}
+                    </span>
+                  </Td>
+                  <Td>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                      t.direction === 'CREDIT' ? 'bg-green-100/50 text-green-700' : 'bg-rose-100/50 text-rose-700'
+                    }`}>
+                      {t.direction}
+                    </span>
+                  </Td>
+                  <Td>
+                    <span className={`text-sm font-bold ${
+                      t.direction === 'CREDIT' ? 'text-green-700' : 'text-rose-700'
+                    }`}>
+                      {t.direction === 'CREDIT' ? '+' : '-'}{formatCurrency(t.amount)}
+                    </span>
+                  </Td>
+                  <Td>
+                    <span className="text-xs font-mono text-[#8c7164] truncate max-w-[100px]" title={t.bookingId}>
+                      {t.bookingId.slice(0, 8)}…
+                    </span>
+                  </Td>
+                  <Td>
+                    <span className="text-xs text-[#251913] font-medium">{t.reason}</span>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </TableWrap>
+          <Pagination page={page} totalPages={totalPages}
+            onPrev={() => setPage(p => p - 1)} onNext={() => setPage(p => p + 1)} />
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Payout Accounts Tab ──────────────────────────────────────────────────────
+
+function PayoutAccountsTab({ onPayoutAltered }: { onPayoutAltered: () => void }) {
+  const [accounts, setAccounts] = useState<AdminOwnerPayoutAccount[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [status, setStatus] = useState<string>('');
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const d = await adminService.getOwnerPayoutAccounts(page, 20, status || undefined);
+      setAccounts(d.content);
+      setTotalPages(d.totalPages);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, status]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const act = async (id: string, fn: () => Promise<any>) => {
+    setBusy(id);
+    try {
+      await fn();
+      await load();
+      onPayoutAltered();
+    } catch (e) {
+      console.error(e);
+      alert('Action failed. Check logs.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleVerify = async (accountId: string) => {
+    const fundAccountId = prompt('Enter RazorpayX Fund Account ID (Optional):');
+    if (fundAccountId === null) return;
+    const ref = prompt('Enter Penny-drop Verification Reference (Optional):');
+    if (ref === null) return;
+    await act(accountId, () => adminService.verifyOwnerPayoutAccount(accountId, fundAccountId || undefined, ref || undefined));
+  };
+
+  const handleReinstate = async (accountId: string) => {
+    const ref = prompt('Enter Verification Reference (Optional):');
+    if (ref === null) return;
+    await act(accountId, () => adminService.reinstateOwnerPayoutAccount(accountId, ref || undefined));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+        <select
+          value={status}
+          onChange={e => { setStatus(e.target.value); setPage(0); }}
+          className="px-3 py-2 text-sm font-medium rounded-xl border border-[#e0c0b1]/30 bg-card focus:outline-none"
+        >
+          <option value="">All Account Statuses</option>
+          <option value="PENDING">Pending Verification</option>
+          <option value="VERIFIED">Verified</option>
+          <option value="SUSPENDED">Suspended</option>
+          <option value="BLOCKED">Blocked</option>
+        </select>
+      </div>
+
+      {loading ? <Loader label="owner payout accounts" /> : (
+        <>
+          <TableWrap>
+            <thead className="bg-[#251913]/[0.04]">
+              <tr>
+                <Th>Owner</Th>
+                <Th>Account Type</Th>
+                <Th>Account Details</Th>
+                <Th>Fund Account ID</Th>
+                <Th>Status</Th>
+                <Th>Verification Ref</Th>
+                <Th>Actions</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#251913]/5">
+              {accounts.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center text-[#8c7164]">
+                    No payout accounts registered.
+                  </td>
+                </tr>
+              )}
+              {accounts.map(a => (
+                <tr key={a.id} className="hover:bg-[#251913]/[0.02] transition-colors">
+                  <Td>
+                    <span className="block text-xs font-mono text-[#251913] truncate max-w-[100px]" title={a.ownerId}>
+                      {a.ownerId.slice(0, 8)}…
+                    </span>
+                  </Td>
+                  <Td>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
+                      {a.accountType}
+                    </span>
+                  </Td>
+                  <Td>
+                    {a.accountType === 'BANK' ? (
+                      <div className="text-xs">
+                        <div className="font-medium text-[#251913]">A/C: {a.accountNumber}</div>
+                        <div className="text-[#8c7164] font-mono">IFSC: {a.ifsc}</div>
+                      </div>
+                    ) : (
+                      <div className="text-xs font-medium text-[#251913]">{a.upiId}</div>
+                    )}
+                  </Td>
+                  <Td>
+                    <span className="text-xs font-mono text-[#8c7164]">
+                      {a.fundAccountId || '—'}
+                    </span>
+                  </Td>
+                  <Td>
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      a.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' :
+                      a.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {a.status}
+                    </span>
+                  </Td>
+                  <Td>
+                    <span className="text-xs text-[#8c7164]">
+                      {a.verificationRef || '—'}
+                    </span>
+                  </Td>
+                  <Td>
+                    <div className="flex flex-wrap gap-1.5">
+                      {a.status === 'PENDING' && (
+                        <>
+                          <ActionBtn label="Verify" onClick={() => handleVerify(a.id)} variant="success" disabled={busy === a.id} />
+                          <ActionBtn label="Block" onClick={() => act(a.id, () => adminService.blockOwnerPayoutAccount(a.id))} variant="danger" disabled={busy === a.id} />
+                        </>
+                      )}
+                      {a.status === 'VERIFIED' && (
+                        <>
+                          <ActionBtn label="Suspend" onClick={() => act(a.id, () => adminService.suspendOwnerPayoutAccount(a.id))} disabled={busy === a.id} />
+                          <ActionBtn label="Block" onClick={() => act(a.id, () => adminService.blockOwnerPayoutAccount(a.id))} variant="danger" disabled={busy === a.id} />
+                        </>
+                      )}
+                      {(a.status === 'SUSPENDED' || a.status === 'BLOCKED') && (
+                        <ActionBtn label="Reinstate" onClick={() => handleReinstate(a.id)} variant="success" disabled={busy === a.id} />
+                      )}
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </TableWrap>
+          <Pagination page={page} totalPages={totalPages}
+            onPrev={() => setPage(p => p - 1)} onNext={() => setPage(p => p + 1)} />
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Helper Components ────────────────────────────────────────────────────────
 
 function Loader({ label }: { label: string }) {
@@ -646,6 +1159,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState(false);
+  const [payoutTrigger, setPayoutTrigger] = useState(0);
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -667,6 +1181,11 @@ export default function AdminDashboard() {
     if (isAdmin) loadStats();
   }, [isAdmin, loadStats]);
 
+  const handlePayoutAltered = useCallback(() => {
+    setPayoutTrigger(prev => prev + 1);
+    loadStats();
+  }, [loadStats]);
+
   if (authLoading || !user || !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -676,12 +1195,15 @@ export default function AdminDashboard() {
   }
 
   const tabs: { id: Tab; label: string; icon: ReactNode }[] = [
-    { id: 'overview',  label: 'Overview',  icon: <TrendingUp size={15} /> },
-    { id: 'users',     label: 'Users',     icon: <Users size={15} /> },
-    { id: 'owners',    label: 'Owners',    icon: <Building2 size={15} /> },
-    { id: 'listings',  label: 'Listings',  icon: <Package size={15} /> },
-    { id: 'bookings',  label: 'Bookings',  icon: <BookOpen size={15} /> },
-    { id: 'audit',     label: 'Audit Log', icon: <ClipboardList size={15} /> },
+    { id: 'overview',        label: 'Overview',        icon: <TrendingUp size={15} /> },
+    { id: 'users',           label: 'Users',           icon: <Users size={15} /> },
+    { id: 'owners',          label: 'Owners',          icon: <Building2 size={15} /> },
+    { id: 'listings',        label: 'Listings',        icon: <Package size={15} /> },
+    { id: 'bookings',        label: 'Bookings',        icon: <BookOpen size={15} /> },
+    { id: 'payouts',         label: 'Payouts Log',     icon: <Banknote size={15} /> },
+    { id: 'ledger',          label: 'Ledger Audit',    icon: <Coins size={15} /> },
+    { id: 'payout-accounts', label: 'Payout Accs',     icon: <CreditCard size={15} /> },
+    { id: 'audit',           label: 'Audit Log',       icon: <ClipboardList size={15} /> },
   ];
 
   return (
@@ -726,18 +1248,21 @@ export default function AdminDashboard() {
               <div className="py-16 text-center space-y-3">
                 <p className="text-red-500 text-sm">Failed to load stats. Make sure backend is running on port 8080.</p>
                 <button onClick={loadStats}
-                  className="px-4 py-2 text-sm font-semibold bg-[#f97316] text-white rounded-xl hover:bg-[#ea6b0e] transition-colors">
+                   className="px-4 py-2 text-sm font-semibold bg-[#f97316] text-white rounded-xl hover:bg-[#ea6b0e] transition-colors">
                   Retry
                 </button>
               </div>
             ) :
               stats ? <OverviewTab stats={stats} onRetry={loadStats} /> : null
         )}
-        {activeTab === 'users'    && <UsersTab />}
-        {activeTab === 'owners'   && <OwnersTab />}
-        {activeTab === 'listings' && <ListingsTab />}
-        {activeTab === 'bookings' && <BookingsTab />}
-        {activeTab === 'audit'    && <AuditLogTab />}
+        {activeTab === 'users'           && <UsersTab />}
+        {activeTab === 'owners'          && <OwnersTab />}
+        {activeTab === 'listings'        && <ListingsTab />}
+        {activeTab === 'bookings'        && <BookingsTab />}
+        {activeTab === 'payouts'         && <PayoutsTab payoutTrigger={payoutTrigger} onPayoutAltered={handlePayoutAltered} />}
+        {activeTab === 'ledger'          && <LedgerTab payoutTrigger={payoutTrigger} />}
+        {activeTab === 'payout-accounts' && <PayoutAccountsTab onPayoutAltered={handlePayoutAltered} />}
+        {activeTab === 'audit'           && <AuditLogTab />}
       </div>
 
     </div>

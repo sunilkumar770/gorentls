@@ -5,8 +5,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { Star, MapPin, ShieldCheck, Calendar, ChevronLeft, ChevronRight, Package, Zap, Loader2, Info } from 'lucide-react';
+import { Star, MapPin, ShieldCheck, Calendar, ChevronLeft, ChevronRight, Package, Zap, Loader2, Info, MessageSquare } from 'lucide-react';
 import { getListing, getAvailability } from '@/services/listings';
+import { startConversation } from '@/services/messages';
 import type { Listing, BlockedRange } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import BookingCalendar from '@/components/booking/BookingCalendar';
@@ -115,6 +116,25 @@ export default function ListingDetailPage() {
     router.push(`/book?${params.toString()}`);
   };
 
+  const handleChat = async () => {
+    if (!user) {
+      router.push(`/login?redirect=/listings/${listing.id}`);
+      return;
+    }
+
+    try {
+      const conv = await startConversation(
+        listing.id,
+        `Hi, I'm interested in renting your ${listing.title}.`
+      );
+      if (conv) {
+        router.push(`/dashboard/messages/${conv.id}`);
+      }
+    } catch (err) {
+      console.error('Failed to start conversation:', err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-subtle pb-24">
       {/* Breadcrumb */}
@@ -209,9 +229,18 @@ export default function ListingDetailPage() {
                 </div>
                 <p className="text-sm text-muted">Trusted provider · Quality gear guaranteed</p>
               </div>
-              <Link href={`/stores/${listing.stores?.id || '1'}`} className="px-5 py-2.5 bg-subtle hover:bg-indigo-50 text-indigo-600 text-sm font-bold rounded-xl transition-colors">
-                View Store
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button 
+                  onClick={handleChat}
+                  className="px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Chat
+                </button>
+                <Link href={`/stores/${listing.stores?.id || '1'}`} className="px-5 py-2.5 bg-subtle hover:bg-indigo-50 text-slate-600 text-sm font-bold rounded-xl transition-colors text-center">
+                  View Store
+                </Link>
+              </div>
             </div>
 
             {/* Description */}
@@ -288,6 +317,14 @@ export default function ListingDetailPage() {
               >
                 <Zap className="w-6 h-6 fill-white group-hover:scale-110 transition-transform" />
                 Book Now
+              </button>
+
+              <button 
+                onClick={handleChat}
+                className="w-full py-4 text-indigo-600 hover:text-indigo-700 font-bold text-sm transition-colors flex items-center justify-center gap-2 group"
+              >
+                <MessageSquare className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                Message Owner
               </button>
               
               <div className="flex items-start gap-3 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">

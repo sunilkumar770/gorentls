@@ -22,8 +22,8 @@ export function ConversationList({
 }) {
   const [search, setSearch] = useState('')
   const filtered = conversations.filter(c =>
-    c.participantName.toLowerCase().includes(search.toLowerCase()) ||
-    c.itemName.toLowerCase().includes(search.toLowerCase())
+    (c.participantName || '').toLowerCase().includes((search || '').toLowerCase()) ||
+    (c.itemName || '').toLowerCase().includes((search || '').toLowerCase())
   )
 
   return (
@@ -89,7 +89,7 @@ function ConversationItem({
       href={`/dashboard/messages/${conv.id}`}
       className={cn(
         'flex items-center gap-3 px-4 py-4 hover:bg-surface-subtle transition-colors border-b border-border-subtle/50',
-        isActive && 'bg-brand-50/10 dark:bg-brand-950/20 border-l-2 border-l-brand-600'
+        isActive && 'bg-brand-selected border-l-2 border-l-brand-600'
       )}
     >
       {/* Avatar */}

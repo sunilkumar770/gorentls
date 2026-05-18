@@ -19,6 +19,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import java.util.Map;
+import java.util.List;
+import com.rentit.model.Payout;
+import com.rentit.model.LedgerTransaction;
+import com.rentit.model.OwnerPayoutAccount;
+import com.rentit.model.enums.PayoutStatus;
+import com.rentit.model.enums.LedgerAccount;
+import com.rentit.model.enums.PayoutOnboardingStatus;
 import jakarta.validation.Valid;
 
 @Slf4j
@@ -107,6 +115,15 @@ public class AdminController {
         return ResponseEntity.ok(resp);
     }
 
+    @DeleteMapping("/users/{userId}")
+    public ResponseEntity<Void> deleteUser(@PathVariable UUID userId,
+                                           Authentication auth,
+                                           HttpServletRequest req) {
+        adminService.deleteUser(userId);
+        auditService.audit("DELETE_USER", "USER", userId, "Deleted user " + userId);
+        return ResponseEntity.noContent().build();
+    }
+
     // ── Owners ─────────────────────────────────────────────────────────────────
 
     /**
@@ -160,6 +177,15 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/listings/{listingId}")
+    public ResponseEntity<Void> deleteListing(@PathVariable UUID listingId,
+                                              Authentication auth,
+                                              HttpServletRequest req) {
+        adminService.deleteListing(listingId);
+        auditService.audit("DELETE_LISTING", "LISTING", listingId, "Completely deleted or anonymized listing " + listingId);
+        return ResponseEntity.noContent().build();
+    }
+
     // ── Bookings / Transactions ────────────────────────────────────────────────
 
     @GetMapping("/bookings")
@@ -199,6 +225,137 @@ public class AdminController {
                 request.getType()
         );
         return ResponseEntity.ok(new SuccessResponse("Broadcast sent to all users", true));
+    }
+
+    // ── Admin Payout Controls ───────────────────────────────────────────────────
+
+    @GetMapping("/payouts")
+    public ResponseEntity<Page<Payout>> getPayouts(
+            @RequestParam(required = false) PayoutStatus status,
+            @RequestParam(required = false) UUID ownerId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return ResponseEntity.ok(adminService.getPayouts(status, ownerId, pageable));
+    }
+
+    @PatchMapping("/payouts/{payoutId}/hold")
+    public ResponseEntity<Payout> holdPayout(@PathVariable UUID payoutId, Authentication auth) {
+        String adminName = auth != null ? auth.getName() : "anonymousAdmin";
+        log.warn("[ADMIN OPERATION] Admin '{}' requested HOLD for payout ID: {}", adminName, payoutId);
+        Payout payout = adminService.holdPayout(payoutId);
+        auditService.audit("HOLD_PAYOUT", "PAYOUT", payoutId, "Admin " + adminName + " put payout " + payoutId + " on hold");
+        return ResponseEntity.ok(payout);
+    }
+
+    @PatchMapping("/payouts/{payoutId}/release")
+    public ResponseEntity<Payout> releasePayout(@PathVariable UUID payoutId, Authentication auth) {
+        String adminName = auth != null ? auth.getName() : "anonymousAdmin";
+        log.warn("[ADMIN OPERATION] Admin '{}' requested RELEASE for payout ID: {}", adminName, payoutId);
+        Payout payout = adminService.releasePayout(payoutId);
+        auditService.audit("RELEASE_PAYOUT", "PAYOUT", payoutId, "Admin " + adminName + " released payout " + payoutId + " from hold");
+        return ResponseEntity.ok(payout);
+    }
+
+    @PatchMapping("/payouts/{payoutId}/force-success")
+    public ResponseEntity<Payout> forceSuccessPayout(@PathVariable UUID payoutId, Authentication auth) {
+        String adminName = auth != null ? auth.getName() : "anonymousAdmin";
+        log.warn("[ADMIN OPERATION] Admin '{}' manually FORCED SUCCESS status for payout ID: {}", adminName, payoutId);
+        Payout payout = adminService.forceSuccessPayout(payoutId);
+        auditService.audit("FORCE_SUCCESS_PAYOUT", "PAYOUT", payoutId, "Admin " + adminName + " manually marked payout " + payoutId + " as SUCCESS");
+        return ResponseEntity.ok(payout);
+    }
+
+    @PatchMapping("/payouts/{payoutId}/force-failed")
+    public ResponseEntity<Payout> forceFailedPayout(
+            @PathVariable UUID payoutId,
+            @RequestBody(required = false) Map<String, String> body,
+            Authentication auth) {
+        String adminName = auth != null ? auth.getName() : "anonymousAdmin";
+        String rawReason = body != null ? body.get("reason") : "Manually failed by admin";
+        // Defensive trimming to prevent DB column overflow
+        String reason = rawReason != null ? rawReason.substring(0, Math.min(rawReason.length(), 255)) : "Manually failed by admin";
+        
+        log.warn("[ADMIN OPERATION] Admin '{}' manually FORCED FAILED status for payout ID: {} (Reason: {})", adminName, payoutId, reason);
+        Payout payout = adminService.forceFailedPayout(payoutId, reason);
+        auditService.audit("FORCE_FAILED_PAYOUT", "PAYOUT", payoutId, "Admin " + adminName + " manually marked payout " + payoutId + " as FAILED: " + reason);
+        return ResponseEntity.ok(payout);
+    }
+
+    // ── Admin Ledger Controls ────────────────────────────────────────────────────
+
+    @GetMapping("/ledger")
+    public ResponseEntity<Page<LedgerTransaction>> getLedger(
+            @RequestParam(required = false) LedgerAccount account,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return ResponseEntity.ok(adminService.getLedgerTransactions(account, pageable));
+    }
+
+    @GetMapping("/ledger/booking/{bookingId}")
+    public ResponseEntity<List<LedgerTransaction>> getLedgerForBooking(@PathVariable UUID bookingId) {
+        return ResponseEntity.ok(adminService.getLedgerTransactionsForBookingList(bookingId));
+    }
+
+    // ── Admin Owner Onboarding / Payout Accounts ─────────────────────────────────
+
+    @GetMapping("/owner-payout-accounts")
+    public ResponseEntity<Page<OwnerPayoutAccount>> getOwnerPayoutAccounts(
+            @RequestParam(required = false) PayoutOnboardingStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return ResponseEntity.ok(adminService.getOwnerPayoutAccounts(status, pageable));
+    }
+
+    @PatchMapping("/owner-payout-accounts/{accountId}/verify")
+    public ResponseEntity<OwnerPayoutAccount> verifyOwnerPayoutAccount(
+            @PathVariable UUID accountId,
+            @RequestBody(required = false) Map<String, String> body,
+            Authentication auth) {
+        String adminName = auth != null ? auth.getName() : "anonymousAdmin";
+        log.warn("[ADMIN OPERATION] Admin '{}' requested VERIFICATION for owner payout account ID: {}", adminName, accountId);
+        
+        String fundAccountId = body != null ? body.get("fundAccountId") : null;
+        String verificationRef = body != null ? body.get("verificationRef") : null;
+        OwnerPayoutAccount account = adminService.verifyOwnerPayoutAccount(accountId, fundAccountId, verificationRef);
+        auditService.audit("VERIFY_PAYOUT_ACCOUNT", "OWNER_PAYOUT_ACCOUNT", accountId, "Admin " + adminName + " verified payout account " + accountId);
+        return ResponseEntity.ok(account);
+    }
+
+    @PatchMapping("/owner-payout-accounts/{accountId}/suspend")
+    public ResponseEntity<OwnerPayoutAccount> suspendOwnerPayoutAccount(@PathVariable UUID accountId, Authentication auth) {
+        String adminName = auth != null ? auth.getName() : "anonymousAdmin";
+        log.warn("[ADMIN OPERATION] Admin '{}' requested SUSPENSION for owner payout account ID: {}", adminName, accountId);
+        
+        OwnerPayoutAccount account = adminService.suspendOwnerPayoutAccount(accountId);
+        auditService.audit("SUSPEND_PAYOUT_ACCOUNT", "OWNER_PAYOUT_ACCOUNT", accountId, "Admin " + adminName + " suspended payout account " + accountId);
+        return ResponseEntity.ok(account);
+    }
+
+    @PatchMapping("/owner-payout-accounts/{accountId}/block")
+    public ResponseEntity<OwnerPayoutAccount> blockOwnerPayoutAccount(@PathVariable UUID accountId, Authentication auth) {
+        String adminName = auth != null ? auth.getName() : "anonymousAdmin";
+        log.warn("[ADMIN OPERATION] Admin '{}' requested BLOCK for owner payout account ID: {}", adminName, accountId);
+        
+        OwnerPayoutAccount account = adminService.blockOwnerPayoutAccount(accountId);
+        auditService.audit("BLOCK_PAYOUT_ACCOUNT", "OWNER_PAYOUT_ACCOUNT", accountId, "Admin " + adminName + " blocked payout account " + accountId);
+        return ResponseEntity.ok(account);
+    }
+
+    @PatchMapping("/owner-payout-accounts/{accountId}/reinstate")
+    public ResponseEntity<OwnerPayoutAccount> reinstateOwnerPayoutAccount(
+            @PathVariable UUID accountId,
+            @RequestBody(required = false) Map<String, String> body,
+            Authentication auth) {
+        String adminName = auth != null ? auth.getName() : "anonymousAdmin";
+        log.warn("[ADMIN OPERATION] Admin '{}' requested REINSTATE for owner payout account ID: {}", adminName, accountId);
+        
+        String verificationRef = body != null ? body.get("verificationRef") : null;
+        OwnerPayoutAccount account = adminService.reinstateOwnerPayoutAccount(accountId, verificationRef);
+        auditService.audit("REINSTATE_PAYOUT_ACCOUNT", "OWNER_PAYOUT_ACCOUNT", accountId, "Admin " + adminName + " reinstated payout account " + accountId);
+        return ResponseEntity.ok(account);
     }
 
 }

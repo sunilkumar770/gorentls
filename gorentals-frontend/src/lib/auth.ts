@@ -9,12 +9,18 @@ export async function getCurrentUser(): Promise<Profile | null> {
   if (!token) return null
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8080';
+    const baseUrl = apiBaseUrl.endsWith('/api') ? apiBaseUrl : `${apiBaseUrl}/api`;
+    console.log(`[getCurrentUser] Fetching user from backend: ${baseUrl}/users/me`);
     const res = await fetch(`${baseUrl}/users/me`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store',
     })
-    if (!res.ok) return null
+    console.log(`[getCurrentUser] Backend response status: ${res.status}`);
+    if (!res.ok) {
+      console.warn(`[getCurrentUser] Failed to fetch user: ${res.status}`);
+      return null
+    }
     const data = await res.json()
     
     // Convert backend response to Profile type
@@ -35,7 +41,8 @@ export async function getCurrentUser(): Promise<Profile | null> {
       city: data.city,
       state: data.state,
       pincode: data.pincode,
-      dateOfBirth: data.dateOfBirth
+      dateOfBirth: data.dateOfBirth,
+      autoApproveBookings: data.autoApproveBookings || false
     }
   } catch (error) {
     console.error('[getCurrentUser] Error:', error);

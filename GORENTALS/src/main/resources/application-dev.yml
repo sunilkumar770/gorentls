@@ -1,3 +1,18 @@
+app:
+  redis:
+    enabled: false
+
+spring:
+  data:
+    redis:
+      repositories:
+        enabled: false
+
+management:
+  health:
+    redis:
+      enabled: false
+
 cors:
   allowed-origins: http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001
   allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
@@ -5,3 +20,10 @@ cors:
   expose-headers: Authorization,X-Total-Count,X-Page,X-PageSize
   allow-credentials: true
   max-age: 3600
+
+logging:
+  level:
+    root: WARN
+    com.rentit: DEBUG
+    org.springframework.web: WARN
+    org.hibernate.SQL: DEBUG

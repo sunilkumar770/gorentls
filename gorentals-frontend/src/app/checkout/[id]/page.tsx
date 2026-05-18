@@ -151,14 +151,15 @@ function CheckoutPaymentContent({ bookingId }: { bookingId: string }) {
   );
 }
 
-export default function CheckoutPaymentPage({ params }: { params: { id: string } }) {
+export default function CheckoutPaymentPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = React.use(params);
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-subtle pb-20 animate-pulse">
         <div className="h-20 bg-card border-b border-slate-100" />
       </div>
     }>
-      <CheckoutPaymentContent bookingId={params.id} />
+      <CheckoutPaymentContent bookingId={id} />
     </Suspense>
   );
 }

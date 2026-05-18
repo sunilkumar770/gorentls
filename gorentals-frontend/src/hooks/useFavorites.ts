@@ -17,7 +17,7 @@ export function useFavorites() {
   const [error, setError] = useState<string | null>(null);
 
   const refetch = useCallback(async () => {
-    const token = typeof window !== 'undefined' ? safeStorage.getItem('gr_token') : null;
+    const token = typeof window !== 'undefined' ? safeStorage.getItem('gorentals_token') : null;
     if (!token) {
       setFavorites([]);
       setLoading(false);

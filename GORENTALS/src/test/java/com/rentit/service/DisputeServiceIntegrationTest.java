@@ -1,6 +1,6 @@
 package com.rentit.service;
 
-import com.rentit.config.IntegrationTestBase;
+import com.rentit.testconfig.IntegrationTestBase;
 import com.rentit.exception.BusinessException;
 import com.rentit.model.Booking;
 import com.rentit.model.Dispute;

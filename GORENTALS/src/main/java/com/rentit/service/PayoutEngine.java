@@ -1,13 +1,8 @@
 package com.rentit.service;
 
 import com.rentit.model.Booking;
-import com.rentit.model.OwnerPayoutAccount;
 import com.rentit.model.Payout;
-import com.rentit.model.enums.EscrowStatus;
-import com.rentit.model.enums.PayoutOnboardingStatus;
-import com.rentit.pricing.PricingCalculator;
 import com.rentit.repository.BookingRepository;
-import com.rentit.repository.OwnerPayoutAccountRepository;
 import com.rentit.repository.PayoutRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -16,13 +11,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -47,7 +40,6 @@ public class PayoutEngine {
 
     private final BookingRepository            bookingRepo;
     private final PayoutRepository             payoutRepo;
-    private final OwnerPayoutAccountRepository ownerAccountRepo;
     private final PayoutTaskService            payoutTaskService;
     private final Counter payoutsInitiatedCounter;
     private final Counter payoutsFailedCounter;
@@ -56,13 +48,11 @@ public class PayoutEngine {
     public PayoutEngine(
         BookingRepository            bookingRepo,
         PayoutRepository             payoutRepo,
-        OwnerPayoutAccountRepository ownerAccountRepo,
         PayoutTaskService            payoutTaskService,
         MeterRegistry                meterRegistry
     ) {
         this.bookingRepo      = bookingRepo;
         this.payoutRepo       = payoutRepo;
-        this.ownerAccountRepo = ownerAccountRepo;
         this.payoutTaskService = payoutTaskService;
 
         this.payoutsInitiatedCounter = Counter.builder("payouts.initiated")
@@ -154,10 +144,5 @@ public class PayoutEngine {
         return java.time.LocalDate.of(year, 4, 1)
             .atStartOfDay(java.time.ZoneId.of("Asia/Kolkata"))
             .toInstant();
-    }
-
-    private String truncate(String s, int maxLen) {
-        if (s == null) return "Unknown error";
-        return s.length() > maxLen ? s.substring(0, maxLen) : s;
     }
 }

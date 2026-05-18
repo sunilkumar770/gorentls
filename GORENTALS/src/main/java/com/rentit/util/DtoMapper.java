@@ -151,6 +151,7 @@ public class DtoMapper {
             .kycDocumentType(profile.getKycDocumentType())
             .kycDocumentId(profile.getKycDocumentId())
             .kycDocumentUrl(profile.getKycDocumentUrl())
+            .autoApproveBookings(user.getSettings() != null ? user.getSettings().getAutoApproveBookings() : false)
             .build();
     }
 }

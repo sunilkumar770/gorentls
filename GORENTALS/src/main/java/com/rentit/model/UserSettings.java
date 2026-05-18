@@ -39,4 +39,8 @@ public class UserSettings {
 
     @Builder.Default
     private String currency = "INR";
+
+    @Builder.Default
+    @Column(name = "auto_approve_bookings")
+    private Boolean autoApproveBookings = false;
 }

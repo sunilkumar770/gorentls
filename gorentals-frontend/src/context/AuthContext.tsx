@@ -5,6 +5,7 @@ import type { Profile } from '@/types';
 import { buildProfile, setToken, clearToken } from '@/services/auth';
 import api from '@/lib/axios';
 import { safeStorage } from '@/lib/safeStorage';
+import websocketService from '@/services/websocketService';
 
 interface AuthContextType {
   user: Profile | null;
@@ -35,7 +36,8 @@ export function AuthProvider({
     async function initAuth() {
       try {
         // 1. Recover token from persistent storage
-        let storedToken = safeStorage.getItem('gr_token');
+        let storedToken = safeStorage.getItem('gorentals_token');
+        console.log('[AuthContext] Initializing. Stored token found:', !!storedToken);
         
         // Fallback to cookie if safeStorage is empty
         if (!storedToken) {
@@ -43,9 +45,10 @@ export function AuthProvider({
             .split('; ')
             .find(row => row.startsWith('gorentals_token='))
             ?.split('=')[1];
+          console.log('[AuthContext] Checking cookie for token:', !!cookieToken);
           if (cookieToken) {
             storedToken = cookieToken;
-            safeStorage.setItem('gr_token', cookieToken);
+            safeStorage.setItem('gorentals_token', cookieToken);
           }
         }
 
@@ -56,14 +59,16 @@ export function AuthProvider({
 
         // Set token immediately for axios interceptors
         setTokenState(storedToken);
+        websocketService.setToken(storedToken);
 
         // 2. Load cached user for instant UI response
-        const storedUser = safeStorage.getItem('gr_user');
+        const storedUser = safeStorage.getItem('gorentals_user');
+        console.log('[AuthContext] Stored user found:', !!storedUser);
         if (storedUser) {
           try {
             setUser(JSON.parse(storedUser));
           } catch {
-            safeStorage.removeItem('gr_user');
+            safeStorage.removeItem('gorentals_user');
           }
         }
 
@@ -71,17 +76,20 @@ export function AuthProvider({
         try {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 8000);
+          console.log('[AuthContext] Validating token with backend...');
           const res = await api.get('/users/me', { signal: controller.signal });
+          console.log('[AuthContext] Token valid. User profile received.');
           clearTimeout(timeout);
 
           const profile = buildProfile(res.data);
           setUser(profile);
-          safeStorage.setItem('gr_user', JSON.stringify(profile));
+          safeStorage.setItem('gorentals_user', JSON.stringify(profile));
         } catch (err: unknown) { 
           const _err = err as { response?: { status?: number; data?: { message?: string; error?: string } }; message?: string };
           const status = _err?.response?.status;
           if (status === 401 || status === 403) {
             console.warn('[AuthContext] Session expired/invalid. Clearing...');
+            websocketService.disconnectPermanently();
             clearToken();
             setTokenState(null);
             setUser(null);
@@ -101,6 +109,7 @@ export function AuthProvider({
 
   useEffect(() => {
     const handleWsAuthFailure = () => {
+      websocketService.disconnectPermanently();
       clearToken();
       setTokenState(null);
       setUser(null);
@@ -111,15 +120,20 @@ export function AuthProvider({
   }, []);
 
   const login = (newToken: string, newUser: Profile) => {
+    console.log('[AuthContext] Logging in user:', newUser.email);
     setToken(newToken);
     // Set cookie for middleware edge reads
     document.cookie = `gorentals_token=${newToken}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`;
-    safeStorage.setItem('gr_user', JSON.stringify(newUser));
+    safeStorage.setItem('gorentals_user', JSON.stringify(newUser));
     setTokenState(newToken);
     setUser(newUser);
+    websocketService.setToken(newToken);
   };
 
   const logout = () => {
+    // Permanently disconnect WebSocket to stop background reconnect loops
+    websocketService.disconnectPermanently();
+
     clearToken();
     // Also clear the HTTP cookie middleware depends on
     document.cookie = 'gorentals_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
@@ -133,7 +147,7 @@ export function AuthProvider({
   };
 
   const updateUser = (newUser: Profile) => {
-    safeStorage.setItem('gr_user', JSON.stringify(newUser));
+    safeStorage.setItem('gorentals_user', JSON.stringify(newUser));
     setUser(newUser);
   };
 
@@ -142,7 +156,7 @@ export function AuthProvider({
       const res = await api.get('/users/me');
       const profile = buildProfile(res.data);
       setUser(profile);
-      safeStorage.setItem('gr_user', JSON.stringify(profile));
+      safeStorage.setItem('gorentals_user', JSON.stringify(profile));
     } catch (err) {
       console.error('[AuthContext] Refresh failed:', err);
       throw err;

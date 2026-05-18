@@ -47,9 +47,17 @@ public class PaymentOutboxProcessor {
         }
 
         // Acquire distributed lock — only ONE instance processes at a time
-        Boolean acquired = redisTemplate.opsForValue()
-            .setIfAbsent(LOCK_KEY, "locked",
-                         java.time.Duration.ofSeconds(LOCK_TTL_SECONDS));
+        Boolean acquired;
+        try {
+            acquired = redisTemplate.opsForValue()
+                .setIfAbsent(LOCK_KEY, "locked",
+                             java.time.Duration.ofSeconds(LOCK_TTL_SECONDS));
+        } catch (Exception e) {
+            // Redis not reachable (e.g. dev mode with no Redis) — run without lock
+            log.debug("Redis unavailable for outbox lock ({}), running without distributed lock", e.getMessage());
+            processEvents();
+            return;
+        }
 
         if (!Boolean.TRUE.equals(acquired)) {
             log.debug("Outbox processor lock held by another instance — skipping");
@@ -59,7 +67,11 @@ public class PaymentOutboxProcessor {
         try {
             processEvents();
         } finally {
-            redisTemplate.delete(LOCK_KEY);
+            try {
+                redisTemplate.delete(LOCK_KEY);
+            } catch (Exception e) {
+                log.debug("Could not release outbox Redis lock: {}", e.getMessage());
+            }
         }
     }
 

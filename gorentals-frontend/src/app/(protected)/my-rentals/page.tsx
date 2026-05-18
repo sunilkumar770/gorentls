@@ -302,7 +302,7 @@ function BookingCard({ booking, status, onCancel, cancelling, onDownload, downlo
         <div className="flex-1 flex flex-col justify-between">
           <div>
             <div className="flex justify-between items-start mb-2">
-              <Link href={`/listing/${booking.listing?.id}`} className="text-xl font-bold text-[#0f172a] hover:text-[#4f46e5] transition-colors line-clamp-1">
+              <Link href={`/listings/${booking.listing?.id}`} className="text-xl font-bold text-[#0f172a] hover:text-[#4f46e5] transition-colors line-clamp-1">
                 {booking.listing?.title}
               </Link>
               <div className="text-right">
@@ -394,7 +394,7 @@ function HistoryRow({ booking, status, onDownload, downloading }: any) {
             {downloading ? <div className="w-4 h-4 border-2 border-slate-400 border-t-slate-800 rounded-full animate-spin" /> : <Download className="w-4 h-4" />}
           </button>
           <Link 
-            href={`/listing/${booking.listing?.id}`}
+            href={`/listings/${booking.listing?.id}`}
             title="View Item"
             className="p-2 text-faint hover:text-[#4f46e5] hover:bg-card rounded-lg border border-transparent hover:border-slate-200 transition-all"
           >
@@ -431,7 +431,7 @@ function FavoriteCard({ fav, onRemove }: any) {
         </div>
       </div>
       <div className="p-5">
-        <Link href={`/listing/${listing.id}`} className="block">
+        <Link href={`/listings/${listing.id}`} className="block">
           <h3 className="text-lg font-bold text-[#0f172a] hover:text-[#4f46e5] transition-colors line-clamp-1 mb-1">
             {listing.title}
           </h3>
@@ -442,7 +442,7 @@ function FavoriteCard({ fav, onRemove }: any) {
         </Link>
         
         <Link 
-          href={`/listing/${listing.id}`}
+          href={`/listings/${listing.id}`}
           className="mt-6 w-full py-3 bg-subtle text-[#0f172a] font-bold text-sm rounded-xl flex items-center justify-center gap-2 hover:bg-[#4f46e5] hover:text-white transition-all"
         >
           Check Availability

@@ -95,11 +95,11 @@ public class BookingEscrowService {
     }
 
     private void applyAdvance(Booking booking, Payment payment) {
-        guardBookingStatus(booking, BookingStatus.PENDING_PAYMENT,
-            BookingStatus.CONFIRMED);
+        guardBookingStatus(booking, BookingStatus.CONFIRMED, BookingStatus.CONFIRMED);
 
         booking.setAdvanceAmount(payment.getAmount());
         booking.setEscrowStatus(EscrowStatus.ADVANCE_HELD);
+        // Booking is already CONFIRMED, transition is a no-op but keeps the event logic
         lifecycleManager.transition(booking, BookingStatus.CONFIRMED, "Advance payment captured");
 
         ledger.post(
@@ -143,7 +143,16 @@ public class BookingEscrowService {
      */
     @Transactional
     public void confirmOwnerAcceptance(Booking booking) {
-        guardBookingStatus(booking, BookingStatus.PENDING_PAYMENT, BookingStatus.CONFIRMED);
+        BookingStatus current = booking.getBookingStatus();
+        if (current == BookingStatus.CONFIRMED) {
+            log.info("Booking {} is already CONFIRMED. Ignoring redundant acceptance call.", booking.getId());
+            return;
+        }
+        if (current != BookingStatus.PENDING && current != BookingStatus.PENDING_PAYMENT) {
+            throw new InvalidStateTransitionException(
+                current, BookingStatus.CONFIRMED, "Booking"
+            );
+        }
         lifecycleManager.transition(booking, BookingStatus.CONFIRMED, "Owner accepted booking");
         log.info("Owner acceptance recorded: booking={}", booking.getId());
     }

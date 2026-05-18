@@ -3,6 +3,8 @@ package com.rentit.repository;
 import com.rentit.model.OwnerPayoutAccount;
 import com.rentit.model.enums.PayoutOnboardingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -43,6 +45,8 @@ public interface OwnerPayoutAccountRepository extends JpaRepository<OwnerPayoutA
      * e.g. findAllByStatus(BLOCKED) for fraud review queue.
      */
     List<OwnerPayoutAccount> findAllByStatus(PayoutOnboardingStatus status);
+
+    Page<OwnerPayoutAccount> findByStatus(PayoutOnboardingStatus status, Pageable pageable);
 
     /**
      * Lookup by RazorpayX fund account ID.

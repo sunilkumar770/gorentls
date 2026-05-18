@@ -51,7 +51,18 @@ public class AuthController {
             @Valid @RequestBody ForgotPasswordRequest request) {
         authService.initiatePasswordReset(request.getEmail());
         return ResponseEntity.ok(new SuccessResponse(
-                "If the account exists, a password reset email has been sent",
+                "If the account exists, a password reset verification code has been sent",
+                true
+        ));
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<VerifyOtpResponse> verifyOtp(
+            @Valid @RequestBody VerifyOtpRequest request) {
+        String resetToken = authService.verifyOtp(request.getIdentifier(), request.getOtp());
+        return ResponseEntity.ok(new VerifyOtpResponse(
+                resetToken,
+                "OTP verified successfully",
                 true
         ));
     }

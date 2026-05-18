@@ -52,7 +52,7 @@ export function useOwnerBookings() {
 
   const refetch = useCallback(async () => {
     // Only fetch if we have a token
-    const token = typeof window !== 'undefined' ? safeStorage.getItem('gr_token') : null;
+    const token = typeof window !== 'undefined' ? safeStorage.getItem('gorentals_token') : null;
     if (!token) {
       setBookings([]);
       setLoading(false);

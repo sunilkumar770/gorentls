@@ -3,7 +3,9 @@ import Link from 'next/link'
 
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE:    'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  IN_USE:    'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   UPCOMING:  'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  CONFIRMED: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   COMPLETED: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
   CANCELLED: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400',
   PENDING:   'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
@@ -20,8 +22,8 @@ export function BookingCard({ booking }: { booking: any }) {
     >
       {/* Item image */}
       <div className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0">
-        {booking.listing?.imageUrl ? (
-          <img src={booking.listing.imageUrl} alt={booking.listing.title} className="w-full h-full object-cover" />
+        {booking.listing?.images?.[0] ? (
+          <img src={booking.listing.images[0]} alt={booking.listing.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-slate-400 text-xl">📦</div>
         )}

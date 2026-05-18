@@ -52,7 +52,7 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
           aria-label="Message input"
           className={cn(
             "flex-1 resize-none rounded-xl border border-border-subtle bg-surface-subtle",
-            "text-text-primary placeholder-text-tertiary px-4 py-3 text-sm",
+            "text-text-primary placeholder-text-tertiary px-4 py-3 text-base md:text-sm",
             "focus:outline-none focus:ring-2 focus:ring-brand-500/30",
             "disabled:opacity-50 disabled:cursor-not-allowed max-h-32 overflow-y-auto",
             "transition-all duration-short"

@@ -1,7 +1,7 @@
 package com.rentit.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rentit.config.IntegrationTestBase;
+import com.rentit.testconfig.IntegrationTestBase;
 import com.rentit.dto.payment.ConfirmPaymentRequest;
 import com.rentit.dto.payment.CreateOrderRequest;
 import com.rentit.model.Booking;

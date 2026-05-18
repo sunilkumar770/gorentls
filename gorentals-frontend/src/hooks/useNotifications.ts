@@ -30,21 +30,34 @@ export function useNotifications(userId: string | undefined) {
   // Real-time channel
   useEffect(() => {
     if (!userId) return;
-    const channel = supabase
-      .channel(`notifications:${userId}`)
+    
+    // Use a unique channel name to prevent React Strict Mode 
+    // from reusing a channel that has already been subscribed to.
+    const channelName = `notifications:${userId}:${Math.random().toString(36).slice(2)}`;
+    const channel = supabase.channel(channelName);
+
+    channel
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'notifications',
-        filter: `user_id=eq.${userId}`,  // NOTE: snake_case matches Supabase column
+        filter: `user_id=eq.${userId}`,
       }, (payload) => {
         const n = payload.new as Notification;
         setNotifications(prev => [n, ...prev]);
         if (!n.isRead) setUnreadCount(c => c + 1);
-      })
-      .subscribe();
+      });
 
-    return () => { supabase.removeChannel(channel); };
+    // Only subscribe after adding handlers
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log(`[useNotifications] Subscribed to ${channelName}`);
+      }
+    });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [userId]);
 
   // Polling for unread count as fallback/sync
@@ -53,10 +66,10 @@ export function useNotifications(userId: string | undefined) {
 
     const fetchCount = async () => {
       try {
-        const res = await api.get<{ unreadCount: number }>('/notifications/unread-count');
+        const res = await api.get<{ unreadCount: number }>('/notifications?size=1');
         setUnreadCount(res.data.unreadCount);
       } catch (err) {
-        console.error('[useNotifications] Polling error:', err);
+        console.warn('[useNotifications] Polling silent failure:', err);
       }
     };
 

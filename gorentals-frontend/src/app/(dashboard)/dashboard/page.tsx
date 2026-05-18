@@ -12,18 +12,27 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { MessagePreview } from '../components/MessagePreview'
 
 async function getRenterData(userId: string, token: string) {
-  const base = process.env.NEXT_PUBLIC_API_URL
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8080'
   const headers = { Authorization: `Bearer ${token}` }
   try {
     const [bookingsRes, messagesRes] = await Promise.all([
-      fetch(`${base}/api/bookings?userId=${userId}&limit=5`, { headers, cache: 'no-store' }),
+      fetch(`${base}/api/bookings/my-bookings`, { headers, cache: 'no-store' }),
       fetch(`${base}/api/conversations?userId=${userId}&limit=3`, { headers, cache: 'no-store' }),
     ])
+    
+    let bookings = []
+    if (bookingsRes.ok) {
+      const data = await bookingsRes.json()
+      // Backend returns a Page object: { content: [...] }
+      bookings = data.content || data || []
+    }
+
     return {
-      bookings: bookingsRes.ok ? await bookingsRes.json() : [],
+      bookings,
       messages: messagesRes.ok ? await messagesRes.json() : [],
     }
-  } catch {
+  } catch (err) {
+    console.error('[getRenterData] Error:', err)
     return { bookings: [], messages: [] }
   }
 }
@@ -35,8 +44,10 @@ export default async function RenterDashboardPage() {
   if (!user) redirect('/login?from=/dashboard')
 
   const { bookings, messages } = await getRenterData(user.id, token)
-  const activeBookings = bookings.filter((b: any) => b.status === 'ACTIVE')
-  const upcomingBookings = bookings.filter((b: any) => b.status === 'UPCOMING')
+  
+  // Map backend statuses to dashboard categories
+  const activeBookings = bookings.filter((b: any) => b.status === 'IN_USE')
+  const upcomingBookings = bookings.filter((b: any) => ['PENDING', 'CONFIRMED'].includes(b.status))
 
   return (
     <div className="space-y-8 animate-in fade-in duration-normal">
@@ -170,9 +181,9 @@ function StatCard({
   label: string; value: number; icon: string; empty: string; variant: 'success' | 'info' | 'brand'
 }) {
   const styles = {
-    success: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400',
-    info: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
-    brand: 'bg-brand-50 text-brand-600 dark:bg-brand-900/20 dark:text-brand-400',
+    success: 'bg-emerald-50 text-emerald-700',
+    info:    'bg-blue-50 text-blue-700',
+    brand:   'bg-brand-50 text-brand-700',
   }
 
   return (

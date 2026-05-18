@@ -9,15 +9,16 @@ import { cookies } from 'next/headers'
 export default async function ConversationPage({
   params,
 }: {
-  params: { conversationId: string }
+  params: Promise<{ conversationId: string }>
 }) {
+  const { conversationId } = await params
   const user = await getCurrentUser()
   if (!user) redirect('/login?redirect=/dashboard/messages')
 
   const [conversations, conversation, messages] = await Promise.all([
-    getConversations(),
-    getConversation(params.conversationId),
-    getMessages(params.conversationId),
+    getConversations(user.id),
+    getConversation(conversationId, user.id),
+    getMessages(conversationId),
   ])
 
   if (!conversation) notFound()
@@ -33,7 +34,7 @@ export default async function ConversationPage({
         <ConversationList
           conversations={conversations}
           currentUser={user}
-          activeId={params.conversationId}
+          activeId={conversationId}
         />
       </div>
 

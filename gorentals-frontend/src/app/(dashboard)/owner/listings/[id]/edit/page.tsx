@@ -58,12 +58,12 @@ export default function EditListingPage() {
           description:     data.description     ?? '',
           category:        data.category        ?? '',
           subcategory:     data.subcategory      ?? '',
-          pricePerDay:     data.pricePerDay      ?? 0,
-          securityDeposit: data.securityDeposit  ?? 0,
+          pricePerDay:     data.price_per_day    ?? 0,
+          securityDeposit: data.security_deposit ?? 0,
           city:            data.city             ?? '',
           state:           data.state            ?? '',
           condition:       (data as any).condition ?? 'Good',
-          isAvailable:     data.isAvailable      ?? true,
+          isAvailable:     data.is_available     ?? true,
         });
       } catch {
         toast.error('Could not load listing. Please try again.');
@@ -99,8 +99,15 @@ export default function EditListingPage() {
       setIsSaving(true);
       setSaveSuccess(false);
       await updateListing(id, {
-        ...form,
+        title: form.title,
         description: form.description || null,
+        category: form.category,
+        subcategory: form.subcategory || null,
+        price_per_day: form.pricePerDay,
+        security_deposit: form.securityDeposit,
+        is_available: form.isAvailable,
+        city: form.city,
+        state: form.state,
       } as Partial<Listing>);
       setSaveSuccess(true);
       toast.success('Listing updated successfully!');
@@ -142,8 +149,8 @@ export default function EditListingPage() {
             </Typography>
           )}
         </div>
-        <Badge variant={listing?.isPublished ? 'success' : 'warning'} size="sm">
-          {listing?.isPublished ? 'Published' : 'Draft'}
+        <Badge variant={listing?.is_published ? 'success' : 'warning'} size="sm">
+          {listing?.is_published ? 'Published' : 'Draft'}
         </Badge>
       </div>
 

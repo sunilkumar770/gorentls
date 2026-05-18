@@ -21,7 +21,7 @@ export default function OwnerDraftsPage() {
   const fetchDrafts = async () => {
     try {
       setIsLoading(true)
-      const res = await api.get('/api/listings/owner/drafts')
+      const res = await api.get('/listings/owner/drafts')
       setDrafts(res.data.content || [])
     } catch (err) {
       console.error('Failed to fetch drafts:', err)
@@ -43,7 +43,7 @@ export default function OwnerDraftsPage() {
 
     try {
       setIsPublishing(id)
-      await api.patch(`/api/listings/${id}/publish`)
+      await api.patch(`/listings/${id}/publish`)
       toast.success('Listing published successfully!')
       setDrafts(prev => prev.filter(d => d.id !== id))
     } catch (err: any) {
@@ -58,7 +58,7 @@ export default function OwnerDraftsPage() {
     if (!confirm('Are you sure you want to delete this draft?')) return
 
     try {
-      await api.delete(`/api/listings/${id}`)
+      await api.delete(`/listings/${id}`)
       toast.success('Draft deleted')
       setDrafts(prev => prev.filter(d => d.id !== id))
     } catch (err) {
@@ -111,7 +111,7 @@ export default function OwnerDraftsPage() {
             icon="📝"
             title="No drafts found"
             description="All your listings are either published or you haven't created any yet."
-            cta={{ label: 'Create Listing', href: '/owner/listings/new' }}
+            cta={{ label: 'Create Listing', href: '/create-listing' }}
           />
         </div>
       ) : (

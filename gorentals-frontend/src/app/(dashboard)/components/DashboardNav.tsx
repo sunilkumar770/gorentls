@@ -1,16 +1,18 @@
 // src/app/(dashboard)/components/DashboardNav.tsx
 'use client'
+
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import type { AuthUser } from '@/context/AuthContext'
 import { Logo } from '@/components/ui/Logo'
 import { Avatar } from '@/components/ui/Avatar'
-import { Typography, Body } from '@/components/ui/Typography'
+import { Typography } from '@/components/ui/Typography'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { Bell } from 'lucide-react'
 import { useNotifications } from '@/hooks/useNotifications'
+import { useChat } from '@/context/ChatContext'
 
 const RENTER_NAV = [
   { href: '/dashboard',           label: 'Overview',  icon: '🏠' },
@@ -31,6 +33,7 @@ export function DashboardNav({ user }: { user: AuthUser }) {
   const pathname = usePathname()
   const { logout } = useAuth()
   const { unreadCount } = useNotifications(user?.id)
+  const { totalUnread } = useChat()
   const nav = user.role === 'OWNER' ? OWNER_NAV : RENTER_NAV
 
   return (
@@ -42,21 +45,29 @@ export function DashboardNav({ user }: { user: AuthUser }) {
 
           {/* Nav items — horizontal on desktop */}
           <div className="hidden md:flex items-center gap-1">
-            {nav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors min-h-[40px]',
-                  pathname === item.href
-                    ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/50 dark:text-brand-400'
-                    : 'text-text-secondary hover:bg-surface-subtle hover:text-text-primary'
-                )}
-              >
-                <span className="text-base" aria-hidden="true">{item.icon}</span>
-                {item.label}
-              </Link>
-            ))}
+            {nav.map((item) => {
+              const isMessages = item.label === 'Messages'
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors min-h-[40px]',
+                    pathname === item.href
+                      ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/50 dark:text-brand-400'
+                      : 'text-text-secondary hover:bg-surface-subtle hover:text-text-primary'
+                  )}
+                >
+                  <span className="text-base" aria-hidden="true">{item.icon}</span>
+                  {item.label}
+                  {isMessages && totalUnread > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-slate-950">
+                      {totalUnread > 9 ? '9+' : totalUnread}
+                    </span>
+                  )}
+                </Link>
+              )
+            })}
           </div>
 
           {/* User section */}
@@ -103,24 +114,31 @@ export function DashboardNav({ user }: { user: AuthUser }) {
 
         {/* Mobile bottom nav */}
         <div className="md:hidden flex items-center gap-1 pb-2 overflow-x-auto no-scrollbar">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'shrink-0 flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl text-[10px] font-medium transition-colors min-h-[48px] justify-center',
-                pathname === item.href
-                  ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/50 dark:text-brand-400'
-                  : 'text-text-tertiary'
-              )}
-            >
-              <span className="text-base" aria-hidden="true">{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
+          {nav.map((item) => {
+            const isMessages = item.label === 'Messages'
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'relative shrink-0 flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl text-[10px] font-medium transition-colors min-h-[48px] justify-center',
+                  pathname === item.href
+                    ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/50 dark:text-brand-400'
+                    : 'text-text-tertiary'
+                )}
+              >
+                <span className="text-base" aria-hidden="true">{item.icon}</span>
+                {item.label}
+                {isMessages && totalUnread > 0 && (
+                  <span className="absolute top-1 right-2 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-slate-950">
+                    {totalUnread > 9 ? '9+' : totalUnread}
+                  </span>
+                )}
+              </Link>
+            )
+          })}
         </div>
       </div>
     </nav>
   )
 }
-

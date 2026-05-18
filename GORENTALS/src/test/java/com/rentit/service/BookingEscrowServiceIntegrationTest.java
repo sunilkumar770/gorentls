@@ -1,6 +1,6 @@
 package com.rentit.service;
 
-import com.rentit.config.IntegrationTestBase;
+import com.rentit.testconfig.IntegrationTestBase;
 import com.rentit.model.Booking;
 import com.rentit.model.Payment;
 import com.rentit.model.enums.BookingStatus;

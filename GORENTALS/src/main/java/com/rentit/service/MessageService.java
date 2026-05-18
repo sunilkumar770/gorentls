@@ -149,11 +149,27 @@ public class MessageService {
 
     @Transactional
     public ConversationResponse startConversation(StartConversationRequest request,
-                                                   String renterEmail) {
-        User renter = userRepository.findByEmail(renterEmail)
-            .orElseThrow(() -> BusinessException.notFound("Renter", renterEmail));
+                                                   String callerEmail) {
+        User caller = userRepository.findByEmail(callerEmail)
+            .orElseThrow(() -> BusinessException.notFound("User", callerEmail));
         Listing listing = listingRepository.findById(request.getListingId())
             .orElseThrow(() -> BusinessException.notFound("Listing", request.getListingId()));
+
+        User renter;
+        if (request.getRenterId() != null) {
+            // Owner starting a chat with a specific renter
+            if (!listing.getOwner().getId().equals(caller.getId())) {
+                throw BusinessException.forbidden("Only the listing owner can specify a renterId");
+            }
+            renter = userRepository.findById(request.getRenterId())
+                .orElseThrow(() -> BusinessException.notFound("Renter", request.getRenterId()));
+        } else {
+            // Renter starting a chat with the owner
+            renter = caller;
+            if (listing.getOwner().getId().equals(renter.getId())) {
+                throw BusinessException.badRequest("You cannot start a conversation with yourself");
+            }
+        }
 
         return conversationRepository
             .findByListingIdAndRenterId(listing.getId(), renter.getId())
@@ -169,7 +185,7 @@ public class MessageService {
                 init.setConversationId(conv.getId().toString());
                 init.setMessageText(request.getMessage());
                 init.setMessageType("TEXT");
-                processIncomingMessage(init, renterEmail);
+                processIncomingMessage(init, callerEmail);
                 return mapToConversationResponse(
                     conversationRepository.findByIdOptimized(conv.getId()).orElseThrow());
             });
@@ -262,10 +278,15 @@ public class MessageService {
 
     // ── Mappers ───────────────────────────────────────────────────────────────
     private ConversationResponse mapToConversationResponse(Conversation conv) {
+        String imageUrl = (conv.getListing().getImages() != null && !conv.getListing().getImages().isEmpty())
+            ? conv.getListing().getImages().get(0)
+            : null;
+
         return ConversationResponse.builder()
             .id(conv.getId())
             .listingId(conv.getListing().getId())
             .listingTitle(conv.getListing().getTitle())
+            .listingImage(imageUrl)
             .ownerId(conv.getOwner().getId())
             .ownerName(conv.getOwner().getFullName())
             .renterId(conv.getRenter().getId())

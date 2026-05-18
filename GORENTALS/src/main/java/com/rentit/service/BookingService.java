@@ -1,7 +1,6 @@
 package com.rentit.service;
 
 import com.rentit.dto.BookingRequest;
-import com.rentit.dto.UserPublicResponse;
 import com.rentit.dto.BookingResponse;
 import com.rentit.exception.BusinessException;
 import com.rentit.model.*;
@@ -22,7 +21,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -38,7 +36,6 @@ public class BookingService {
     private final NotificationService   notificationService;
     private final BookingEscrowService  escrowService;
     private final RazorpayIntegrationService razorpayService;
-    private final ReceiptService        receiptService;
     private final BookingLifecycleManager lifecycleManager;
     private final RefundOutboxRepository refundOutboxRepository;
     private final PaymentOutboxRepository paymentOutboxRepository;
@@ -128,24 +125,57 @@ public class BookingService {
         booking.setTotalAmount(quote.totalAmount());
         booking.setAdvanceAmount(quote.advanceAmount());
         booking.setRemainingAmount(quote.remainingAmount());
-        booking.setBookingStatus(BookingStatus.PENDING);
         booking.setEscrowStatus(com.rentit.model.enums.EscrowStatus.PENDING);
         booking.setPaymentStatus("PENDING");
         booking.setIdempotencyKey(request.getIdempotencyKey());
 
-        Booking saved = bookingRepository.save(booking);
-        log.info("Booking created: {} for listing {} by renter {} (idempotencyKey: {})",
-            saved.getId(), listing.getId(), renter.getEmail(), request.getIdempotencyKey());
+        boolean autoApprove = false;
+        User owner = listing.getOwner();
+        if (owner.getSettings() != null && Boolean.TRUE.equals(owner.getSettings().getAutoApproveBookings())) {
+            autoApprove = true;
+        }
 
-        notificationService.sendNotification(
-            listing.getOwner().getId(),
-            "New Booking Request",
-            String.format("You have a new booking request for '%s' from %s.",
-                listing.getTitle(), renter.getFullName()),
-            "BOOKING_REQUEST"
-        );
+        if (autoApprove) {
+            booking.setBookingStatus(BookingStatus.CONFIRMED);
+            Booking saved = bookingRepository.save(booking);
+            
+            // Create blocked date since it is already confirmed
+            BlockedDate bd = new BlockedDate();
+            bd.setListing(listing);
+            bd.setBooking(saved);
+            bd.setStartDate(startDate);
+            bd.setEndDate(endDate);
+            bd.setReason("BOOKING");
+            blockedDateRepository.save(bd);
+            
+            log.info("Booking {} automatically approved by owner settings", saved.getId());
 
-        return DtoMapper.mapToBookingResponse(saved);
+            notificationService.sendNotification(
+                listing.getOwner().getId(),
+                "Booking Automatically Confirmed",
+                String.format("A new booking request for '%s' from %s was automatically confirmed.",
+                    listing.getTitle(), renter.getFullName()),
+                "BOOKING_CONFIRMED"
+            );
+
+            return DtoMapper.mapToBookingResponse(saved);
+        } else {
+            booking.setBookingStatus(BookingStatus.PENDING);
+            Booking saved = bookingRepository.save(booking);
+            
+            log.info("Booking created: {} for listing {} by renter {} (idempotencyKey: {})",
+                saved.getId(), listing.getId(), renter.getEmail(), request.getIdempotencyKey());
+
+            notificationService.sendNotification(
+                listing.getOwner().getId(),
+                "New Booking Request",
+                String.format("You have a new booking request for '%s' from %s.",
+                    listing.getTitle(), renter.getFullName()),
+                "BOOKING_REQUEST"
+            );
+
+            return DtoMapper.mapToBookingResponse(saved);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -184,15 +214,20 @@ public class BookingService {
                                 .map(DtoMapper::mapToBookingResponse);
     }
 
-    /** Get paginated bookings for an owner. BUG-07 FIX: 404 not RuntimeException. */
+    /** Get paginated bookings for an owner with optional status filter. BUG-07 FIX: 404 not RuntimeException. */
     @Transactional(readOnly = true)
-    public Page<BookingResponse> getBookingsForOwner(String ownerEmail, Pageable pageable) {
+    public Page<BookingResponse> getBookingsForOwner(String ownerEmail, BookingStatus status, Pageable pageable) {
         User owner = userRepository.findByEmail(ownerEmail)
             .orElseThrow(() -> BusinessException.notFound("Owner", ownerEmail));
 
         if (owner.getUserType() != User.UserType.OWNER
             && owner.getUserType() != User.UserType.ADMIN) {
             throw BusinessException.forbidden("User is not an owner");
+        }
+
+        if (status != null) {
+            return bookingRepository.findByOwnerIdAndBookingStatus(owner.getId(), status, pageable)
+                                    .map(DtoMapper::mapToBookingResponse);
         }
 
         return bookingRepository.findByOwnerId(owner.getId(), pageable)
@@ -234,12 +269,7 @@ public class BookingService {
         EscrowStatus escrow = booking.getEscrowStatus();
 
         if (current == BookingStatus.PENDING_PAYMENT || current == BookingStatus.PENDING) {
-            // 1. Update Booking Status
-            booking.setBookingStatus(BookingStatus.CONFIRMED);
-            booking.setUpdatedAt(LocalDateTime.now());
-            bookingRepository.save(booking);
-
-            // 2. Create Payment Outbox Event for Capture
+            // 1. Create Payment Outbox Event for Capture
             if (booking.getRazorpayPaymentId() != null) {
                 PaymentOutboxEvent event = PaymentOutboxEvent.builder()
                         .bookingId(booking.getId())
@@ -252,7 +282,7 @@ public class BookingService {
                 log.info("Payment capture event queued for booking {}", booking.getId());
             }
 
-            // 3. Mark escrow (this might need to be adjusted if escrow logic also calls external APIs)
+            // 2. Mark escrow (this will transition the booking status to CONFIRMED and handle notifications/save/broadcast)
             escrowService.confirmOwnerAcceptance(booking);
             
             return DtoMapper.mapToBookingResponse(booking);

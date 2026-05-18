@@ -1,0 +1,6 @@
+﻿
+2026-05-16 00:09:48.198 [http-nio-8080-exec-2] ERROR [5012164c51f2492b] c.r.exception.GlobalExceptionHandler - 
+Unhandled exception: JSON parse error: Unexpected character ('e' (code 101)): was expecting double-quote to start 
+field name
+
+

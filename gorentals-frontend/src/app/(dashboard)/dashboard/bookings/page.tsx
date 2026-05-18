@@ -25,12 +25,13 @@ export default function RenterBookingsPage() {
     const fetchBookings = async () => {
       try {
         const token = document.cookie.split('; ').find(row => row.startsWith('gorentals_token='))?.split('=')[1]
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/bookings?userId=${user?.id}`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8080'}/api/bookings/my-bookings`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
         if (res.ok) {
           const data = await res.json()
-          setBookings(data)
+          // Extract content from Page object
+          setBookings(data.content || data || [])
         }
       } catch (err) {
         console.error(err)
@@ -43,9 +44,9 @@ export default function RenterBookingsPage() {
 
   const filteredBookings = bookings.filter((b: any) => {
     if (filter === 'ALL') return true
-    if (filter === 'UPCOMING') return ['PENDING', 'CONFIRMED'].includes(b.bookingStatus)
-    if (filter === 'COMPLETED') return b.bookingStatus === 'COMPLETED'
-    if (filter === 'CANCELLED') return b.bookingStatus === 'CANCELLED'
+    if (filter === 'UPCOMING') return ['PENDING', 'CONFIRMED', 'IN_USE'].includes(b.status)
+    if (filter === 'COMPLETED') return b.status === 'COMPLETED'
+    if (filter === 'CANCELLED') return b.status === 'CANCELLED'
     return true
   })
 

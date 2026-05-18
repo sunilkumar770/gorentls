@@ -4,7 +4,7 @@ import { safeStorage } from './safeStorage';
 const TOKEN_KEY = 'gorentals_token';  // matches your existing localStorage key
 
 const api = axios.create({
-  baseURL:         process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080/api',
+  baseURL:         'http://127.0.0.1:8080/api', // Force IP to avoid localhost IPv6 issues
   withCredentials: true,
   timeout:         15_000,
   headers: {
@@ -20,6 +20,7 @@ api.interceptors.request.use(config => {
       config.headers.Authorization = `Bearer ${token}`;
     }
   }
+  console.log(`[axios] Request: ${config.method?.toUpperCase()} ${config.url}`);
   return config;
 });
 

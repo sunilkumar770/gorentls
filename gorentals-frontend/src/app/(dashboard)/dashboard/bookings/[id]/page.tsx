@@ -29,8 +29,9 @@ import {
   cancelBooking, 
   acceptBooking, 
   rejectBooking, 
-  triggerReceiptDownload 
+  triggerReceiptDownload,
 } from '@/services/bookings'
+import { getConversations, startConversation } from '@/services/messages'
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING_PAYMENT: 'Payment Pending',
@@ -109,6 +110,46 @@ export default function BookingDetailPage() {
       toast.success('Receipt downloaded successfully!', { id: 'receipt' })
     } catch (err) {
       toast.error('Failed to download receipt', { id: 'receipt' })
+    }
+  }
+
+  const handleChat = async () => {
+    if (!booking || !user) return
+    try {
+      setIsActionLoading(true)
+      // 1. Get all conversations for the user
+      const convs = await getConversations()
+      
+      // 2. Find matching conversation (same listing and renter)
+      const existing = convs.find(c => 
+        c.listingId === booking.listing.id && 
+        c.renterId === booking.renter.id
+      )
+
+      if (existing) {
+        router.push(`/dashboard/messages/${existing.id}`)
+        return
+      }
+
+      // 3. If no conversation exists, we can start one
+      const isRenter = user.id === booking.renter.id
+      const isOwner = user.id === booking.owner.id
+
+      if (isRenter || isOwner) {
+        const newConv = await startConversation(
+          booking.listing.id, 
+          `Hi, I'm reaching out about the booking for ${booking.listing.title}.`,
+          isOwner ? booking.renter.id : undefined
+        )
+        router.push(`/dashboard/messages/${newConv.id}`)
+      } else {
+        toast.error('You are not authorized to chat for this booking.')
+      }
+    } catch (err) {
+      console.error('[Chat] Error:', err)
+      toast.error('Failed to open chat')
+    } finally {
+      setIsActionLoading(false)
     }
   }
 
@@ -235,7 +276,12 @@ export default function BookingDetailPage() {
                   </Typography>
                 </div>
               </div>
-              <Button variant="secondary" className="rounded-xl gap-2">
+              <Button 
+                variant="secondary" 
+                className="rounded-xl gap-2"
+                onClick={handleChat}
+                disabled={isActionLoading}
+              >
                 <MessageSquare className="w-4 h-4" />
                 Chat
               </Button>

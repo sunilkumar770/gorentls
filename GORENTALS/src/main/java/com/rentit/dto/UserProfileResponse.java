@@ -34,4 +34,7 @@ public class UserProfileResponse {
     private String kycDocumentType;
     private String kycDocumentId;
     private String kycDocumentUrl;
+    
+    // Settings
+    private Boolean autoApproveBookings;
 }

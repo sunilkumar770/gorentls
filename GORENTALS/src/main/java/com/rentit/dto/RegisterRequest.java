@@ -7,13 +7,10 @@ import jakarta.validation.constraints.*;
  */
 public class RegisterRequest {
 
-    @NotBlank(message = "First name is required")
-    @Size(min = 2, max = 50, message = "First name must be between 2 and 50 characters")
     private String firstName;
-
-    @NotBlank(message = "Last name is required")
-    @Size(min = 2, max = 50, message = "Last name must be between 2 and 50 characters")
     private String lastName;
+
+    private String fullName;
 
     @NotBlank(message = "Email is required")
     @Email(message = "Email must be valid")
@@ -21,13 +18,14 @@ public class RegisterRequest {
 
     @NotBlank(message = "Password is required")
     @Size(min = 8, max = 128, message = "Password must be between 8 and 128 characters")
-    @Pattern(regexp = "^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])", 
+    @Pattern(regexp = "^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*]).*", 
              message = "Password must contain uppercase, number, and special character")
     private String password;
 
-    @NotBlank(message = "Phone number is required")
-    @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$", message = "Phone number must be valid")
+    private String phone;
     private String phoneNumber;
+
+    private String userType; // RENTER or OWNER
 
     // Constructors, getters, setters
     public RegisterRequest() {}
@@ -64,11 +62,35 @@ public class RegisterRequest {
         this.password = password;
     }
 
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
     public String getPhoneNumber() {
         return phoneNumber;
     }
 
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
+    }
+
+    public String getUserType() {
+        return userType;
+    }
+
+    public void setUserType(String userType) {
+        this.userType = userType;
     }
 }

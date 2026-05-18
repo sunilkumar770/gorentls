@@ -50,7 +50,6 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
     /**
      * Find available published listings
      */
-    @EntityGraph(attributePaths = {"owner", "owner.profile"})
     Page<Listing> findByIsPublishedTrueAndIsAvailableTrue(Pageable pageable);
     
     /**
@@ -70,13 +69,12 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
      */
     @EntityGraph(attributePaths = {"owner", "owner.profile"})
     @Query("SELECT l FROM Listing l WHERE " +
-           "(cast(:city as string) IS NULL OR LOWER(l.city) LIKE LOWER(:city)) " +
-           "AND (cast(:category as string) IS NULL OR LOWER(l.category) = LOWER(:category)) " +
-           "AND (cast(:type as string) IS NULL OR LOWER(l.type) = LOWER(:type)) " +
-           "AND (cast(:minPrice as java.math.BigDecimal) IS NULL OR l.pricePerDay >= :minPrice) " +
-           "AND (cast(:maxPrice as java.math.BigDecimal) IS NULL OR l.pricePerDay <= :maxPrice) " +
-           "AND l.isPublished = true AND l.isAvailable = true " +
-           "ORDER BY l.createdAt DESC")
+           "(:city IS NULL OR LOWER(l.city) LIKE LOWER(CAST(:city AS string))) " +
+           "AND (:category IS NULL OR LOWER(l.category) = LOWER(CAST(:category AS string))) " +
+           "AND (:type IS NULL OR LOWER(l.type) = LOWER(CAST(:type AS string))) " +
+           "AND (:minPrice IS NULL OR l.pricePerDay >= :minPrice) " +
+           "AND (:maxPrice IS NULL OR l.pricePerDay <= :maxPrice) " +
+           "AND l.isPublished = true AND l.isAvailable = true ")
     Page<Listing> searchListings(@Param("city") String city,
                                  @Param("category") String category,
                                  @Param("type") String type,
@@ -89,8 +87,8 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
      */
     @EntityGraph(attributePaths = {"owner", "owner.profile"})
     @Query("SELECT l FROM Listing l WHERE l.isPublished = true AND l.isAvailable = true " +
-           "AND (LOWER(l.title) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-           "OR LOWER(l.description) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+           "AND (LOWER(l.title) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
+           "OR LOWER(l.description) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))")
     Page<Listing> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
     
     /**

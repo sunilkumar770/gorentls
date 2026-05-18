@@ -39,9 +39,19 @@ class WebSocketService {
   private authFailListeners  = new Set<AuthFailCallback>();
 
   private token: string | null = null;
+  private activeToken: string | null = null;
 
   public setToken(token: string): void {
-    this.token = token;
+    if (this.token !== token) {
+      console.log('[WS] Token changed. Re-initializing connection settings.');
+      this.token = token;
+      
+      // If client is already active with a different token, disconnect and rebuild
+      if (this.client && this.activeToken !== token) {
+        console.log('[WS] Deactivating existing active connection due to token change');
+        this.disconnectPermanently();
+      }
+    }
   }
 
   private getToken(): string | null {
@@ -53,8 +63,8 @@ class WebSocketService {
     if (!url) {
       // Fail loud in dev (report recommendation), fall back in prod
       if (process.env.NODE_ENV === 'development') {
-        console.warn('[WS] NEXT_PUBLIC_WS_URL not set — using localhost:8080');
-        return 'http://localhost:8080/ws/chat';
+        console.warn('[WS] NEXT_PUBLIC_WS_URL not set — using 127.0.0.1:8080');
+        return 'http://127.0.0.1:8080/ws/chat';
       }
       throw new Error('[WS] NEXT_PUBLIC_WS_URL must be set in production');
     }
@@ -90,12 +100,14 @@ class WebSocketService {
 
     if (onReady) this.pendingOnConnect.add(onReady);
 
+    this.activeToken = token;
+
     this.client = new Client({
       webSocketFactory: () => new SockJS(this.getWsUrl()),
       connectHeaders:   { Authorization: `Bearer ${token}` },
       reconnectDelay:   3000,
-      heartbeatIncoming: 10000,
-      heartbeatOutgoing: 10000,
+      heartbeatIncoming: 20000,
+      heartbeatOutgoing: 20000,
 
       debug: (str) => {
         if (process.env.NODE_ENV === 'development') console.debug('[WS]', str);
@@ -124,7 +136,8 @@ class WebSocketService {
 
       // Log ALL STOMP protocol errors — never leave this empty
       onStompError: (frame) => {
-        console.error('[WS] STOMP error:', frame.headers['message'], '|', frame.body);
+        // If it's a normal shutdown or server-initiated close, log as info/warning rather than throwing
+        console.warn('[WS] STOMP connection closed/error:', frame.headers['message'] || 'No message', '|', frame.body || 'No body');
       },
     });
 
@@ -220,6 +233,7 @@ class WebSocketService {
     this.subscriptions.clear();
     this.pendingOnConnect.clear();
     if (this.client) { this.client.deactivate(); this.client = null; }
+    this.token = null; // Clear token on disconnect
     this.notify(false);
   }
 

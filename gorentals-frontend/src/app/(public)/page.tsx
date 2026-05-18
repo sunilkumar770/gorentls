@@ -20,7 +20,7 @@ interface ListingDTO {
 }
 
 async function getListings(): Promise<ListingDTO[]> {
-  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8080'
   try {
     const res = await fetch(`${base}/api/listings?limit=12`, {
       cache: 'no-store',

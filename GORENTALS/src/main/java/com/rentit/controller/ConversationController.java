@@ -1,6 +1,8 @@
 package com.rentit.controller;
 
-import com.rentit.dto.messaging.*;
+import com.rentit.dto.messaging.ConversationResponse;
+import com.rentit.dto.messaging.MessageResponse;
+import com.rentit.dto.messaging.StartConversationRequest;
 import com.rentit.service.MessageService;
 import jakarta.validation.Valid;   // Spring Boot 3.3.6
 import org.springframework.http.HttpStatus;

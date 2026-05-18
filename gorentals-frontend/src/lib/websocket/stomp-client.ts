@@ -11,8 +11,8 @@ export function useStomp() {
 
   useEffect(() => {
     // Determine the base WS URL
-    // If NEXT_PUBLIC_API_URL is "http://localhost:8080/api", WS URL should be "http://localhost:8080/ws"
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+    // If NEXT_PUBLIC_API_URL is "http://127.0.0.1:8080/api", WS URL should be "http://127.0.0.1:8080/ws"
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8080/api';
     const wsBaseUrl = apiBase.replace('/api', '/ws');
     
     // Retrieve token for authentication

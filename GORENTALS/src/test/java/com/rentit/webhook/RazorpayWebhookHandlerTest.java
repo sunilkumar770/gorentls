@@ -1,6 +1,6 @@
 package com.rentit.webhook;
 
-import com.rentit.config.IntegrationTestBase;
+import com.rentit.testconfig.IntegrationTestBase;
 import com.rentit.model.Booking;
 import com.rentit.model.Payout;
 import com.rentit.model.enums.EscrowStatus;

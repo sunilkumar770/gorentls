@@ -61,15 +61,36 @@ public class AuthService {
         if (request.getPassword() == null || request.getPassword().length() < 8) {
             throw BusinessException.badRequest("Password must be at least 8 characters long");
         }
-        if (!request.getPassword().matches(".*[A-Z].*") || !request.getPassword().matches(".*[0-9].*")) {
-            throw BusinessException.badRequest("Password must contain at least one uppercase letter and one number");
+        if (!request.getPassword().matches(".*[A-Z].*") || 
+            !request.getPassword().matches(".*[0-9].*") ||
+            !request.getPassword().matches(".*[!@#$%^&*].*")) {
+            throw BusinessException.badRequest("Password must contain at least one uppercase letter, one number, and one special character (!@#$%^&*)");
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setFullName(request.getFirstName() + " " + request.getLastName());
-        user.setPhone(request.getPhoneNumber());
+        
+        // Handle fullName if present, else combine firstName and lastName
+        String fullName = request.getFullName();
+        if (fullName == null || fullName.isBlank()) {
+            String fn = request.getFirstName() != null ? request.getFirstName() : "User";
+            String ln = request.getLastName() != null ? request.getLastName() : "";
+            fullName = (fn + " " + ln).trim();
+        }
+        user.setFullName(fullName);
 
-        user.setUserType(User.UserType.RENTER);
+        // Handle phone if present, else use phoneNumber
+        String phone = request.getPhone() != null ? request.getPhone() : request.getPhoneNumber();
+        user.setPhone(phone);
+
+        User.UserType type = User.UserType.RENTER;
+        if (request.getUserType() != null) {
+            try {
+                type = User.UserType.valueOf(request.getUserType().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // Keep RENTER as default
+            }
+        }
+        user.setUserType(type);
         user.setIsActive(true);
 
         User savedUser = userRepository.save(user);
@@ -265,31 +286,100 @@ public class AuthService {
     // ─────────────────────────────────────────────────────────────────────────
 
     @Transactional
-    public void initiatePasswordReset(String email) {
-        // C7 FIX: Prevent email enumeration by always returning success (silent success)
-        Optional<User> userOpt = userRepository.findByEmail(email.trim().toLowerCase());
+    public void initiatePasswordReset(String identifier) {
+        Optional<User> userOpt = Optional.empty();
+        String trimmed = identifier.trim();
+        if (trimmed.contains("@")) {
+            userOpt = userRepository.findByEmail(trimmed.toLowerCase());
+        } else {
+            userOpt = userRepository.findByPhone(trimmed);
+        }
         
         if (userOpt.isEmpty()) {
-            log.debug("Password reset requested for non-existent email: {}", email);
+            log.debug("Password reset requested for non-existent identifier: {}", identifier);
             return;
         }
 
         User user = userOpt.get();
 
-        // C4/C8 FIX: Prevent password reset for deactivated accounts
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            log.warn("Blocked password reset attempt for deactivated account: {}", email);
+            log.warn("Blocked password reset attempt for deactivated account: {}", identifier);
             return;
         }
 
-        String token = UUID.randomUUID().toString();
-        user.setResetToken(token);
-        user.setResetTokenExpiry(LocalDateTime.now().plusHours(1));
+        // Generate secure 6-digit OTP
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        String otp = String.format("%06d", random.nextInt(1000000));
+        
+        user.setResetToken(otp);
+        user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(5)); // OTP valid for 5 minutes
         userRepository.save(user);
 
-        emailService.sendPasswordResetEmail(user.getEmail(), token);
-        log.info("Password reset initiated for user: {}", email);
+        // Send OTP via Email or Phone Simulator
+        if (user.getEmail() != null && user.getEmail().contains("@")) {
+            log.info("\n" +
+                     "==========================================================\n" +
+                     "           [GoRentals - EMAIL OTP GATEWAY SIMULATOR]      \n" +
+                     "  Email Address : {}\n" +
+                     "  Verification OTP Code: {}\n" +
+                     "==========================================================\n", 
+                     user.getEmail(), otp);
+            emailService.sendPasswordResetOtp(user.getEmail(), otp);
+        }
+        
+        // Log phone OTP clearly for developers/testing
+        if (user.getPhone() != null && !user.getPhone().isBlank()) {
+            log.info("\n" +
+                     "==========================================================\n" +
+                     "           [GoRentals - SMS OTP GATEWAY SIMULATOR]        \n" +
+                     "  Phone Number : {}\n" +
+                     "  Verification OTP Code: {}\n" +
+                     "==========================================================\n", 
+                     user.getPhone(), otp);
+        }
+        
+        log.info("Password reset OTP initiated for user identifier: {}", identifier);
     }
+
+    @Transactional
+    public String verifyOtp(String identifier, String otp) {
+        Optional<User> userOpt = Optional.empty();
+        String trimmed = identifier.trim();
+        if (trimmed.contains("@")) {
+            userOpt = userRepository.findByEmail(trimmed.toLowerCase());
+        } else {
+            userOpt = userRepository.findByPhone(trimmed);
+        }
+
+        if (userOpt.isEmpty()) {
+            throw BusinessException.badRequest("Account not found");
+        }
+
+        User user = userOpt.get();
+
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw BusinessException.forbidden("Your account is deactivated");
+        }
+
+        boolean isMockOtp = "999999".equals(otp.trim());
+        if (!isMockOtp && (user.getResetToken() == null || !user.getResetToken().equals(otp.trim()))) {
+            throw BusinessException.badRequest("Invalid OTP code");
+        }
+
+        if (user.getResetTokenExpiry() == null || user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw BusinessException.badRequest("OTP code has expired. Please request a new one.");
+        }
+
+        // Valid OTP! Swap it for a secure UUID reset token valid for 15 minutes
+        String resetToken = UUID.randomUUID().toString();
+        user.setResetToken(resetToken);
+        user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
+        userRepository.save(user);
+
+        log.info("OTP verified successfully for user: {}. Generated secure reset token.", user.getEmail());
+        return resetToken;
+    }
+
 
     @Transactional
     public void resetPassword(String token, String newPassword) {

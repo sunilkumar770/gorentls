@@ -183,6 +183,33 @@ public class Payout {
         this.updatedAt = Instant.now();
     }
 
+    /**
+     * Admin-initiated release of a hold, returning it to PENDING.
+     */
+    public void releaseHold() {
+        this.status      = PayoutStatus.PENDING;
+        this.scheduledAt = Instant.now();
+        this.updatedAt   = Instant.now();
+    }
+
+    /**
+     * Admin manually forces success (manual bank reconciliation).
+     */
+    public void forceSuccess() {
+        this.status     = PayoutStatus.SUCCESS;
+        this.executedAt = Instant.now();
+        this.updatedAt  = Instant.now();
+    }
+
+    /**
+     * Admin manually marks payout as failed.
+     */
+    public void forceFailed(String reason) {
+        this.status        = PayoutStatus.FAILED;
+        this.failureReason = reason;
+        this.updatedAt     = Instant.now();
+    }
+
     // ── Getters ──────────────────────────────────────────────────────────────
 
     public UUID getId()              { return id; }

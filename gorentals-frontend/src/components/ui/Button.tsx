@@ -72,7 +72,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         )}
         {...props}
       >
-        {loading ? (
+        {asChild ? (
+          children
+        ) : loading ? (
           <>
             <Spinner size={size === 'sm' ? 14 : 16} className="shrink-0 mr-2" />
             <span>{children}</span>

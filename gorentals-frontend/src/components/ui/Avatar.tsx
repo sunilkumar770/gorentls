@@ -17,9 +17,11 @@ const SIZE_MAP = {
 }
 
 export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
-  const initials = name
+  const safeName = name || 'User'
+  const initials = safeName
     .split(' ')
     .map(w => w[0])
+    .filter(Boolean)
     .join('')
     .toUpperCase()
     .slice(0, 2)

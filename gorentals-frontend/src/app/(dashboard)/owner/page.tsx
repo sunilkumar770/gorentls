@@ -10,26 +10,73 @@ import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { EarningsChart } from '@/components/analytics/EarningsChart'
 import { AlertCircle, TrendingUp, Info } from 'lucide-react'
+import { BookingRequestCard } from '@/app/(dashboard)/components/BookingRequestCard'
+import { AutoApproveToggle } from '@/app/(dashboard)/components/AutoApproveToggle'
+
+export const dynamic = 'force-dynamic'
 
 async function getOwnerData(ownerId: string, token: string) {
   const base = process.env.NEXT_PUBLIC_API_URL
   const headers = { Authorization: `Bearer ${token}` }
+  
+  const [listingsRes, draftsRes, bookingRequestsRes, earningsRes, statsRes] = await Promise.all([
+    fetch(`${base}/api/listings/owner/mine`, { headers, cache: 'no-store', next: { revalidate: 0 } }).catch(() => null),
+    fetch(`${base}/api/listings/owner/drafts`, { headers, cache: 'no-store', next: { revalidate: 0 } }).catch(() => null),
+    fetch(`${base}/api/bookings/owner/bookings?status=PENDING`, { headers, cache: 'no-store', next: { revalidate: 0 } }).catch(() => null),
+    fetch(`${base}/api/earnings/owner/current`, { headers, cache: 'no-store', next: { revalidate: 0 } }).catch(() => null),
+    fetch(`${base}/api/bookings/owner/stats?period=8weeks`, { headers, cache: 'no-store', next: { revalidate: 0 } }).catch(() => null),
+  ])
+
+  let listings = []
+  let drafts = []
+  let pendingBookings = []
+  let earnings = null
+  let stats = []
+
   try {
-    const [listingsRes, bookingRequestsRes, earningsRes, statsRes] = await Promise.all([
-      fetch(`${base}/api/items/owner/mine`, { headers, cache: 'no-store' }),
-      fetch(`${base}/api/bookings/owner/bookings?status=PENDING`, { headers, cache: 'no-store' }),
-      fetch(`${base}/api/earnings/owner/current`, { headers, cache: 'no-store' }),
-      fetch(`${base}/api/bookings/owner/stats?period=8weeks`, { headers, cache: 'no-store' }),
-    ])
-    return {
-      listings: listingsRes.ok ? (await listingsRes.json()).content || [] : [],
-      pendingBookings: bookingRequestsRes.ok ? (await bookingRequestsRes.json()).content || [] : [],
-      earnings: earningsRes.ok ? await earningsRes.json() : null,
-      stats: statsRes.ok ? await statsRes.json() : [],
+    if (listingsRes && listingsRes.ok) {
+      const data = await listingsRes.json()
+      listings = data.content || data || []
     }
-  } catch {
-    return { listings: [], pendingBookings: [], earnings: null, stats: [] }
+  } catch (err) {
+    console.error('Error parsing listings:', err)
   }
+
+  try {
+    if (draftsRes && draftsRes.ok) {
+      const data = await draftsRes.json()
+      drafts = data.content || data || []
+    }
+  } catch (err) {
+    console.error('Error parsing drafts:', err)
+  }
+
+  try {
+    if (bookingRequestsRes && bookingRequestsRes.ok) {
+      const data = await bookingRequestsRes.json()
+      pendingBookings = data.content || data || []
+    }
+  } catch (err) {
+    console.error('Error parsing bookings:', err)
+  }
+
+  try {
+    if (earningsRes && earningsRes.ok) {
+      earnings = await earningsRes.json()
+    }
+  } catch (err) {
+    console.error('Error parsing earnings:', err)
+  }
+
+  try {
+    if (statsRes && statsRes.ok) {
+      stats = await statsRes.json()
+    }
+  } catch (err) {
+    console.error('Error parsing stats:', err)
+  }
+
+  return { listings, drafts, pendingBookings, earnings, stats }
 }
 
 export default async function OwnerDashboardPage() {
@@ -40,7 +87,17 @@ export default async function OwnerDashboardPage() {
   if (!user) redirect('/login?from=/owner')
   if (user.role !== 'OWNER' && user.role !== 'ADMIN') redirect('/dashboard')
 
-  const { listings, pendingBookings, earnings, stats } = await getOwnerData(user.id, token)
+  const { listings, drafts, pendingBookings: allPendingBookings, earnings, stats } = await getOwnerData(user.id, token)
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const pendingBookings = allPendingBookings.filter((booking: any) => {
+    if (!booking.startDate) return false
+    const start = new Date(booking.startDate)
+    start.setHours(0, 0, 0, 0)
+    return start >= today
+  })
 
   return (
     <div className="space-y-8 animate-in fade-in duration-normal">
@@ -65,6 +122,7 @@ export default async function OwnerDashboardPage() {
           </div>
         </Card>
       )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -81,16 +139,19 @@ export default async function OwnerDashboardPage() {
           </div>
         </div>
         <Button asChild variant="primary" size="lg">
-          <Link href="/owner/listings/new">+ Create Listing</Link>
+          <Link href="/create-listing">+ Create Listing</Link>
         </Button>
       </div>
+
+      {/* Auto-Approve Toggle */}
+      <AutoApproveToggle initialEnabled={user.autoApproveBookings ?? false} />
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <StatItem label="Listings" value={listings.length} />
         <StatItem label="Requests" value={pendingBookings.length} highlight={pendingBookings.length > 0} />
         <Link href="/owner/drafts">
-          <StatItem label="Drafts" value="View" highlight={!user.isVerified} />
+          <StatItem label="Drafts" value={drafts.length} highlight={drafts.length > 0} />
         </Link>
         <StatItem 
           label="This Month" 
@@ -186,7 +247,7 @@ export default async function OwnerDashboardPage() {
             icon="🏷️"
             title="No active listings"
             description="Add your first item to start earning today."
-            action={<Button asChild variant="secondary" size="sm"><Link href="/owner/listings/new">Add Item</Link></Button>}
+            action={<Button asChild variant="secondary" size="sm"><Link href="/create-listing">Add Item</Link></Button>}
           />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -218,27 +279,6 @@ function StatItem({ label, value, highlight, variant }: { label: string; value: 
   )
 }
 
-function BookingRequestCard({ booking }: { booking: any }) {
-  return (
-    <Card variant="bordered" className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 hover:bg-surface-subtle transition-all group">
-      <div className="flex-1 min-w-0">
-        <Typography variant="body-md" className="font-bold text-text-primary">
-          {booking.renterName ?? 'Customer'} wants {booking.listing?.title}
-        </Typography>
-        <Typography variant="body-xs" className="mt-1">
-          {new Date(booking.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} –{' '}
-          {new Date(booking.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-          {' · '} <span className="font-bold text-text-primary">₹{booking.totalAmount?.toLocaleString('en-IN')}</span>
-        </Typography>
-      </div>
-      <div className="flex gap-2 shrink-0">
-        <Button variant="success" size="sm" className="flex-1 sm:flex-none">Accept</Button>
-        <Button variant="secondary" size="sm" className="flex-1 sm:flex-none">Decline</Button>
-      </div>
-    </Card>
-  )
-}
-
 function OwnerListingCard({ item }: { item: any }) {
   return (
     <Card padding="none" interactive className="overflow-hidden group">
@@ -249,7 +289,11 @@ function OwnerListingCard({ item }: { item: any }) {
           <div className="flex items-center justify-center h-full text-text-tertiary text-4xl">📷</div>
         )}
         <div className="absolute top-3 right-3">
-          <Badge variant="success" size="sm">Active</Badge>
+          {item.isPublished ? (
+            <Badge variant="success" size="sm">Active</Badge>
+          ) : (
+            <Badge variant="warning" size="sm">Draft</Badge>
+          )}
         </div>
       </div>
       <div className="p-4">

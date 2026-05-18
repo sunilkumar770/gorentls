@@ -1,7 +1,6 @@
+/* gorentals-frontend/src/app/globals.css */
 @import "../styles/tokens.css";
 @import "tailwindcss";
-
-/* ── GoRentals Unified Design System — Production Grade ── */
 
 @theme {
   /* Brand */
@@ -34,6 +33,10 @@
   --color-text-muted:     var(--text-muted);
   --color-text-inverse:   var(--text-inverse);
 
+  /* Brand selected state */
+  --color-brand-selected:        var(--brand-selected);
+  --color-brand-selected-border: var(--brand-selected-border);
+
   /* Radii */
   --radius-sm:   var(--radius-sm);
   --radius-md:   var(--radius-md);
@@ -51,20 +54,9 @@
   --transition-duration-fast:   var(--duration-fast);
   --transition-duration-normal: var(--duration-normal);
   --transition-duration-slow:   var(--duration-slow);
-
-  /* Typography */
-  --font-sans:    var(--font-sans);
-  --font-display: var(--font-display);
 }
 
 @layer base {
-  html {
-    color-scheme: light;
-  }
-  html.dark {
-    color-scheme: dark;
-  }
-
   body {
     background-color: var(--surface-base);
     color: var(--text-primary);
@@ -73,10 +65,9 @@
   }
 
   h1, h2, h3, h4, h5 {
-    font-family: var(--font-display);
-    font-weight: 700;
-    letter-spacing: -0.02em;
     color: var(--text-primary);
+    letter-spacing: -0.02em;
+    font-weight: 700;
   }
 
   ::selection {
@@ -85,9 +76,7 @@
   }
 }
 
-
 @layer utilities {
-  /* ── Unified Interaction Classes ── */
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-2
            focus-visible:ring-brand-500 focus-visible:ring-offset-2
@@ -96,7 +85,7 @@
 
   .card-hover {
     @apply transition-all duration-normal
-           hover:shadow-md hover:border-brand-300 dark:hover:border-brand-700
+           hover:shadow-md hover:border-brand-300
            hover:-translate-y-0.5;
   }
 
@@ -104,13 +93,10 @@
     @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
   }
 
-  /* ── Indigo gradient CTA ── */
-  .gradient-brand,
-  .gradient-teal {
+  .gradient-brand {
     background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
   }
 
-  /* ── Frosted glass navbar ── */
   .glass-nav {
     background: rgba(248, 250, 252, 0.85);
     backdrop-filter: blur(20px) saturate(180%);
@@ -120,20 +106,13 @@
     background: rgba(11, 17, 32, 0.85);
   }
 
-  /* ── Card shadow ── */
-  .shadow-card {
-    box-shadow: var(--shadow-card);
-  }
-  .shadow-card-hover {
-    box-shadow: var(--shadow-hover);
-  }
-
-  /* ── Shimmer skeleton ── */
+  /* ✅ FIXED: was using undefined --bg-subtle and --bg */
   .shimmer {
-    background: linear-gradient(90deg,
-      var(--bg-subtle) 25%,
-      var(--bg) 50%,
-      var(--bg-subtle) 75%
+    background: linear-gradient(
+      90deg,
+      var(--surface-raised) 25%,
+      var(--surface-subtle) 50%,
+      var(--surface-raised) 75%
     );
     background-size: 400% 100%;
     animation: shimmer 1.6s ease-in-out infinite;
@@ -144,10 +123,10 @@
     100% { background-position: -100% 0; }
   }
 
-  /* ── Teal underline (nav active) ── */
   .nav-underline {
     position: relative;
   }
+  /* ✅ FIXED: was using undefined --primary */
   .nav-underline::after {
     content: '';
     position: absolute;
@@ -155,38 +134,28 @@
     left: 0;
     right: 0;
     height: 2px;
-    background: var(--primary);
+    background: var(--color-brand-600);
     border-radius: 999px;
     transform: scaleX(1);
   }
 
-  /* ── Scrollbar utilities ── */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
 
-  /* ── Custom thin scrollbar ── */
   .custom-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: var(--border-strong) transparent;
   }
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
+  .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: var(--border-strong);
     border-radius: 999px;
   }
 
-  /* ── Slow spin animation (for pending states) ── */
   .animate-spin-slow {
     animation: spin 3s linear infinite;
   }
