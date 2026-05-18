@@ -1,5 +1,5 @@
 'use client'
-// GoRentals Theme Provider
+// GoRentals Theme Provider - Locked to light theme defaults
 import * as React from 'react'
 import { ThemeProvider as NextThemesProvider, ThemeProviderProps } from 'next-themes'
 
