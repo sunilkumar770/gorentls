@@ -23,13 +23,13 @@ const TRUST_FEATURES = [
 
 export function TrustBand() {
   return (
-    <section className="bg-slate-50 dark:bg-slate-900/50 border-y border-slate-100 dark:border-slate-800">
+    <section className="bg-surface-subtle border-y border-border-subtle">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-slate-900 dark:text-white">
+          <h2 className="text-3xl font-bold text-text-primary">
             Built for peace of mind
           </h2>
-          <p className="mt-4 text-slate-500 dark:text-slate-400 font-medium max-w-2xl mx-auto">
+          <p className="mt-4 text-text-secondary font-medium max-w-2xl mx-auto">
             GoRentals is the most secure peer-to-peer rental marketplace in India.
           </p>
         </div>
@@ -37,13 +37,13 @@ export function TrustBand() {
           {TRUST_FEATURES.map((f) => (
             <div
               key={f.title}
-              className="group bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 p-8 space-y-4 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all shadow-sm hover:shadow-md"
+              className="group bg-surface-base rounded-[2rem] border border-border-subtle p-8 space-y-4 hover:border-brand-300 transition-all shadow-sm hover:shadow-md"
             >
               <div className="text-4xl group-hover:scale-110 transition-transform duration-300 inline-block">{f.icon}</div>
-              <h3 className="font-bold text-slate-900 dark:text-white text-lg">
+              <h3 className="font-bold text-text-primary text-lg">
                 {f.title}
               </h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+              <p className="text-sm text-text-secondary leading-relaxed">
                 {f.desc}
               </p>
             </div>

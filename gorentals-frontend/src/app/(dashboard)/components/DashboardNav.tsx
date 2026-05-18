@@ -54,14 +54,14 @@ export function DashboardNav({ user }: { user: AuthUser }) {
                   className={cn(
                     'relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors min-h-[40px]',
                     pathname === item.href
-                      ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/50 dark:text-brand-400'
+                      ? 'bg-brand-selected text-brand-600 border border-brand-selected-border/30'
                       : 'text-text-secondary hover:bg-surface-subtle hover:text-text-primary'
                   )}
                 >
                   <span className="text-base" aria-hidden="true">{item.icon}</span>
                   {item.label}
                   {isMessages && totalUnread > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-slate-950">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-surface-base">
                       {totalUnread > 9 ? '9+' : totalUnread}
                     </span>
                   )}
@@ -80,7 +80,7 @@ export function DashboardNav({ user }: { user: AuthUser }) {
             >
               <Bell size={20} />
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-slate-950">
+                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-surface-base">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
@@ -123,14 +123,14 @@ export function DashboardNav({ user }: { user: AuthUser }) {
                 className={cn(
                   'relative shrink-0 flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl text-[10px] font-medium transition-colors min-h-[48px] justify-center',
                   pathname === item.href
-                    ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/50 dark:text-brand-400'
+                    ? 'bg-brand-selected text-brand-600 border border-brand-selected-border/30'
                     : 'text-text-tertiary'
                 )}
               >
                 <span className="text-base" aria-hidden="true">{item.icon}</span>
                 {item.label}
                 {isMessages && totalUnread > 0 && (
-                  <span className="absolute top-1 right-2 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-slate-950">
+                  <span className="absolute top-1 right-2 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-surface-base">
                     {totalUnread > 9 ? '9+' : totalUnread}
                   </span>
                 )}

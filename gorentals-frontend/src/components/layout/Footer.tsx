@@ -53,7 +53,7 @@ export function Footer() {
   if (hiddenRoutes.includes(pathname)) return null;
 
   return (
-    <footer className="bg-[#111111]">
+    <footer className="bg-surface-subtle border-t border-border-subtle">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
 
         {/* 4-column grid */}
@@ -63,11 +63,11 @@ export function Footer() {
           <div className="space-y-5 md:col-span-1">
             <Link href="/" className="flex items-center gap-2.5 group">
               <LogoMark size={32} className="group-hover:scale-105 transition-transform" />
-              <span className="font-display text-xl font-bold text-white tracking-tight">
+              <span className="font-display text-xl font-bold text-text-primary tracking-tight">
                 GoRentals
               </span>
             </Link>
-            <p className="text-sm text-white/50 leading-relaxed max-w-[200px]">
+            <p className="text-sm text-text-secondary leading-relaxed max-w-[200px]">
               The peer-to-peer rental marketplace. Own less, experience more.
             </p>
             {/* Social icons */}
@@ -83,7 +83,7 @@ export function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={label}
-                  className="w-9 h-9 rounded-lg bg-card/6 text-white/50 hover:text-white hover:bg-card/12 flex items-center justify-center transition-all"
+                  className="w-9 h-9 rounded-lg bg-surface-base text-text-secondary hover:text-brand-600 border border-border-subtle flex items-center justify-center transition-all shadow-sm"
                 >
                   <Icon />
                 </a>
@@ -94,7 +94,7 @@ export function Footer() {
           {/* Link columns */}
           {Object.entries(FOOTER_LINKS).map(([heading, links]) => (
             <div key={heading}>
-              <h4 className="text-xs font-bold text-white/40 uppercase tracking-widest mb-5">
+              <h4 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-5">
                 {heading}
               </h4>
               <ul className="space-y-3">
@@ -102,7 +102,7 @@ export function Footer() {
                   <li key={href}>
                     <Link
                       href={href}
-                      className="text-sm text-white/60 hover:text-white transition-colors font-medium"
+                      className="text-sm text-text-secondary hover:text-brand-600 transition-colors font-medium"
                     >
                       {label}
                     </Link>
@@ -114,19 +114,19 @@ export function Footer() {
         </div>
 
         {/* Divider */}
-        <div className="mt-14 border-t border-white/8" />
+        <div className="mt-14 border-t border-border-subtle" />
 
         {/* Copyright row — single line, two sides */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-white/30 font-medium">
+          <p className="text-xs text-text-muted font-medium">
             © {new Date().getFullYear()} GoRentals · Hyderabad, India
           </p>
-          <div className="flex items-center gap-4 text-xs text-white/25 font-medium">
-            <Link href="/privacy" className="hover:text-white/50 transition-colors">Privacy</Link>
+          <div className="flex items-center gap-4 text-xs text-text-muted font-medium">
+            <Link href="/privacy" className="hover:text-text-secondary transition-colors">Privacy</Link>
             <span aria-hidden="true">·</span>
-            <Link href="/terms"   className="hover:text-white/50 transition-colors">Terms</Link>
+            <Link href="/terms"   className="hover:text-text-secondary transition-colors">Terms</Link>
             <span aria-hidden="true">·</span>
-            <Link href="/sitemap" className="hover:text-white/50 transition-colors">Sitemap</Link>
+            <Link href="/sitemap" className="hover:text-text-secondary transition-colors">Sitemap</Link>
           </div>
         </div>
       </div>
